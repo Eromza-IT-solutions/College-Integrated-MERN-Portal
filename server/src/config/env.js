@@ -1,7 +1,7 @@
 // Reads .env and stops the server early, with a clear message, if something is missing.
-require('dotenv').config();
+import 'dotenv/config';
 
-const required = ['MONGODB_URI', 'SESSION_SECRET'];
+const required = process.env.NODE_ENV === 'test' ? [] : ['MONGODB_URI', 'SESSION_SECRET'];
 const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
@@ -10,7 +10,7 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-module.exports = {
+export default {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 5000,
   mongodbUri: process.env.MONGODB_URI,

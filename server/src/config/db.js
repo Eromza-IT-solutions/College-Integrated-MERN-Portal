@@ -1,10 +1,10 @@
-// MongoDB Atlas connection. Call connectDB() once, before the server starts listening.
-const mongoose = require('mongoose');
-const env = require('./env');
+// MongoDB Atlas connection. Call connectDatabase() once, before the server starts listening.
+import mongoose from 'mongoose';
+import env from './env.js';
 
 mongoose.set('strictQuery', true);
 
-async function connectDB() {
+async function connectDatabase() {
   try {
     await mongoose.connect(env.mongodbUri, { serverSelectionTimeoutMS: 10000 });
     console.log(`MongoDB connected: ${mongoose.connection.name}`);
@@ -14,8 +14,8 @@ async function connectDB() {
   }
 }
 
-async function disconnectDB() {
+async function disconnectDatabase() {
   await mongoose.connection.close();
 }
 
-module.exports = { connectDB, disconnectDB };
+export { connectDatabase, disconnectDatabase };

@@ -1,10 +1,10 @@
-const mongoose = require('mongoose');
-const {
+import mongoose from 'mongoose';
+import {
   ROLE_VALUES,
   USER_STATUS,
   USER_STATUS_VALUES,
   DEPARTMENT_ROLES,
-} = require('../utils/constants');
+} from '../utils/constants.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -48,4 +48,4 @@ userSchema.set('toJSON', {
   },
 });
 
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);
