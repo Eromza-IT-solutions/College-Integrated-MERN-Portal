@@ -1,7 +1,7 @@
 // Fixed value lists shared by models, middleware and (through the API) the client.
 // Keep these in one place so Backend, Frontend and Database never disagree.
-// (This replaces the earlier constants.js: it adds ROLE_LABELS, PERMISSION_ACTIONS,
-//  PERMISSION_SCOPES and ACADEMIC_YEAR_STATUS. Nothing was removed.)
+// (This replaces the earlier constants.js. It adds AUTH_TOKEN_PURPOSE, AUTH_TOKEN_TTL_MS,
+//  AUDIT_OUTCOME and TEACHER_STATUS. Nothing was removed.)
 
 export const ROLES = Object.freeze({
   APPLICANT: 'applicant',
@@ -46,9 +46,35 @@ export const ACADEMIC_YEAR_STATUS = Object.freeze({
   CLOSED: 'closed',
 });
 
+// Links sent by email.
+export const AUTH_TOKEN_PURPOSE = Object.freeze({
+  EMAIL_VERIFICATION: 'emailVerification',
+  PASSWORD_RESET: 'passwordReset',
+});
+
+// How long a link works. PROPOSED values: 24 hours to verify, 30 minutes to reset. Team to confirm.
+export const AUTH_TOKEN_TTL_MS = Object.freeze({
+  emailVerification: 24 * 60 * 60 * 1000,
+  passwordReset: 30 * 60 * 1000,
+});
+
+export const AUDIT_OUTCOME = Object.freeze({
+  SUCCESS: 'success',
+  DENIED: 'denied',
+  FAILED: 'failed',
+});
+
+export const TEACHER_STATUS = Object.freeze({
+  ACTIVE: 'active',
+  DEACTIVATED: 'deactivated',
+});
+
 // Roles that must belong to a department.
 export const DEPARTMENT_ROLES = [ROLES.TEACHER, ROLES.HOD];
 
 export const ROLE_VALUES = Object.values(ROLES);
 export const USER_STATUS_VALUES = Object.values(USER_STATUS);
 export const ACADEMIC_YEAR_STATUS_VALUES = Object.values(ACADEMIC_YEAR_STATUS);
+export const AUTH_TOKEN_PURPOSE_VALUES = Object.values(AUTH_TOKEN_PURPOSE);
+export const AUDIT_OUTCOME_VALUES = Object.values(AUDIT_OUTCOME);
+export const TEACHER_STATUS_VALUES = Object.values(TEACHER_STATUS);
