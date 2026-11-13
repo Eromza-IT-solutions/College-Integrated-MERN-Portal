@@ -1,5 +1,5 @@
 // Fills the DEV database with dummy data so everyone can work and test:
-//   9 roles, 4 departments, the current academic year, one demo user per role
+//   8 roles, 4 departments, the current academic year, one demo user per role
 //   (except Super Admin, see below) and teacher profiles for the teachers and HODs.
 //
 // Run:  npm run seed      (or: node scripts/seed-demo-data.js)
@@ -9,7 +9,7 @@
 // - Demo users all share ONE password. Set DEMO_PASSWORD in .env (12+ characters), or leave it
 //   out and a random one is printed once at the end. There is no built-in default password.
 // - The Super Admin is NOT created here. Use the separate first-Super-Admin setup command.
-// - Permission rows are not seeded yet: they wait for the team's permission matrix.
+// - Permission rows are seeded by a separate command: npm run seed:permissions.
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { pathToFileURL } from 'url';
@@ -30,7 +30,6 @@ const ROLE_DESCRIPTIONS = {
   websiteAdmin: 'Manages public website content',
   admissionAdmin: 'Manages admissions',
   examAdmin: 'Manages examinations and results',
-  accountsAdmin: 'Manages fees, payments and refunds',
   superAdmin: 'Full access; manages accounts, departments and settings',
 };
 
@@ -51,7 +50,6 @@ export const DEMO_USERS = [
   { fullName: 'Demo Website Admin', email: 'website.admin@demo.example', role: ROLES.WEBSITE_ADMIN },
   { fullName: 'Demo Admission Admin', email: 'admission.admin@demo.example', role: ROLES.ADMISSION_ADMIN },
   { fullName: 'Demo Examination Admin', email: 'exam.admin@demo.example', role: ROLES.EXAM_ADMIN },
-  { fullName: 'Demo Accounts Admin', email: 'accounts.admin@demo.example', role: ROLES.ACCOUNTS_ADMIN },
 ];
 
 // The academic year runs June to May. From June onward, the year that starts this June is current.
