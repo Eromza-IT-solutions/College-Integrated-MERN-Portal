@@ -1,7 +1,7 @@
 // Fixed value lists shared by models, middleware and (through the API) the client.
 // Keep these in one place so Backend, Frontend and Database never disagree.
 // (This replaces the earlier constants.js. It adds AUTH_TOKEN_PURPOSE, AUTH_TOKEN_TTL_MS,
-//  AUDIT_OUTCOME and TEACHER_STATUS. Nothing was removed.)
+//  AUDIT_OUTCOME and TEACHER_STATUS, and removes the Accounts Admin role.)
 
 export const ROLES = Object.freeze({
   APPLICANT: 'applicant',
@@ -11,7 +11,6 @@ export const ROLES = Object.freeze({
   WEBSITE_ADMIN: 'websiteAdmin',
   ADMISSION_ADMIN: 'admissionAdmin',
   EXAM_ADMIN: 'examAdmin',
-  ACCOUNTS_ADMIN: 'accountsAdmin',
   SUPER_ADMIN: 'superAdmin',
 });
 
@@ -24,7 +23,6 @@ export const ROLE_LABELS = Object.freeze({
   websiteAdmin: 'Website Admin',
   admissionAdmin: 'Admission Admin',
   examAdmin: 'Examination Admin',
-  accountsAdmin: 'Accounts Admin',
   superAdmin: 'Super Admin',
 });
 
