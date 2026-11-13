@@ -1,0 +1,1070 @@
+[
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "publicPages",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "publicPages",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "publicPages",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "publicPages",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "publicPages",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "publicPages",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "notices",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "notices",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "notices",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "notices",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "notices",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "notices",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "notices",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "notices",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "notices",
+  "action": "create",
+  "scope": "department"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "notices",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "notices",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "notices",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "notices",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "notices",
+  "action": "update",
+  "scope": "department"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "notices",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "notices",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "notices",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "notices",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "notices",
+  "action": "delete",
+  "scope": "department"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "notices",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "notices",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "applications",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "applications",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "applications",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "applications",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "applications",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "applications",
+  "action": "approve",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "applications",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "applications",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "admissionDocuments",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "admissionDocuments",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "admissionDocuments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "admissionDocuments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "admissionDocuments",
+  "action": "delete",
+  "scope": "own"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "admissionDocuments",
+  "action": "approve",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "students",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "students",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "students",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "students",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "students",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "students",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "students",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "students",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "students",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "students",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "students",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "students",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "admissionPayments",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "student",
+  "resource": "admissionPayments",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "admissionPayments",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "student",
+  "resource": "admissionPayments",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "admissionPayments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "admissionPayments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "admissionPayments",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "admissionPayments",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "admissionRefunds",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "admissionRefunds",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "admissionRefunds",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "admissionRefunds",
+  "action": "approve",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "examPayments",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "student",
+  "resource": "examPayments",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "examPayments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "examPayments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "examPayments",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "examPayments",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "examRefunds",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "examRefunds",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "examRefunds",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "examRefunds",
+  "action": "approve",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "examForms",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "student",
+  "resource": "examForms",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "examForms",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "examForms",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "examForms",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "examForms",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "examForms",
+  "action": "approve",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "examForms",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "examForms",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "results",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "results",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "results",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "results",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "results",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "results",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "results",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "results",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "marks",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "marks",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "marks",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "marks",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "student",
+  "resource": "marks",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "marks",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "marks",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "marks",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "marks",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "marks",
+  "action": "approve",
+  "scope": "department"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "attendance",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "attendance",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "attendance",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "attendance",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "student",
+  "resource": "attendance",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "attendance",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "attendance",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "attendance",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "attendance",
+  "action": "export",
+  "scope": "department"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "attendance",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "timetable",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "timetable",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "timetable",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "timetable",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "timetable",
+  "action": "create",
+  "scope": "department"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "timetable",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "timetable",
+  "action": "update",
+  "scope": "department"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "timetable",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "teachingPlans",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "teachingPlans",
+  "action": "create",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "teachingPlans",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "teachingPlans",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "teachingPlans",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "teachingPlans",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "teachingPlans",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "teachingPlans",
+  "action": "approve",
+  "scope": "department"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "users",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "users",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "users",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "users",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "student",
+  "resource": "users",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "users",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "users",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "users",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "users",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "users",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "users",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "users",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "teachers",
+  "action": "view",
+  "scope": "own"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "teachers",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "teachers",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "teachers",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "teachers",
+  "action": "update",
+  "scope": "own"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "teachers",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "teachers",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "departments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "departments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "departments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "departments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "departments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "departments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "departments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "departments",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "departments",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "departments",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "departments",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "applicant",
+  "resource": "academicYears",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "student",
+  "resource": "academicYears",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "teacher",
+  "resource": "academicYears",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "academicYears",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "websiteAdmin",
+  "resource": "academicYears",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "academicYears",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "academicYears",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "academicYears",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "academicYears",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "academicYears",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "reports",
+  "action": "view",
+  "scope": "department"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "reports",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "reports",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "reports",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "hod",
+  "resource": "reports",
+  "action": "export",
+  "scope": "department"
+ },
+ {
+  "roleKey": "admissionAdmin",
+  "resource": "reports",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "reports",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "reports",
+  "action": "export",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "auditLogs",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "auditLogs",
+  "action": "export",
+  "scope": "all"
+ }
+]
