@@ -103,6 +103,8 @@ export function ask(question, { hidden = false } = {}) {
     };
     const onData = (raw) => {
       // Drop arrow keys and other escape sequences, even when they arrive together with other keys.
+      // Terminal escape sequences intentionally use control characters, so no-control-regex is disabled here.
+      // eslint-disable-next-line no-control-regex
       const chunk = raw.replace(/\u001b\[[0-9;]*[A-Za-z~]/g, '').replace(/\u001b./g, '');
       for (const ch of chunk) {
         if (ch === '\r' || ch === '\n' || ch === '\u0004') return finish(buffer);
