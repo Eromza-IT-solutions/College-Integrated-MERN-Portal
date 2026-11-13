@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "seed": "node scripts/seed-demo-data.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
-    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "create-super-admin": "node scripts/create-super-admin.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
