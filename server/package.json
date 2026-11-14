@@ -15,6 +15,7 @@
     "seed:fees": "node scripts/seed-sample-fees.js",
     "seed:subjects": "node scripts/seed-sample-subjects.js",
     "seed:exam": "node scripts/seed-sample-exam.js",
+    "seed:timetable": "node scripts/seed-sample-timetable.js",
     "seed:permissions": "node scripts/seed-permissions.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",

@@ -14,6 +14,8 @@ const studentSchema = new Schema(
     admissionYearId: { type: Schema.Types.ObjectId, ref: 'AcademicYear', required: true },
     enrollmentNumber: { type: String, required: true, trim: true, unique: true },
     currentSemester: { type: Number, required: true, default: 1, min: 1, max: 12 },
+    // The class division (like A or B) used by the timetable and attendance. Everyone starts in division A.
+    division: { type: String, trim: true, uppercase: true, default: 'A', maxlength: 3 },
     // The group choices made at admission (kept as text, like the form).
     groups: { mainGroup: String, majorGroup: String, minorGroup: String },
     status: { type: String, enum: STUDENT_STATUS_VALUES, default: STUDENT_STATUS.ACTIVE, index: true },
