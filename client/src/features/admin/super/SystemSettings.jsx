@@ -1,696 +1,405 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
-  Bell,
-  ChevronDown,
-  Settings,
-  ShieldCheck,
-  HardDrive,
-  LogOut,
-  User as UserIcon,
-  X,
-  CheckCircle2,
-  Loader2,
-  RotateCcw,
-  Save,
-  Download,
-  History,
-  AlertCircle,
-  Undo2,
+  Settings, ShieldCheck, Bell, HardDrive, ChevronDown, CheckCircle2, RotateCcw,
+  Save, Loader2, Building2, CalendarDays, UserCog, Lock, Clock, KeyRound,
+  Mail, MessageSquare, GraduationCap, BarChart3, CloudUpload, LogOut, User,
 } from "lucide-react";
 
-/*
-  Add to index.html:
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-  Usage: render it in the area to the right of your sidebar (it fills that whole area).
-  <SystemSettings user={{ name: "Super Admin" }} onLogout={...} onSave={async (section, values) => { ...call your API... }} />
-
-  - Each tab saves on its own with "Save Changes". Pass onSave to persist (throw an Error to show a failure message).
-  - DEFAULTS and the sample backup history are placeholders: load real values in the effect marked "load settings".
-*/
-
-/* ───────────── options + defaults ───────────── */
-const YEARS = ["2024 - 2025", "2025 - 2026", "2026 - 2027", "2027 - 2028", "2028 - 2029"];
-const ROLES = ["Student", "Faculty", "Admin", "Super Admin"];
-
+/* ---------- config ---------- */
 const DEFAULTS = {
-  general: { collegeName: "Abeda Inamdar Senior College", academicYear: "2026 - 2027", defaultRole: "Student" },
-  security: { minLength: "8", special: true, twoFactor: false, timeout: "30", attempts: "5" },
-  notifications: { email: true, newUsers: true, admissions: true, reports: false, system: true, digest: "Instant" },
-  backup: { auto: true, frequency: "Daily", retention: "30" },
+  name: "Abeda Inamdar Senior College", year: "2026 - 2027", role: "Student",
+  twoFactor: true, timeout: "30", minLen: "8", lockout: false,
+  email: true, sms: false, admissions: true, reports: false,
+  autoBackup: true, freq: "Daily",
 };
 
 const TABS = [
-  { id: "general", label: "General", icon: Settings, tone: { panel: "from-[#ece7f8] to-[#f7f4fd]", icon: "text-[#5b47d6]", ring: "ring-[#5b47d6]/15" } },
-  { id: "security", label: "Security", icon: ShieldCheck, tone: { panel: "from-[#e3f4ea] to-[#f4fbf7]", icon: "text-[#1f9d55]", ring: "ring-[#1f9d55]/15" } },
-  { id: "notifications", label: "Notifications", icon: Bell, tone: { panel: "from-[#fdf0dc] to-[#fffaf0]", icon: "text-[#d97706]", ring: "ring-[#d97706]/15" } },
-  { id: "backup", label: "Backup", icon: HardDrive, tone: { panel: "from-[#e8f0fd] to-[#f6f9ff]", icon: "text-[#2f6fdd]", ring: "ring-[#2f6fdd]/15" } },
+  { id: "general", label: "General", icon: Settings, keys: ["name", "year", "role"] },
+  { id: "security", label: "Security", icon: ShieldCheck, keys: ["twoFactor", "timeout", "minLen", "lockout"] },
+  { id: "notifications", label: "Notifications", icon: Bell, keys: ["email", "sms", "admissions", "reports"] },
+  { id: "backup", label: "Backup", icon: HardDrive, keys: ["autoBackup", "freq"] },
 ];
 
-const DAY = 24 * 3600 * 1000;
-const seedBackups = () => {
-  const now = Date.now();
-  return [
-    { id: "b1", ts: now - 1 * DAY, size: "14.2 MB", kind: "Automatic" },
-    { id: "b2", ts: now - 2 * DAY, size: "14.1 MB", kind: "Automatic" },
-    { id: "b3", ts: now - 9 * DAY, size: "13.6 MB", kind: "Manual" },
-  ];
-};
+const YEARS = ["2024 - 2025", "2025 - 2026", "2026 - 2027", "2027 - 2028"];
+const ROLES = ["Student", "Teacher", "Staff", "Parent"];
 
-/* ───────────── helpers ───────────── */
-const initialsOf = (name) => name.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const fmt = (ts) => new Date(ts).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-
-const timeAgo = (ts, now) => {
-  const m = Math.floor(Math.max(0, now - ts) / 60000);
-  if (m < 1) return "Just now";
-  if (m < 60) return `${m} min${m > 1 ? "s" : ""} ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} hour${h > 1 ? "s" : ""} ago`;
-  const d = Math.floor(h / 24);
-  return `${d} day${d > 1 ? "s" : ""} ago`;
-};
-
-function useClickOutside(ref, handler) {
-  useEffect(() => {
-    const onDown = (e) => ref.current && !ref.current.contains(e.target) && handler();
-    const onKey = (e) => e.key === "Escape" && handler();
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [ref, handler]);
-}
-
-/* ───────────── small UI pieces ───────────── */
-const inputCls =
-  "w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 transition focus:outline-none focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400";
-const okCls = "border-slate-300 focus:border-[#5b47d6] focus:ring-[#5b47d6]/10";
-const badCls = "border-[#e0473b] focus:ring-[#e0473b]/10";
-
-function Row({ label, htmlFor, hint, error, children }) {
+/* ---------- small components ---------- */
+function Select({ value, onChange, options, id }) {
   return (
-    <div className="grid items-start gap-1.5 sm:grid-cols-[190px_1fr] sm:gap-6">
-      <label htmlFor={htmlFor} className="pt-2.5 text-sm font-semibold text-[#14234b]">
-        {label}
-        {hint && <span className="mt-0.5 block text-xs font-normal text-slate-400">{hint}</span>}
-      </label>
-      <div>
-        {children}
-        {error && <p className="mt-1.5 flex items-center gap-1 text-xs text-[#e0473b]"><AlertCircle size={12} /> {error}</p>}
-      </div>
-    </div>
-  );
-}
-
-function Select({ id, value, onChange, options, disabled }) {
-  return (
-    <div className="relative">
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={`${inputCls} ${okCls} appearance-none pr-10`}>
-        {options.map((o) => (
-          <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>
-        ))}
+    <div className="select">
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => {
+          const v = typeof o === "string" ? o : o.value;
+          const l = typeof o === "string" ? o : o.label;
+          return <option key={v} value={v}>{l}</option>;
+        })}
       </select>
-      <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      <ChevronDown size={16} />
     </div>
   );
 }
 
-function Switch({ checked, onChange, label, disabled }) {
+function Toggle({ on, onChange, label }) {
   return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed ${checked ? "bg-[#5b47d6]" : "bg-slate-300"}`}
-    >
-      <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : ""}`} />
+    <button type="button" role="switch" aria-checked={on} aria-label={label}
+      className={`switch ${on ? "on" : ""}`} onClick={() => onChange(!on)}>
+      <i />
     </button>
   );
 }
 
-function SwitchRow({ title, text, checked, onChange, disabled }) {
+function Row({ label, hint, icon: Icon, htmlFor, children, wide }) {
   return (
-    <div className={`flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3.5 transition ${disabled ? "opacity-50" : "hover:bg-slate-50"}`}>
-      <div className="leading-tight">
-        <p className="text-sm font-semibold text-[#14234b]">{title}</p>
-        {text && <p className="mt-0.5 text-xs text-slate-500">{text}</p>}
+    <div className={`row ${wide ? "row-wide" : ""}`}>
+      <div className="row-label">
+        <label htmlFor={htmlFor}>{Icon && <Icon size={15} />}{label}</label>
+        {hint && <small>{hint}</small>}
       </div>
-      <Switch checked={checked} onChange={onChange} label={title} disabled={disabled} />
+      <div className="row-ctl">{children}</div>
     </div>
   );
 }
 
-function Modal({ title, onClose, children }) {
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+function Preview({ s }) {
+  const ref = useRef(null);
+  const move = (e) => {
+    const el = ref.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    el.style.setProperty("--rx", `${(-y * 8).toFixed(2)}deg`);
+    el.style.setProperty("--ry", `${(x * 8).toFixed(2)}deg`);
+  };
+  const leave = () => { ref.current?.style.setProperty("--rx", "0deg"); ref.current?.style.setProperty("--ry", "0deg"); };
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="fade absolute inset-0 bg-[#14234b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="pop relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-lg font-bold text-[#14234b]">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"><X size={18} /></button>
-        </div>
-        {children}
+    <aside className="preview" ref={ref} onMouseMove={move} onMouseLeave={leave}>
+      <span className="p-orb o1" /><span className="p-orb o2" />
+      <div className="p-icon"><Settings size={38} /></div>
+      <p className="p-soc">M.C.E. Society’s</p>
+      <h3 key={s.name}>{s.name.trim() || "Your college name"}</h3>
+      <span className="p-bar" />
+      <div className="p-chips">
+        <span><CalendarDays size={13} /> {s.year}</span>
+        <span><UserCog size={13} /> New users: {s.role}</span>
       </div>
-    </div>
-  );
-}
-
-/* left illustration panel – reacts live to the form */
-function SidePanel({ tab, draft, saving, now, lastBackup }) {
-  const T = TABS.find((t) => t.id === tab);
-  const Icon = T.icon;
-
-  const score = useMemo(() => {
-    const s = draft.security;
-    const len = Number(s.minLength);
-    return (
-      (len >= 12 ? 30 : len >= 10 ? 20 : 10) +
-      (s.special ? 20 : 0) +
-      (s.twoFactor ? 30 : 0) +
-      (Number(s.attempts) <= 5 ? 10 : 0) +
-      (Number(s.timeout) <= 30 ? 10 : 0)
-    );
-  }, [draft.security]);
-  const level = score >= 80 ? { label: "Strong", bar: "bg-[#1f9d55]", text: "text-[#1f7a46]" } : score >= 50 ? { label: "Good", bar: "bg-[#d97706]", text: "text-[#b45309]" } : { label: "Weak", bar: "bg-[#e0473b]", text: "text-[#c2362b]" };
-
-  const n = draft.notifications;
-  const alertsOn = n.email ? [n.newUsers, n.admissions, n.reports, n.system].filter(Boolean).length : 0;
-
-  return (
-    <aside className={`relative flex min-h-[15rem] flex-col items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${T.tone.panel} p-6 text-center ring-1 ${T.tone.ring}`}>
-      <span className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/50" aria-hidden="true" />
-      <span className="absolute -bottom-12 -left-10 h-32 w-32 rounded-full bg-white/40" aria-hidden="true" />
-
-      <span className={`relative grid h-24 w-24 place-items-center rounded-3xl bg-white shadow-lg ${T.tone.icon}`}>
-        <Icon size={46} className={saving ? "animate-spin motion-reduce:animate-none" : "transition duration-500 hover:rotate-90"} />
-      </span>
-
-      <div className="relative mt-5 w-full">
-        {tab === "general" && (
-          <>
-            <p className="font-['Playfair_Display',serif] text-lg font-bold leading-tight text-[#14234b]">{draft.general.collegeName || "College name"}</p>
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
-              <span className="rounded-full bg-white px-3 py-1 text-[#5b47d6] shadow-sm">{draft.general.academicYear}</span>
-              <span className="rounded-full bg-white px-3 py-1 text-slate-600 shadow-sm">New users: {draft.general.defaultRole}</span>
-            </div>
-          </>
-        )}
-        {tab === "security" && (
-          <>
-            <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Security strength</p>
-            <p className={`mt-1 text-2xl font-bold ${level.text}`}>{level.label}</p>
-            <div className="mx-auto mt-3 h-2.5 w-full max-w-[12rem] overflow-hidden rounded-full bg-white/80" role="progressbar" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100} aria-label="Security strength">
-              <div className={`h-full rounded-full transition-all duration-700 ${level.bar}`} style={{ width: `${score}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-slate-500">{score} / 100</p>
-          </>
-        )}
-        {tab === "notifications" && (
-          <>
-            <p className="text-2xl font-bold text-[#14234b]">{alertsOn} <span className="text-base font-semibold text-slate-500">of 4 alerts on</span></p>
-            <p className="mt-1 text-xs text-slate-500">{n.email ? `Delivery: ${n.digest.toLowerCase()}` : "Email notifications are off"}</p>
-          </>
-        )}
-        {tab === "backup" && (
-          <>
-            <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Last backup</p>
-            <p className="mt-1 text-lg font-bold text-[#14234b]">{lastBackup ? timeAgo(lastBackup, now) : "Never"}</p>
-            <span className={`mt-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm ${draft.backup.auto ? "text-[#1f7a46]" : "text-slate-500"}`}>
-              <span className={`h-2 w-2 rounded-full ${draft.backup.auto ? "bg-[#1f9d55]" : "bg-slate-400"}`} />
-              {draft.backup.auto ? `Auto: ${draft.backup.frequency.toLowerCase()}` : "Auto backup off"}
-            </span>
-          </>
-        )}
+      <div className="p-foot">
+        <span className={s.twoFactor ? "ok" : ""}><ShieldCheck size={14} /> 2-step {s.twoFactor ? "on" : "off"}</span>
+        <span className={s.autoBackup ? "ok" : ""}><HardDrive size={14} /> {s.autoBackup ? s.freq : "No"} backup</span>
       </div>
     </aside>
   );
 }
 
-/* ───────────── page ───────────── */
-export default function SystemSettings({ user = { name: "Super Admin" }, onLogout, onSave }) {
-  const [loading, setLoading] = useState(true);
+/* ---------- page ---------- */
+export default function SystemSettings() {
   const [saved, setSaved] = useState(DEFAULTS);
-  const [draft, setDraft] = useState(DEFAULTS);
+  const [s, setS] = useState(DEFAULTS);
   const [tab, setTab] = useState("general");
-  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-
-  const [backups, setBackups] = useState([]);
-  const [backup, setBackup] = useState({ running: false, progress: 0 });
-  const [restore, setRestore] = useState(null);
-
-  const [toasts, setToasts] = useState([]);
-  const [log, setLog] = useState([]);
-  const [unread, setUnread] = useState(0);
-  const [now, setNow] = useState(Date.now());
-  const [bellOpen, setBellOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const bellRef = useRef(null);
+  const [toast, setToast] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [backup, setBackup] = useState({ running: false, pct: 0, last: "Today, 02:00 AM" });
   const menuRef = useRef(null);
-  useClickOutside(bellRef, () => setBellOpen(false));
-  useClickOutside(menuRef, () => setMenuOpen(false));
 
-  // load settings (replace this timeout with your API call)
+  const set = (k) => (v) => setS((p) => ({ ...p, [k]: v }));
+  const dirtyKeys = useMemo(() => Object.keys(s).filter((k) => s[k] !== saved[k]), [s, saved]);
+  const dirty = dirtyKeys.length > 0;
+  const tabDirty = (t) => t.keys.some((k) => dirtyKeys.includes(k));
+  const nameOk = s.name.trim().length > 2;
+
   useEffect(() => {
-    const id = setTimeout(() => {
-      setSaved(DEFAULTS);
-      setDraft(DEFAULTS);
-      setBackups(seedBackups());
-      setLoading(false);
-    }, 600);
-    return () => clearTimeout(id);
+    const close = (e) => menuRef.current && !menuRef.current.contains(e.target) && setMenu(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, []);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  const dirty = useMemo(
-    () => Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, !same(saved[k], draft[k])])),
-    [saved, draft]
-  );
-  const anyDirty = Object.values(dirty).some(Boolean);
-
-  // warn before leaving the page with unsaved edits
-  useEffect(() => {
-    if (!anyDirty) return;
-    const warn = (e) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
+    const warn = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [anyDirty]);
+  }, [dirty]);
 
-  // simulated "Back up now" progress
-  useEffect(() => {
-    if (!backup.running) return;
+  const save = () => {
+    if (!dirty || !nameOk || saving) return;
+    setSaving(true);
+    // TODO: replace with your API call, e.g. await api.put("/settings", s)
+    setTimeout(() => {
+      setSaved(s); setSaving(false); setToast(true);
+      setTimeout(() => setToast(false), 2600);
+    }, 900);
+  };
+
+  const runBackup = () => {
+    if (backup.running) return;
+    setBackup((b) => ({ ...b, running: true, pct: 0 }));
     const id = setInterval(() => {
       setBackup((b) => {
-        const next = Math.min(100, b.progress + 4 + Math.random() * 9);
-        return { ...b, progress: next };
+        const pct = Math.min(b.pct + 7 + Math.random() * 9, 100);
+        if (pct >= 100) { clearInterval(id); return { running: false, pct: 100, last: "Just now" }; }
+        return { ...b, pct };
       });
-    }, 140);
-    return () => clearInterval(id);
-  }, [backup.running]);
-
-  useEffect(() => {
-    if (backup.running && backup.progress >= 100) {
-      const item = { id: `b${Date.now()}`, ts: Date.now(), size: `${(14 + Math.random()).toFixed(1)} MB`, kind: "Manual" };
-      setBackups((l) => [item, ...l]);
-      setBackup({ running: false, progress: 0 });
-      addLog("Manual backup completed");
-      toast("Backup completed successfully.");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backup]);
-
-  /* feedback */
-  const toast = (message, undo) => {
-    const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, message, undo }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5500);
-  };
-  const dismissToast = (id) => setToasts((t) => t.filter((x) => x.id !== id));
-  function addLog(text) {
-    setLog((l) => [{ id: Date.now() + Math.random(), text, ts: Date.now() }, ...l].slice(0, 8));
-    setUnread((u) => u + 1);
-  }
-
-  /* editing */
-  const set = (section, key, value) => {
-    setDraft((d) => ({ ...d, [section]: { ...d[section], [key]: value } }));
-    if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
+    }, 220);
   };
 
-  const validate = (section) => {
-    const e = {};
-    if (section === "general") {
-      if (draft.general.collegeName.trim().length < 3) e.collegeName = "Enter the college name (at least 3 characters).";
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const save = async () => {
-    if (!validate(tab)) return;
-    const values = { ...draft[tab], ...(tab === "general" ? { collegeName: draft.general.collegeName.trim() } : {}) };
-    try {
-      setSaving(true);
-      if (onSave) await onSave(tab, values);
-      else await new Promise((r) => setTimeout(r, 800)); // demo only
-      setSaved((s) => ({ ...s, [tab]: values }));
-      setDraft((d) => ({ ...d, [tab]: values }));
-      const label = TABS.find((t) => t.id === tab).label;
-      addLog(`${label} settings saved`);
-      toast(`${label} settings saved.`);
-    } catch (err) {
-      toast(err?.message || "Could not save settings. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const discard = () => {
-    setDraft((d) => ({ ...d, [tab]: saved[tab] }));
-    setErrors({});
-  };
-
-  const onTabKey = (e) => {
-    const i = TABS.findIndex((t) => t.id === tab);
-    if (e.key === "ArrowRight") setTab(TABS[(i + 1) % TABS.length].id);
-    if (e.key === "ArrowLeft") setTab(TABS[(i - 1 + TABS.length) % TABS.length].id);
-  };
-
-  const startBackup = () => {
-    if (backup.running) return;
-    setBackup({ running: true, progress: 0 });
-  };
-
-  const confirmRestore = () => {
-    addLog(`Restore started from ${fmt(restore.ts)}`);
-    toast(`Restoring data from ${fmt(restore.ts)}…`);
-    setRestore(null);
-  };
-
-  const g = draft.general;
-  const s = draft.security;
-  const n = draft.notifications;
-  const b = draft.backup;
-  const currentTab = TABS.find((t) => t.id === tab);
+  const idx = TABS.findIndex((t) => t.id === tab);
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#fbf7f4] font-['Poppins',sans-serif] text-slate-700">
-      <style>{`
-        @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.97) } to { opacity: 1; transform: none } }
-        .pop { animation: pop .25s cubic-bezier(.2,.7,.2,1) both; }
-        @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
-        .fade { animation: fade .2s ease both; }
-        @keyframes panelIn { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
-        .panel-in { animation: panelIn .35s ease both; }
-        @keyframes toastIn { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
-        .toast-in { animation: toastIn .3s ease both; }
-        @media (prefers-reduced-motion: reduce) { .pop, .fade, .panel-in, .toast-in, .animate-pulse { animation: none; } }
-      `}</style>
+    <div className="ss">
+      <style>{CSS}</style>
 
-      <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#f4c9d0]/40 blur-3xl" aria-hidden="true" />
-      <div className="pointer-events-none absolute -left-24 bottom-0 h-72 w-72 rounded-full bg-[#cfe0fa]/40 blur-3xl" aria-hidden="true" />
-
-      <div className="relative flex w-full flex-1 flex-col px-5 py-6 sm:px-8 lg:px-10">
-        {/* ── Header ── */}
-        <header className="flex flex-wrap items-center justify-between gap-4 pl-14 lg:pl-0">
-          <div>
-            <h1 className="text-2xl font-bold text-[#14234b] sm:text-[28px]">System Settings</h1>
-            <p className="mt-0.5 text-xs text-slate-500">Configure how the college portal looks, behaves and protects data.</p>
+      <header className="top">
+        <div>
+          <h1>System Settings</h1>
+          <p>Configure how the college portal looks, behaves and protects data.</p>
+        </div>
+        <div className="top-actions">
+          <button className="bell" aria-label="Notifications"><Bell size={18} /><i /></button>
+          <div className="profile" ref={menuRef}>
+            <button className="profile-btn" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
+              <span className="avatar">SA</span><b>Super Admin</b>
+              <ChevronDown size={16} className={menu ? "flip" : ""} />
+            </button>
+            {menu && (
+              <div className="dropdown">
+                <button><User size={16} /> My profile</button>
+                <button className="danger"><LogOut size={16} /> Sign out</button>
+              </div>
+            )}
           </div>
+        </div>
+      </header>
 
-          <div className="flex items-center gap-3">
-            <div className="relative" ref={bellRef}>
-              <button
-                onClick={() => {
-                  setBellOpen(!bellOpen);
-                  setUnread(0);
-                  setMenuOpen(false);
-                }}
-                aria-label={`Notifications${unread ? `, ${unread} new` : ""}`}
-                aria-expanded={bellOpen}
-                className="relative grid h-11 w-11 place-items-center rounded-full bg-white text-[#14234b] shadow-sm ring-1 ring-slate-200 transition hover:shadow-md"
-              >
-                <Bell size={20} />
-                {unread > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-[#8f0014] px-1 text-[10px] font-bold text-white">{unread > 9 ? "9+" : unread}</span>
-                )}
-              </button>
-              {bellOpen && (
-                <div className="pop absolute right-0 z-30 mt-2 w-72 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200">
-                  <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-[#14234b]">Recent changes</p>
-                  {log.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-slate-400">Nothing yet. Saved settings will show up here.</p>
-                  ) : (
-                    <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
-                      {log.map((l) => (
-                        <li key={l.id} className="px-4 py-3">
-                          <p className="text-sm font-medium text-slate-800">{l.text}</p>
-                          <p className="text-[11px] text-slate-400">{timeAgo(l.ts, now)}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+      <section className="panel">
+        <nav className="tabs" role="tablist" style={{ "--i": idx, "--n": TABS.length }}>
+          {TABS.map((t) => (
+            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>
+              <t.icon size={17} /> {t.label}
+              {tabDirty(t) && <span className="dot" title="Unsaved changes" />}
+            </button>
+          ))}
+          <span className="underline" />
+        </nav>
+
+        <div className="body" key={tab}>
+          {tab === "general" && (
+            <div className="split">
+              <Preview s={s} />
+              <div className="form">
+                <Row label="College Name" icon={Building2} htmlFor="name">
+                  <input id="name" className={`input ${nameOk ? "" : "bad"}`} value={s.name}
+                    onChange={(e) => set("name")(e.target.value)} placeholder="Enter college name" />
+                  {!nameOk && <em className="err">College name must be at least 3 characters.</em>}
+                </Row>
+                <Row label="Academic Year" icon={CalendarDays} htmlFor="year">
+                  <Select id="year" value={s.year} onChange={set("year")} options={YEARS} />
+                </Row>
+                <Row label="Default Role" icon={UserCog} hint="Given to newly created accounts" htmlFor="role">
+                  <Select id="role" value={s.role} onChange={set("role")} options={ROLES} />
+                </Row>
+              </div>
             </div>
+          )}
 
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => {
-                  setMenuOpen(!menuOpen);
-                  setBellOpen(false);
-                }}
-                aria-expanded={menuOpen}
-                className="flex items-center gap-2.5 rounded-full bg-white py-1.5 pl-1.5 pr-3 shadow-sm ring-1 ring-slate-200 transition hover:shadow-md"
-              >
-                {user.avatar ? (
-                  <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
-                ) : (
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[#14234b] to-[#8f0014] text-xs font-bold text-white">{initialsOf(user.name)}</span>
-                )}
-                <span className="hidden text-sm font-semibold text-[#14234b] sm:block">{user.name}</span>
-                <ChevronDown size={16} className={`text-slate-500 transition ${menuOpen ? "rotate-180" : ""}`} />
-              </button>
-              {menuOpen && (
-                <div className="pop absolute right-0 z-30 mt-2 w-48 overflow-hidden rounded-xl bg-white py-1 shadow-2xl ring-1 ring-slate-200">
-                  <a href="#" className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"><UserIcon size={16} className="text-slate-400" /> Profile</a>
-                  <a href="#" className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"><Settings size={16} className="text-slate-400" /> Settings</a>
-                  <button onClick={onLogout} className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-2.5 text-sm text-[#8f0014] hover:bg-[#8f0014]/5"><LogOut size={16} /> Logout</button>
-                </div>
-              )}
+          {tab === "security" && (
+            <div className="form single">
+              <Row label="Two-step verification" icon={Lock} hint="Ask for a code when admins sign in" wide>
+                <Toggle on={s.twoFactor} onChange={set("twoFactor")} label="Two-step verification" />
+              </Row>
+              <Row label="Session timeout" icon={Clock} hint="Sign out inactive users automatically" htmlFor="timeout">
+                <Select id="timeout" value={s.timeout} onChange={set("timeout")}
+                  options={[{ value: "15", label: "15 minutes" }, { value: "30", label: "30 minutes" }, { value: "60", label: "1 hour" }, { value: "120", label: "2 hours" }]} />
+              </Row>
+              <Row label="Minimum password length" icon={KeyRound} htmlFor="minLen">
+                <Select id="minLen" value={s.minLen} onChange={set("minLen")}
+                  options={[{ value: "8", label: "8 characters" }, { value: "10", label: "10 characters" }, { value: "12", label: "12 characters" }]} />
+              </Row>
+              <Row label="Lock account after 5 failed sign-ins" icon={ShieldCheck} hint="Unlock from the Manage Users page" wide>
+                <Toggle on={s.lockout} onChange={set("lockout")} label="Lock account after failed sign-ins" />
+              </Row>
             </div>
-          </div>
-        </header>
+          )}
 
-        {/* ── Settings card ── */}
-        <section className="mt-7 flex flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
-          {/* tabs */}
-          <div role="tablist" aria-label="Settings sections" onKeyDown={onTabKey} className="flex gap-1 overflow-x-auto border-b border-slate-100 px-4 pt-2 sm:px-6">
-            {TABS.map((t) => {
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  role="tab"
-                  id={`tab-${t.id}`}
-                  aria-selected={active}
-                  aria-controls={`panel-${t.id}`}
-                  tabIndex={active ? 0 : -1}
-                  onClick={() => setTab(t.id)}
-                  className={`relative flex shrink-0 items-center gap-2 px-4 py-3.5 text-sm font-semibold transition ${active ? "text-[#5b47d6]" : "text-slate-500 hover:text-[#14234b]"}`}
-                >
-                  <t.icon size={16} />
-                  {t.label}
-                  {dirty[t.id] && <span className="h-2 w-2 rounded-full bg-[#f2a900]" title="Unsaved changes" aria-label="Unsaved changes" />}
-                  <span className={`absolute inset-x-3 bottom-0 h-[3px] rounded-t-full bg-[#5b47d6] transition-transform duration-300 ${active ? "scale-x-100" : "scale-x-0"}`} />
+          {tab === "notifications" && (
+            <div className="form single">
+              <Row label="Email alerts" icon={Mail} hint="Account activity and system notices" wide>
+                <Toggle on={s.email} onChange={set("email")} label="Email alerts" />
+              </Row>
+              <Row label="SMS alerts" icon={MessageSquare} hint="Urgent security messages only" wide>
+                <Toggle on={s.sms} onChange={set("sms")} label="SMS alerts" />
+              </Row>
+              <Row label="New admission applications" icon={GraduationCap} hint="Notify the Admission Admin panel" wide>
+                <Toggle on={s.admissions} onChange={set("admissions")} label="Admission notifications" />
+              </Row>
+              <Row label="Weekly AQAR report" icon={BarChart3} hint="Sent every Monday morning" wide>
+                <Toggle on={s.reports} onChange={set("reports")} label="Weekly report" />
+              </Row>
+            </div>
+          )}
+
+          {tab === "backup" && (
+            <div className="form single">
+              <Row label="Automatic backups" icon={CloudUpload} hint="Keep a copy of portal data safe" wide>
+                <Toggle on={s.autoBackup} onChange={set("autoBackup")} label="Automatic backups" />
+              </Row>
+              <Row label="Backup frequency" icon={Clock} htmlFor="freq">
+                <Select id="freq" value={s.freq} onChange={set("freq")} options={["Daily", "Weekly", "Monthly"]} />
+              </Row>
+              <div className="backup-card">
+                <div>
+                  <b>Last backup</b>
+                  <span>{backup.last}</span>
+                </div>
+                <button className="btn-outline" onClick={runBackup} disabled={backup.running}>
+                  {backup.running ? <><Loader2 size={16} className="spin" /> Backing up…</> : <><CloudUpload size={16} /> Back up now</>}
                 </button>
-              );
-            })}
-          </div>
-
-          {/* body */}
-          <div
-            key={tab}
-            role="tabpanel"
-            id={`panel-${tab}`}
-            aria-labelledby={`tab-${tab}`}
-            className="panel-in grid flex-1 content-start gap-8 p-5 sm:p-8 lg:grid-cols-[300px_1fr]"
-          >
-            {loading ? (
-              <>
-                <div className="h-60 animate-pulse rounded-2xl bg-slate-100" />
-                <div className="space-y-5">
-                  {[0, 1, 2].map((i) => <div key={i} className="h-11 animate-pulse rounded-lg bg-slate-100" />)}
-                </div>
-              </>
-            ) : (
-              <>
-                <SidePanel tab={tab} draft={draft} saving={saving} now={now} lastBackup={backups[0]?.ts} />
-
-                <div className="space-y-5">
-                  {/* GENERAL */}
-                  {tab === "general" && (
-                    <>
-                      <Row label="College Name" htmlFor="collegeName" error={errors.collegeName}>
-                        <input id="collegeName" value={g.collegeName} onChange={(e) => set("general", "collegeName", e.target.value)} className={`${inputCls} ${errors.collegeName ? badCls : okCls}`} />
-                      </Row>
-                      <Row label="Academic Year" htmlFor="academicYear">
-                        <Select id="academicYear" value={g.academicYear} onChange={(v) => set("general", "academicYear", v)} options={YEARS} />
-                      </Row>
-                      <Row label="Default Role" htmlFor="defaultRole" hint="Given to newly created accounts">
-                        <Select id="defaultRole" value={g.defaultRole} onChange={(v) => set("general", "defaultRole", v)} options={ROLES} />
-                      </Row>
-                    </>
-                  )}
-
-                  {/* SECURITY */}
-                  {tab === "security" && (
-                    <>
-                      <Row label="Minimum Password Length" htmlFor="minLength">
-                        <Select id="minLength" value={s.minLength} onChange={(v) => set("security", "minLength", v)} options={[{ value: "8", label: "8 characters" }, { value: "10", label: "10 characters" }, { value: "12", label: "12 characters" }]} />
-                      </Row>
-                      <Row label="Session Timeout" htmlFor="timeout" hint="Auto logout when inactive">
-                        <Select id="timeout" value={s.timeout} onChange={(v) => set("security", "timeout", v)} options={[{ value: "15", label: "15 minutes" }, { value: "30", label: "30 minutes" }, { value: "60", label: "1 hour" }, { value: "120", label: "2 hours" }]} />
-                      </Row>
-                      <Row label="Max Login Attempts" htmlFor="attempts" hint="Before the account is locked">
-                        <Select id="attempts" value={s.attempts} onChange={(v) => set("security", "attempts", v)} options={[{ value: "3", label: "3 attempts" }, { value: "5", label: "5 attempts" }, { value: "10", label: "10 attempts" }]} />
-                      </Row>
-                      <div className="space-y-3 pt-1">
-                        <SwitchRow title="Require special characters" text="Passwords must include symbols like ! @ #" checked={s.special} onChange={() => set("security", "special", !s.special)} />
-                        <SwitchRow title="Two-factor authentication for admins" text="Ask admins for a verification code at login" checked={s.twoFactor} onChange={() => set("security", "twoFactor", !s.twoFactor)} />
-                      </div>
-                    </>
-                  )}
-
-                  {/* NOTIFICATIONS */}
-                  {tab === "notifications" && (
-                    <>
-                      <SwitchRow title="Email notifications" text="Master switch for all portal emails" checked={n.email} onChange={() => set("notifications", "email", !n.email)} />
-                      <div className="space-y-3">
-                        <SwitchRow title="New user registrations" text="When someone creates an account" checked={n.newUsers} disabled={!n.email} onChange={() => set("notifications", "newUsers", !n.newUsers)} />
-                        <SwitchRow title="Admission applications" text="When a new application is submitted" checked={n.admissions} disabled={!n.email} onChange={() => set("notifications", "admissions", !n.admissions)} />
-                        <SwitchRow title="Reports ready" text="When a generated report is available" checked={n.reports} disabled={!n.email} onChange={() => set("notifications", "reports", !n.reports)} />
-                        <SwitchRow title="System alerts" text="Errors, downtime and security warnings" checked={n.system} disabled={!n.email} onChange={() => set("notifications", "system", !n.system)} />
-                      </div>
-                      <Row label="Email delivery" htmlFor="digest">
-                        <Select id="digest" value={n.digest} disabled={!n.email} onChange={(v) => set("notifications", "digest", v)} options={["Instant", "Daily summary", "Weekly summary"]} />
-                      </Row>
-                    </>
-                  )}
-
-                  {/* BACKUP */}
-                  {tab === "backup" && (
-                    <>
-                      <SwitchRow title="Automatic backups" text="Back up portal data on a schedule" checked={b.auto} onChange={() => set("backup", "auto", !b.auto)} />
-                      <Row label="Frequency" htmlFor="frequency">
-                        <Select id="frequency" value={b.frequency} disabled={!b.auto} onChange={(v) => set("backup", "frequency", v)} options={["Daily", "Weekly", "Monthly"]} />
-                      </Row>
-                      <Row label="Keep backups for" htmlFor="retention">
-                        <Select id="retention" value={b.retention} onChange={(v) => set("backup", "retention", v)} options={[{ value: "7", label: "7 days" }, { value: "30", label: "30 days" }, { value: "90", label: "90 days" }]} />
-                      </Row>
-
-                      <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="leading-tight">
-                            <p className="text-sm font-semibold text-[#14234b]">Back up now</p>
-                            <p className="mt-0.5 text-xs text-slate-500">Create a manual backup of all portal data.</p>
-                          </div>
-                          <button
-                            onClick={startBackup}
-                            disabled={backup.running}
-                            className="inline-flex items-center gap-2 rounded-lg border-2 border-[#2f6fdd] bg-white px-4 py-2 text-sm font-semibold text-[#2f6fdd] transition hover:bg-[#2f6fdd] hover:text-white disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white disabled:hover:text-[#2f6fdd]"
-                          >
-                            {backup.running ? <><Loader2 size={15} className="animate-spin motion-reduce:animate-none" /> Backing up… {Math.round(backup.progress)}%</> : <><Download size={15} /> Back up now</>}
-                          </button>
-                        </div>
-                        {backup.running && (
-                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={Math.round(backup.progress)} aria-valuemin={0} aria-valuemax={100} aria-label="Backup progress">
-                            <div className="h-full rounded-full bg-[#2f6fdd] transition-all duration-150" style={{ width: `${backup.progress}%` }} />
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-[#14234b]"><History size={16} className="text-slate-400" /> Backup history</h3>
-                        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
-                          {backups.map((x) => (
-                            <li key={x.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                              <div className="flex-1 leading-tight">
-                                <p className="text-sm font-semibold text-[#14234b]">{fmt(x.ts)}</p>
-                                <p className="text-xs text-slate-400">{x.kind} · {x.size}</p>
-                              </div>
-                              <button onClick={() => setRestore(x)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#5b47d6] transition hover:bg-[#5b47d6]/10">Restore</button>
-                            </li>
-                          ))}
-                          {backups.length === 0 && <li className="px-4 py-6 text-center text-sm text-slate-400">No backups yet.</li>}
-                        </ul>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* footer */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/50 px-5 py-4 sm:px-8">
-            <p className={`flex items-center gap-2 text-xs font-semibold ${dirty[tab] ? "text-[#b45309]" : "text-[#1f7a46]"}`} aria-live="polite">
-              {dirty[tab] ? (
-                <><span className="h-2 w-2 animate-pulse rounded-full bg-[#f2a900] motion-reduce:animate-none" /> Unsaved changes in {currentTab.label}</>
-              ) : (
-                <><CheckCircle2 size={14} /> All changes saved</>
-              )}
-            </p>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={discard}
-                disabled={!dirty[tab] || saving}
-                className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-              >
-                <RotateCcw size={15} /> Reset
-              </button>
-              <button
-                onClick={save}
-                disabled={!dirty[tab] || saving}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#5b47d6] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b47d6]/25 transition hover:-translate-y-0.5 hover:bg-[#4a38bb] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
-              >
-                {saving ? <><Loader2 size={16} className="animate-spin motion-reduce:animate-none" /> Saving…</> : <><Save size={16} /> Save Changes</>}
-              </button>
+                {(backup.running || backup.pct === 100) && (
+                  <div className="bar"><i style={{ width: `${backup.pct}%` }} /></div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
-      </div>
+          )}
+        </div>
 
-      {/* ── Restore modal ── */}
-      {restore && (
-        <Modal title="Restore this backup?" onClose={() => setRestore(null)}>
-          <div className="px-6 py-6">
-            <div className="flex gap-4">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#d97706]/10 text-[#d97706]"><AlertCircle size={22} /></span>
-              <p className="text-sm leading-relaxed text-slate-600">
-                Portal data will be restored to the backup from <strong className="text-[#14234b]">{fmt(restore.ts)}</strong>. Changes made after that time will be lost.
-              </p>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setRestore(null)} className="rounded-lg px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
-              <button onClick={confirmRestore} autoFocus className="rounded-lg bg-[#d97706] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#d97706]/25 hover:bg-[#b45309]">Restore</button>
-            </div>
+        <footer className="bar-foot">
+          <span className={`state ${dirty ? "warn" : "ok"}`}>
+            {dirty ? <><i className="pulse" /> {dirtyKeys.length} unsaved change{dirtyKeys.length > 1 && "s"}</>
+                   : <><CheckCircle2 size={16} /> All changes saved</>}
+          </span>
+          <div className="actions">
+            <button className="btn-ghost" onClick={() => setS(saved)} disabled={!dirty || saving}><RotateCcw size={15} /> Reset</button>
+            <button className="btn-primary" onClick={save} disabled={!dirty || !nameOk || saving}>
+              {saving ? <><Loader2 size={16} className="spin" /> Saving…</> : <><Save size={16} /> Save Changes</>}
+            </button>
           </div>
-        </Modal>
-      )}
+        </footer>
+      </section>
 
-      {/* ── Toasts ── */}
-      <div className="fixed bottom-5 right-5 z-[60] flex w-80 max-w-[calc(100vw-2.5rem)] flex-col gap-2" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} className="toast-in flex items-center gap-3 rounded-xl bg-[#14234b] px-4 py-3 text-sm text-white shadow-2xl">
-            <CheckCircle2 size={18} className="shrink-0 text-[#6ee7a0]" />
-            <span className="flex-1">{t.message}</span>
-            {t.undo && (
-              <button onClick={() => { t.undo(); dismissToast(t.id); }} className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-1 text-xs font-semibold transition hover:bg-white/25"><Undo2 size={13} /> Undo</button>
-            )}
-            <button onClick={() => dismissToast(t.id)} aria-label="Dismiss" className="text-white/60 hover:text-white"><X size={15} /></button>
-          </div>
-        ))}
-      </div>
+      <div className={`toast ${toast ? "show" : ""}`} role="status"><CheckCircle2 size={18} /> Settings saved</div>
     </div>
   );
 }
+
+/* ---------- styles ---------- */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600&display=swap');
+
+.ss{--navy:#14214f;--navy2:#1b2d6b;--maroon:#8a0b1c;--maroon2:#a50d22;--gold:#e8b923;--muted:#5d6785;--line:#e4e7f0;--bg:#f6f4f2;
+  min-height:100vh;padding:32px clamp(16px,4vw,44px) 40px;font-family:'Poppins',system-ui,sans-serif;color:var(--navy);
+  background:radial-gradient(900px 420px at 100% -10%,rgba(138,11,28,.10),transparent 60%),radial-gradient(800px 420px at -10% 0%,rgba(27,45,107,.10),transparent 60%),var(--bg)}
+.ss *{box-sizing:border-box}
+.ss button{font-family:inherit;cursor:pointer}
+.ss :focus-visible{outline:3px solid rgba(232,185,35,.7);outline-offset:2px}
+
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:24px}
+.top h1{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,38px);margin:0;line-height:1.1}
+.top h1::after{content:"";display:block;width:56px;height:4px;border-radius:4px;background:var(--gold);margin-top:10px}
+.top p{margin:10px 0 0;color:var(--muted);font-size:14px}
+.top-actions{display:flex;align-items:center;gap:12px}
+.bell{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--navy);box-shadow:0 6px 16px -10px rgba(20,33,79,.5);transition:transform .15s}
+.bell:hover{transform:translateY(-2px)}
+.bell i{position:absolute;top:10px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--maroon2);border:2px solid #fff}
+.profile{position:relative}
+.profile-btn{display:flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:14px;box-shadow:0 6px 16px -10px rgba(20,33,79,.5)}
+.profile-btn svg{transition:transform .2s}.profile-btn .flip{transform:rotate(180deg)}
+.avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:#fff;font-size:12px;font-weight:600;background:linear-gradient(135deg,var(--navy2),var(--maroon))}
+.dropdown{position:absolute;right:0;top:calc(100% + 8px);min-width:180px;padding:6px;border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 40px -16px rgba(20,33,79,.4);z-index:20;animation:pop .16s ease-out}
+.dropdown button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:none;border-radius:9px;font-size:14px;color:var(--navy);text-align:left}
+.dropdown button:hover{background:#f1f3fa}.dropdown .danger{color:var(--maroon)}
+
+.panel{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 24px 50px -34px rgba(20,33,79,.6);overflow:hidden;display:flex;flex-direction:column;min-height:560px}
+
+.tabs{--i:0;--n:4;position:relative;display:flex;gap:6px;padding:0 20px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{position:relative;display:flex;align-items:center;gap:8px;padding:20px 20px 18px;border:0;background:none;font-size:14px;font-weight:500;color:var(--muted);white-space:nowrap;transition:color .2s}
+.tabs button:hover{color:var(--navy)}
+.tabs button.on{color:var(--maroon);font-weight:600}
+.tabs .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(232,185,35,.25)}
+.tabs .underline{display:none}
+.tabs button.on::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:linear-gradient(90deg,var(--maroon),var(--maroon2));animation:grow .3s ease-out}
+
+.body{flex:1;padding:30px clamp(16px,3vw,32px);animation:fade .3s ease-out}
+.split{display:grid;grid-template-columns:minmax(260px,320px) 1fr;gap:clamp(24px,4vw,48px);align-items:start}
+.form{display:flex;flex-direction:column;gap:6px}
+.form.single{max-width:760px}
+
+.row{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:center;padding:14px 0}
+.form.single .row{border-bottom:1px solid #eef0f6}
+.row-label label{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.row-label label svg{color:var(--maroon)}
+.row-label small{display:block;margin-top:3px;font-size:12px;color:var(--muted);line-height:1.4}
+.row-wide .row-ctl{display:flex;justify-content:flex-end}
+.row-ctl{min-width:0}
+
+.input,.select select{width:100%;height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:#eef2fd;font:inherit;font-size:14.5px;color:var(--navy);outline:0;transition:border-color .2s,box-shadow .2s,background .2s}
+.input:hover,.select select:hover{border-color:#c5cce3}
+.input:focus,.select select:focus{border-color:var(--navy2);background:#fff;box-shadow:0 0 0 4px rgba(27,45,107,.12)}
+.input.bad{border-color:var(--maroon2);background:#fdf0f2}
+.err{display:block;margin-top:6px;font-size:12px;color:var(--maroon);font-style:normal}
+.select{position:relative}
+.select select{appearance:none;-webkit-appearance:none;padding-right:42px;cursor:pointer}
+.select svg{position:absolute;right:16px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)}
+
+.switch{width:50px;height:28px;border:0;padding:3px;border-radius:999px;background:#b9bfd1;transition:background .25s;display:block;flex-shrink:0}
+.switch i{display:block;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25);transition:transform .25s cubic-bezier(.3,1.4,.5,1)}
+.switch.on{background:#12915a}.switch.on i{transform:translateX(22px)}
+
+/* preview */
+.preview{--rx:0deg;--ry:0deg;position:relative;overflow:hidden;padding:34px 24px 28px;border-radius:22px;color:#fff;text-align:center;
+  background:linear-gradient(150deg,#14214f 0%,#1d2b66 55%,#4a1236 100%);box-shadow:0 26px 40px -26px rgba(20,33,79,.8);
+  transform:perspective(800px) rotateX(var(--rx)) rotateY(var(--ry));transition:transform .25s ease-out;position:sticky;top:20px}
+.p-orb{position:absolute;border-radius:50%}
+.o1{width:170px;height:170px;right:-60px;top:-60px;background:rgba(255,255,255,.07)}
+.o2{width:200px;height:200px;left:-80px;bottom:-90px;background:rgba(138,11,28,.45)}
+.p-icon{position:relative;width:84px;height:84px;margin:0 auto 18px;border-radius:24px;display:grid;place-items:center;color:var(--navy2);background:#fff;
+  box-shadow:0 0 0 5px rgba(232,185,35,.5),0 16px 28px -12px rgba(0,0,0,.5)}
+.p-icon svg{animation:spin 14s linear infinite}
+.p-soc{position:relative;margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+.preview h3{position:relative;margin:0;font-family:'Playfair Display',serif;font-size:24px;line-height:1.25;animation:fade .3s}
+.p-bar{position:relative;display:block;width:44px;height:3px;border-radius:3px;background:var(--gold);margin:14px auto}
+.p-chips{position:relative;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.p-chips span{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:500;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(4px)}
+.p-foot{position:relative;display:flex;flex-direction:column;gap:8px;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.15)}
+.p-foot span{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;color:rgba(255,255,255,.6)}
+.p-foot span.ok{color:#7af0b4}
+
+/* backup */
+.backup-card{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;padding:18px 20px;border-radius:16px;background:#f6f7fc;border:1px solid var(--line)}
+.backup-card b{display:block;font-size:14px}.backup-card span{font-size:13px;color:var(--muted)}
+.bar{width:100%;height:8px;border-radius:8px;background:#e1e5f2;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--gold),#12915a);transition:width .22s linear}
+.btn-outline{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:12px;border:2px solid var(--navy2);background:#fff;color:var(--navy2);font-weight:600;font-size:14px;transition:all .2s}
+.btn-outline:hover:not(:disabled){background:var(--navy2);color:#fff}
+.btn-outline:disabled{opacity:.7;cursor:progress}
+
+/* footer */
+.bar-foot{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:18px clamp(16px,3vw,32px);border-top:1px solid var(--line);background:#fafbfe}
+.state{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.state.ok{color:#12915a}.state.warn{color:#a87203}
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--gold);animation:pulse 1.4s infinite}
+.actions{display:flex;gap:10px}
+.btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:12px;border:0;background:none;color:var(--muted);font-weight:600;font-size:14px}
+.btn-ghost:hover:not(:disabled){background:#eef0f7;color:var(--navy)}
+.btn-ghost:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;border:0;color:#fff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:12px;
+  background:linear-gradient(180deg,var(--maroon2),var(--maroon));box-shadow:0 10px 22px -8px rgba(138,11,28,.65);transition:transform .15s,box-shadow .15s,filter .2s}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 26px -8px rgba(138,11,28,.75)}
+.btn-primary:disabled{filter:grayscale(.7) opacity(.5);cursor:not-allowed;box-shadow:none}
+.spin{animation:spin 1s linear infinite}
+
+.toast{position:fixed;right:28px;bottom:28px;display:flex;align-items:center;gap:10px;padding:14px 20px;border-radius:14px;background:var(--navy);color:#fff;font-size:14px;font-weight:500;
+  box-shadow:0 20px 40px -14px rgba(20,33,79,.7);border-left:4px solid var(--gold);transform:translateY(30px);opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.3,1.2,.5,1);z-index:60}
+.toast svg{color:#5cf2a6}
+.toast.show{transform:none;opacity:1}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,185,35,.6)}70%{box-shadow:0 0 0 8px rgba(232,185,35,0)}100%{box-shadow:0 0 0 0 rgba(232,185,35,0)}}
+
+@media (max-width:860px){
+  .split{grid-template-columns:1fr}.preview{position:relative;top:0}
+  .row{grid-template-columns:1fr;gap:10px}.row-wide{grid-template-columns:1fr auto;align-items:center}
+  .profile-btn b{display:none}
+}
+@media (prefers-reduced-motion:reduce){.ss *{animation:none!important;transition:none!important}}
+`;
