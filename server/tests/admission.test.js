@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Application from '../src/models/Application.js';
+import AdmissionDocument from '../src/models/AdmissionDocument.js';
 import Program from '../src/models/Program.js';
 import Counter from '../src/models/Counter.js';
 import AcademicYear from '../src/models/AcademicYear.js';
@@ -124,6 +125,43 @@ describe('Application', () => {
     const a = new Application(base());
     ['draft', 'returned'].forEach((s) => { a.status = s; expect(a.isEditable()).toBe(true); });
     ['submitted', 'approved', 'rejected'].forEach((s) => { a.status = s; expect(a.isEditable()).toBe(false); });
+  });
+});
+
+describe('AdmissionDocument', () => {
+  const doc = (over = {}) => new AdmissionDocument({
+    applicationId: id(), type: 'originalLc', fileName: 'lc.jpg', mimeType: 'image/jpeg', sizeBytes: 100000, storageKey: 'k/1', ...over,
+  });
+
+  test('a good document is valid and starts as pending', async () => {
+    const d = doc();
+    await expect(d.validate()).resolves.toBeUndefined();
+    expect(d.status).toBe('pending');
+  });
+
+  test.each([
+    ['too big', { sizeBytes: 600 * 1024 }],
+    ['pdf', { mimeType: 'application/pdf' }],
+    ['unknown type', { type: 'passportCopy' }],
+    ['photo size', { type: 'photo', width: 100, height: 100 }],
+    ['signature size', { type: 'signature', width: 80, height: 100 }],
+  ])('rejects %s', async (_n, over) => {
+    await expect(doc(over).validate()).rejects.toThrow();
+  });
+
+  test('photo 80x100 and signature 80x50 are accepted', async () => {
+    await expect(doc({ type: 'photo', width: 80, height: 100 }).validate()).resolves.toBeUndefined();
+    await expect(doc({ type: 'signature', width: 80, height: 50 }).validate()).resolves.toBeUndefined();
+  });
+
+  test('rejecting a document needs a reason', async () => {
+    await expect(doc({ status: 'rejected' }).validate()).rejects.toThrow(/reason|why/i);
+    await expect(doc({ status: 'rejected', reviewNote: 'Blurry' }).validate()).resolves.toBeUndefined();
+  });
+
+  test('missingRequired lists the required documents not uploaded yet', async () => {
+    AdmissionDocument.find = () => ({ distinct: async () => ['originalLc', 'photo'] });
+    expect(await AdmissionDocument.missingRequired(id())).toEqual(['marksheet10', 'marksheet12']);
   });
 });
 
