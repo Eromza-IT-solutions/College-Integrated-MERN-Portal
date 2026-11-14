@@ -122,3 +122,10 @@ export const PAYMENT_GATEWAY = Object.freeze({"FAKE": "fake", "RAZORPAY": "razor
 export const PAYMENT_GATEWAY_VALUES = Object.values(PAYMENT_GATEWAY);
 export const REFUND_STATUS = Object.freeze({"REQUESTED": "requested", "APPROVED": "approved", "REJECTED": "rejected"});
 export const REFUND_STATUS_VALUES = Object.values(REFUND_STATUS);
+
+// ---- Students and subjects ----
+export const SUBJECT_CATEGORIES = Object.freeze(["major", "minor", "openElective", "vsc", "sec", "aec", "iks", "vec", "ccProject"]);
+export const STUDENT_STATUS = Object.freeze({"ACTIVE": "active", "GRADUATED": "graduated", "WITHDRAWN": "withdrawn"});
+export const STUDENT_STATUS_VALUES = Object.values(STUDENT_STATUS);
+export const ENROLLMENT_STATUS = Object.freeze({"ENROLLED": "enrolled", "DROPPED": "dropped"});
+export const ENROLLMENT_STATUS_VALUES = Object.values(ENROLLMENT_STATUS);
