@@ -135,3 +135,12 @@ export const EXAM_STATUS = Object.freeze({"DRAFT": "draft", "OPEN": "open", "CLO
 export const EXAM_STATUS_VALUES = Object.values(EXAM_STATUS);
 export const EXAM_FORM_STATUS = Object.freeze({"DRAFT": "draft", "PENDING_PAYMENT": "pendingPayment", "SUBMITTED": "submitted", "APPROVED": "approved", "REJECTED": "rejected"});
 export const EXAM_FORM_STATUS_VALUES = Object.values(EXAM_FORM_STATUS);
+
+// ---- Results ----
+export const RESULT_CLASS = Object.freeze({"DISTINCTION": "Distinction", "FIRST": "I Class", "SECOND": "II Class", "PASS": "Pass Class", "ATKT": "A.T.K.T.", "FAIL": "Fail"});
+export const RESULT_CLASS_VALUES = Object.values(RESULT_CLASS);
+export const RESULT_LINE_STATUS = Object.freeze({"PENDING": "pending", "PASS": "pass", "FAIL": "fail"});
+export const RESULT_LINE_STATUS_VALUES = Object.values(RESULT_LINE_STATUS);
+// PROPOSED marking rules (the college must confirm): pass a subject with 40% of its marks; classes by overall
+// percentage when every subject is passed; A.T.K.T. when at most 2 subjects are failed. Change the numbers here only.
+export const RESULT_RULES = Object.freeze({ passPercentPerSubject: 40, distinctionPercent: 75, firstClassPercent: 60, secondClassPercent: 50, atktMaxFailedSubjects: 2, defaultMaxInternal: 40, defaultMaxExternal: 60 });
