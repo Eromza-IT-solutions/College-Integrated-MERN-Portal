@@ -129,3 +129,9 @@ export const STUDENT_STATUS = Object.freeze({"ACTIVE": "active", "GRADUATED": "g
 export const STUDENT_STATUS_VALUES = Object.values(STUDENT_STATUS);
 export const ENROLLMENT_STATUS = Object.freeze({"ENROLLED": "enrolled", "DROPPED": "dropped"});
 export const ENROLLMENT_STATUS_VALUES = Object.values(ENROLLMENT_STATUS);
+
+// ---- Exams ----
+export const EXAM_STATUS = Object.freeze({"DRAFT": "draft", "OPEN": "open", "CLOSED": "closed"});
+export const EXAM_STATUS_VALUES = Object.values(EXAM_STATUS);
+export const EXAM_FORM_STATUS = Object.freeze({"DRAFT": "draft", "PENDING_PAYMENT": "pendingPayment", "SUBMITTED": "submitted", "APPROVED": "approved", "REJECTED": "rejected"});
+export const EXAM_FORM_STATUS_VALUES = Object.values(EXAM_FORM_STATUS);
