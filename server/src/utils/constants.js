@@ -144,3 +144,13 @@ export const RESULT_LINE_STATUS_VALUES = Object.values(RESULT_LINE_STATUS);
 // PROPOSED marking rules (the college must confirm): pass a subject with 40% of its marks; classes by overall
 // percentage when every subject is passed; A.T.K.T. when at most 2 subjects are failed. Change the numbers here only.
 export const RESULT_RULES = Object.freeze({ passPercentPerSubject: 40, distinctionPercent: 75, firstClassPercent: 60, secondClassPercent: 50, atktMaxFailedSubjects: 2, defaultMaxInternal: 40, defaultMaxExternal: 60 });
+
+// ---- Teaching: timetable, attendance, teaching plans, internal marks ----
+export const ATTENDANCE_STATUS = Object.freeze({"PRESENT": "present", "ABSENT": "absent", "LEAVE": "leave"});
+export const ATTENDANCE_STATUS_VALUES = Object.values(ATTENDANCE_STATUS);
+export const REVIEW_STATUS = Object.freeze({"DRAFT": "draft", "SUBMITTED": "submitted", "APPROVED": "approved", "RETURNED": "returned"});
+export const REVIEW_STATUS_VALUES = Object.values(REVIEW_STATUS);
+export const TOPIC_STATUS = Object.freeze({"PLANNED": "planned", "IN_PROGRESS": "inProgress", "DONE": "done"});
+export const TOPIC_STATUS_VALUES = Object.values(TOPIC_STATUS);
+export const TEACHING_RULES = Object.freeze({"attendanceEditDays": 7, "collegeUtcOffsetMinutes": 330, "maxPeriod": 12, "maxDivisionLength": 3});
+// PROPOSED: a teacher may correct attendance up to 7 days after the lecture; after that it is locked. Dates use Indian time (UTC+5:30).
