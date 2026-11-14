@@ -113,3 +113,12 @@ export const REQUIRED_DOCUMENT_TYPES = Object.freeze([DOCUMENT_TYPES.ORIGINAL_LC
 export const DOCUMENT_RULES = Object.freeze({ mimeTypes: ['image/jpeg', 'image/png'], maxBytes: 500 * 1024,
   size: { photo: { width: 80, height: 100 }, signature: { width: 80, height: 50 } } });
 
+// ---- Fees and payments ----
+export const PAYMENT_PURPOSE = Object.freeze({"ADMISSION": "admission", "EXAM": "exam"});
+export const PAYMENT_PURPOSE_VALUES = Object.values(PAYMENT_PURPOSE);
+export const PAYMENT_STATUS = Object.freeze({"CREATED": "created", "PAID": "paid", "FAILED": "failed"});
+export const PAYMENT_STATUS_VALUES = Object.values(PAYMENT_STATUS);
+export const PAYMENT_GATEWAY = Object.freeze({"FAKE": "fake", "RAZORPAY": "razorpay"});
+export const PAYMENT_GATEWAY_VALUES = Object.values(PAYMENT_GATEWAY);
+export const REFUND_STATUS = Object.freeze({"REQUESTED": "requested", "APPROVED": "approved", "REJECTED": "rejected"});
+export const REFUND_STATUS_VALUES = Object.values(REFUND_STATUS);
