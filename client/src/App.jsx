@@ -1,16 +1,13 @@
-
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-
-import HomePage from "./features/public-website/HomePage";
-import Login from "./features/auth/Login";
+import { BrowserRouter } from "react-router-dom";
+import { AuthProvider } from "./context/AuthProvider";
+import AppRoutes from "./routes/AppRoutes";
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<Login />} />
-      </Routes>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }
