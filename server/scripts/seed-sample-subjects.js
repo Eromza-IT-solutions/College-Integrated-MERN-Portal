@@ -1,24 +1,24 @@
-import mongoose from 'mongoose';
 import { pathToFileURL } from 'url';
+import mongoose from 'mongoose';
 import env from '../src/config/env.js';
 import Program from '../src/models/Program.js';
 import Subject from '../src/models/Subject.js';
 
 // Adds SAMPLE subjects (semesters 1 and 2) for the three sample classes, so the exam flow can be tried.
 // All names are made up for the demo; codes start with SMP-. Replace them with the college's real subject list.
-// Run the demo seed and the sample fees first:  npm run seed   then   npm run seed:fees
+// Run the demo seed and the sample fees first:  npm run seed   then   npm run seed:programs   then   npm run seed:fees
 // Run:  npm run seed:subjects      (or: node scripts/seed-sample-subjects.js)
 // Safe to run again: it only adds what is missing.
 const SUBJECTS = {
-  FYBCOM: {
+  BDPCCA: {
     1: [['major', 'Financial Accounting'], ['major', 'Business Economics'], ['minor', 'Business Mathematics'], ['aec', 'English Communication'], ['vec', 'Environmental Studies']],
     2: [['major', 'Corporate Accounting'], ['major', 'Business Law'], ['minor', 'Business Statistics'], ['sec', 'Computer Skills'], ['iks', 'Indian Knowledge Systems']],
   },
-  'FYBSC-CA': {
+  BDPSCS: {
     1: [['major', 'Programming in C'], ['major', 'Digital Electronics'], ['minor', 'Discrete Mathematics'], ['aec', 'English Communication'], ['vec', 'Environmental Studies']],
     2: [['major', 'Data Structures'], ['major', 'Database Basics'], ['minor', 'Statistics'], ['sec', 'Web Design'], ['iks', 'Indian Knowledge Systems']],
   },
-  FYBA: {
+  BDPAEN: {
     1: [['major', 'Introduction to Political Science'], ['major', 'Principles of Sociology'], ['minor', 'Basic Economics'], ['aec', 'English Communication'], ['vec', 'Environmental Studies']],
     2: [['major', 'Indian Constitution'], ['major', 'Social Research Basics'], ['minor', 'History of India'], ['sec', 'Public Speaking'], ['iks', 'Indian Knowledge Systems']],
   },
@@ -29,7 +29,7 @@ async function seedSubjects() {
   let added = 0;
   for (const [programCode, semesters] of Object.entries(SUBJECTS)) {
     const program = await Program.findOne({ code: programCode });
-    if (!program) throw new Error(`Class ${programCode} not found. Run "npm run seed:fees" first.`);
+    if (!program) throw new Error(`Class ${programCode} not found. Run "npm run seed:programs" first.`);
     const ops = [];
     for (const [semester, rows] of Object.entries(semesters)) {
       rows.forEach(([category, name], i) => {
@@ -37,7 +37,7 @@ async function seedSubjects() {
         ops.push({
           updateOne: {
             filter: { programId: program._id, semester: Number(semester), code },
-            update: { $setOnInsert: { name, category, credits: 2, isActive: true } },
+            update: { $setOnInsert: { name, category, credits: 2, maxInternal: 40, maxExternal: 60, countsForCgpa: true, isActive: true } },
             upsert: true,
           },
         });

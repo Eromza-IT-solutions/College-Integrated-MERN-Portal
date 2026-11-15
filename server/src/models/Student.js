@@ -1,10 +1,11 @@
 import mongoose from 'mongoose';
 import AppError from '../utils/AppError.js';
+import { firstSemesterOf } from '../utils/academic.js';
 import { STUDENT_STATUS, STUDENT_STATUS_VALUES, ROLES, APPLICATION_STATUS, ENROLLMENT_STATUS } from '../utils/constants.js';
 
 const { Schema } = mongoose;
 
-// An admitted student. Created when the Admission Admin approves an application.
+// An admitted student. Created when the admission is complete (fee paid and hard copy received).
 // Personal details stay in the application (applicationId); this record holds what the college keeps going forward.
 const studentSchema = new Schema(
   {
@@ -13,6 +14,7 @@ const studentSchema = new Schema(
     programId: { type: Schema.Types.ObjectId, ref: 'Program', required: true, index: true },
     admissionYearId: { type: Schema.Types.ObjectId, ref: 'AcademicYear', required: true },
     enrollmentNumber: { type: String, required: true, trim: true, unique: true },
+    yearOfStudy: { type: Number, default: 1, min: 1, max: 10 }, // year of the program the student joined (1 = F.Y.)
     currentSemester: { type: Number, required: true, default: 1, min: 1, max: 12 },
     // The class division (like A or B) used by the timetable and attendance. Everyone starts in division A.
     division: { type: String, trim: true, uppercase: true, default: 'A', maxlength: 3 },
@@ -25,7 +27,7 @@ const studentSchema = new Schema(
 );
 
 /**
- * Turn an approved application into a student:
+ * Turn an admitted application into a student:
  *  - the applicant's account becomes a student account and gets the mobile number and Aadhaar for sign-in,
  *  - a student record with an enrollment number is created,
  *  - semester-1 subjects that match the admission choices are enrolled; names that match no Subject are returned in `unmatched`.
@@ -43,7 +45,7 @@ studentSchema.statics.createFromApplication = async function createFromApplicati
 
   const application = await Application.findById(applicationId).select('+aadhaarNumber').session(s);
   if (!application) throw new AppError('Application not found', 404);
-  if (application.status !== APPLICATION_STATUS.APPROVED) throw new AppError('Only an approved application can become a student', 409);
+  if (application.status !== APPLICATION_STATUS.ADMITTED) throw new AppError('Only an admitted application (fee paid and hard copy received) can become a student', 409);
   if (await this.findOne({ applicationId }).session(s)) throw new AppError('This application already has a student record', 409);
 
   const user = await User.findById(application.applicantUserId).session(s);
@@ -67,28 +69,23 @@ studentSchema.statics.createFromApplication = async function createFromApplicati
       programId: application.programId,
       admissionYearId: application.academicYearId,
       enrollmentNumber,
-      currentSemester: 1,
+      currentSemester: firstSemesterOf(application.yearOfStudy || 1),
+      yearOfStudy: application.yearOfStudy || 1,
       groups: { mainGroup: sub.mainGroup, majorGroup: sub.majorGroup, minorGroup: sub.minorGroup },
     }],
     { session }
   );
 
-  // Match the subjects chosen on the admission form (typed as text) with the Subject list of semester 1.
-  const wanted = [];
+  // Enrol the subjects picked on the admission form. They are picks from the Subject list, so they match by id.
   const nep = (sub.nep && (sub.nep.toObject ? sub.nep.toObject() : sub.nep)) || {};
-  for (const [category, names] of Object.entries(nep)) for (const name of names || []) wanted.push({ category, name: String(name).trim() });
-  const available = await Subject.find({ programId: application.programId, semester: 1, isActive: true }).session(s);
-  const norm = (t) => String(t).trim().toLowerCase();
-  const matched = [];
-  const unmatched = [];
-  for (const w of wanted) {
-    const found = available.find((x) => x.category === w.category && (norm(x.name) === norm(w.name) || norm(x.code) === norm(w.name)));
-    if (found && !matched.some((m) => String(m._id) === String(found._id))) matched.push(found);
-    else if (!found) unmatched.push(w);
-  }
+  const pickedIds = [...new Set(Object.values(nep).flat().map(String))];
+  const semester = firstSemesterOf(application.yearOfStudy || 1);
+  const available = pickedIds.length ? await Subject.find({ _id: { $in: pickedIds }, programId: application.programId, semester, isActive: true }).session(s) : [];
+  const matched = available;
+  const unmatched = pickedIds.filter((id) => !available.some((x) => String(x._id) === id)); // deactivated or moved since the pick
   if (matched.length) {
     await Enrollment.insertMany(
-      matched.map((x) => ({ studentId: student._id, subjectId: x._id, semester: 1, academicYearId: application.academicYearId, status: ENROLLMENT_STATUS.ENROLLED })),
+      matched.map((x) => ({ studentId: student._id, subjectId: x._id, semester, academicYearId: application.academicYearId, status: ENROLLMENT_STATUS.ENROLLED })),
       { session }
     );
   }

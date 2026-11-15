@@ -1,7 +1,8 @@
 // Reads .env and stops the server early, with a clear message, if something is missing.
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const required = process.env.NODE_ENV === 'test' ? [] : ['MONGODB_URI', 'SESSION_SECRET'];
+const required = ['MONGODB_URI', 'SESSION_SECRET'];
 const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
@@ -16,4 +17,10 @@ export default {
   mongodbUri: process.env.MONGODB_URI,
   sessionSecret: process.env.SESSION_SECRET,
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  // Razorpay. Optional so the server starts without them; payments need them. Use TEST keys (rzp_test_...) for the demo.
+  razorpay: {
+    keyId: process.env.RAZORPAY_KEY_ID || '',
+    keySecret: process.env.RAZORPAY_KEY_SECRET || '',
+    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || '',
+  },
 };

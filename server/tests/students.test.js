@@ -108,17 +108,18 @@ describe('Student.createFromApplication', () => {
     { _id: id(), code: 'EN-AEC', name: 'English Communication', category: 'aec' },
     { _id: id(), code: 'ENV-VEC', name: 'Environmental Studies', category: 'vec' },
   ];
-  let app; let user; let created; let enrolled; let counter;
+  const removedSubjectId = id(); // picked on the form but no longer offered
+  let app; let user; let created; let enrolled; let counter; let lastFind;
 
   beforeEach(() => {
     counter = 0;
     user = new User({ fullName: 'Aman', email: 'aman@demo.example', passwordHash: 'x', role: 'applicant' });
     user.save = async () => user;
     app = new Application({
-      applicantUserId: user._id, academicYearId: id(), programId, status: 'approved', aadhaarNumber: '123456789012',
+      applicantUserId: user._id, academicYearId: id(), programId, status: 'admitted', aadhaarNumber: '123456789012',
       student: { mobile: '9876543210' },
       subjects: { mainGroup: 'Commerce', majorGroup: 'Accounts', minorGroup: 'Maths',
-        nep: { major: ['financial accounting'], aec: ['EN-AEC'], vec: ['Yoga'] } },
+        nep: { major: [subjects[0]._id], aec: [subjects[1]._id], vec: [removedSubjectId] } },
     });
     created = null; enrolled = null;
     const q = (value) => ({ select: () => ({ session: async () => value }), session: async () => value });
@@ -128,11 +129,11 @@ describe('Student.createFromApplication', () => {
     Counter.next = async () => { counter += 1; return counter; };
     Student.findOne = () => q(null);
     Student.create = async ([doc]) => { created = { _id: id(), ...doc }; return [created]; };
-    Subject.find = () => q(subjects);
+    Subject.find = (filter) => { lastFind = filter; return q(subjects.slice(0, 2)); }; // the removed one is not found
     Enrollment.insertMany = async (rows) => { enrolled = rows; };
   });
 
-  test('approved application becomes a student: role, sign-in details, number and matching subjects', async () => {
+  test('admitted application becomes a student: role, sign-in details, number and the subjects picked on the form', async () => {
     const out = await Student.createFromApplication(app._id);
     expect(user.role).toBe('student');
     expect(user.mobile).toBe('9876543210');
@@ -140,12 +141,23 @@ describe('Student.createFromApplication', () => {
     expect(user.aadhaarLast4).toBe('9012');
     expect(created.enrollmentNumber).toBe('ENR-2026-27-000001');
     expect(created.groups).toMatchObject({ mainGroup: 'Commerce', majorGroup: 'Accounts', minorGroup: 'Maths' });
-    expect(out.enrolled).toBe(2); // matched by name (any case) and by code
+    expect(out.enrolled).toBe(2);
     expect(enrolled.map((r) => String(r.subjectId)).sort()).toEqual([String(subjects[0]._id), String(subjects[1]._id)].sort());
-    expect(out.unmatched).toEqual([{ category: 'vec', name: 'Yoga' }]);
+    expect(out.unmatched).toEqual([String(removedSubjectId)]);
+    expect(created).toMatchObject({ currentSemester: 1, yearOfStudy: 1 });
+    expect(lastFind).toMatchObject({ programId, semester: 1, isActive: true });
+    expect(lastFind._id.$in.map(String).sort()).toEqual([subjects[0]._id, subjects[1]._id, removedSubjectId].map(String).sort());
+    expect(enrolled.every((r) => r.semester === 1)).toBe(true);
+  });
+  test('a direct second-year admission starts in semester 3 and enrols the semester 3 subjects', async () => {
+    app.yearOfStudy = 2;
+    await Student.createFromApplication(app._id);
+    expect(created).toMatchObject({ currentSemester: 3, yearOfStudy: 2 });
+    expect(lastFind.semester).toBe(3);
+    expect(enrolled.every((r) => r.semester === 3)).toBe(true);
   });
 
-  test.each(['draft', 'submitted', 'returned', 'rejected'])('a %s application is refused', async (status) => {
+  test.each(['draft', 'submitted', 'returned', 'waitlisted', 'approved', 'feePaid', 'rejected', 'cancelled'])('a %s application is refused', async (status) => {
     app.status = status;
     await expect(Student.createFromApplication(app._id)).rejects.toMatchObject({ statusCode: 409 });
     expect(user.role).toBe('applicant');
