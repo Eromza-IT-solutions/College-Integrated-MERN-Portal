@@ -9,7 +9,7 @@ import Application from '../src/models/Application.js';
 import Department from '../src/models/Department.js';
 import AcademicYear from '../src/models/AcademicYear.js';
 
-// Checks the student models against the real DEV database: an approved application becomes a student, the account
+// Checks the student models against the real DEV database: an admitted application becomes a student, the account
 // can sign in by email, mobile or Aadhaar, and duplicates are blocked. It creates a temporary applicant, class and
 // application named CHECK-... and removes everything again. It uses up one enrollment number.
 // Run:  npm run seed   then   npm run seed:fees   then   node scripts/check-student-models.js
@@ -29,23 +29,27 @@ async function main() {
     if (!dept || !year) throw new Error('Run "npm run seed" first');
 
     made.user = await User.create({ fullName: 'Check Applicant', email: `check-${stamp}@demo.example`, passwordHash: 'x', role: 'applicant', status: 'active' });
-    made.program = await Program.create({ name: `CHECK-PROGRAM-${stamp}`, code: `CHK-${stamp}`, departmentId: dept._id });
+    made.program = await Program.create({ name: `CHECK-PROGRAM-${stamp}`, code: `CHK-${stamp}`, departmentId: dept._id, level: 'Undergraduate' });
     made.subject = await Subject.create({ code: 'CHK-1', name: 'Check Subject', programId: made.program._id, semester: 1, category: 'major' });
     ok(await dup(() => Subject.create({ code: 'chk-1', name: 'Other', programId: made.program._id, semester: 1, category: 'minor' })), 'a subject code is unique within a class and semester');
 
     made.app = await Application.create({
       applicantUserId: made.user._id, academicYearId: year._id, programId: made.program._id, aadhaarNumber: aadhaar,
-      student: { mobile }, subjects: { mainGroup: 'Check', nep: { major: ['check subject'] } },
+      student: { mobile }, subjects: { mainGroup: 'Check', nep: { major: [made.subject._id] } },
     });
     let refused = false;
     try { await Student.createFromApplication(made.app._id); } catch (e) { refused = e.statusCode === 409; }
     ok(refused, 'a draft application cannot become a student');
     await Application.updateOne({ _id: made.app._id }, { $set: { status: 'approved' } });
+    refused = false;
+    try { await Student.createFromApplication(made.app._id); } catch (e) { refused = e.statusCode === 409; }
+    ok(refused, 'an approved application (hard copy not received yet) cannot become a student either');
+    await Application.updateOne({ _id: made.app._id }, { $set: { status: 'admitted' } });
 
     const out = await Student.createFromApplication(made.app._id);
     made.student = out.student;
     ok(/^ENR-/.test(out.student.enrollmentNumber), 'student gets an enrollment number');
-    ok(out.enrolled === 1 && out.unmatched.length === 0, 'the admission subject choice is enrolled');
+    ok(out.enrolled === 1 && out.unmatched.length === 0, 'the subject picked on the admission form is enrolled by id');
 
     const fresh = await User.findById(made.user._id);
     ok(fresh.role === 'student' && fresh.mobile === mobile && fresh.aadhaarLast4 === aadhaar.slice(-4), 'the account became a student account with mobile and Aadhaar');

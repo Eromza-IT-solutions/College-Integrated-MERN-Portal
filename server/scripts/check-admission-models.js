@@ -24,8 +24,8 @@ async function main() {
     const year = await AcademicYear.findOne({ isCurrent: true });
     if (!dept || !applicant || !year) throw new Error('Run "npm run seed" first (needs a department, the demo applicant and a current year)');
 
-    made.program = await Program.create({ name: 'CHECK-PROGRAM', code: 'CHECK-PROG', departmentId: dept._id });
-    ok(await dup(() => Program.create({ name: 'CHECK-PROGRAM-2', code: 'check-prog', departmentId: dept._id })), 'program code is unique');
+    made.program = await Program.create({ name: 'CHECK-PROGRAM', code: 'CHECK-PROG', departmentId: dept._id, level: 'Undergraduate' });
+    ok(await dup(() => Program.create({ name: 'CHECK-PROGRAM-2', code: 'check-prog', departmentId: dept._id, level: 'Undergraduate' })), 'program code is unique');
 
     const data = { applicantUserId: applicant._id, academicYearId: year._id, programId: made.program._id };
     made.application = await Application.create(data);

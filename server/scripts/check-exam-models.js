@@ -33,14 +33,14 @@ async function main() {
     if (!dept || !year) throw new Error('Run "npm run seed" first');
 
     made.user = await User.create({ fullName: 'Check Student', email: `check-${stamp}@demo.example`, passwordHash: 'x', role: 'applicant', status: 'active' });
-    made.program = await Program.create({ name: `CHECK-PROGRAM-${stamp}`, code: `CHK-${stamp}`, departmentId: dept._id });
+    made.program = await Program.create({ name: `CHECK-PROGRAM-${stamp}`, code: `CHK-${stamp}`, departmentId: dept._id, level: 'Undergraduate' });
     made.subject = await Subject.create({ code: 'CHK-1', name: 'Check Subject', programId: made.program._id, semester: 1, category: 'major' });
     made.app = await Application.create({
       applicantUserId: made.user._id, academicYearId: year._id, programId: made.program._id, feesCategory: 'PAYING',
       aadhaarNumber: `2${String(stamp).slice(-11)}`, student: { fullName: 'Check Student', mobile: `9${String(stamp).slice(-9)}` },
-      subjects: { nep: { major: ['check subject'] } },
+      subjects: { nep: { major: [made.subject._id] } },
     });
-    await Application.updateOne({ _id: made.app._id }, { $set: { status: 'approved' } });
+    await Application.updateOne({ _id: made.app._id }, { $set: { status: 'admitted' } });
     made.student = (await Student.createFromApplication(made.app._id)).student;
     made.fee = await FeeStructure.create({ purpose: 'exam', academicYearId: year._id, programId: made.program._id, feesCategory: 'PAYING', amountPaise: 50000, label: 'CHECK' });
     made.exam = await Exam.create({ name: 'CHECK Exam', academicYearId: year._id, programId: made.program._id, semester: 1, formOpensAt: new Date(stamp - 3600000), formClosesAt: new Date(stamp + 3600000), status: 'open' });

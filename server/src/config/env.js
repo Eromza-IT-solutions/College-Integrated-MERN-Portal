@@ -1,7 +1,8 @@
 // Reads .env and stops the server early, with a clear message, if something is missing.
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const required = process.env.NODE_ENV === 'test' ? [] : ['MONGODB_URI', 'SESSION_SECRET'];
+const required = ['MONGODB_URI', 'SESSION_SECRET'];
 const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {

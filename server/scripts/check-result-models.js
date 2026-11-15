@@ -3,7 +3,7 @@ import env from '../src/config/env.js';
 import Result from '../src/models/Result.js';
 import ExamForm from '../src/models/ExamForm.js';
 
-// Checks the result models against the real DEV database: one result per student per exam, marks, class,
+// Checks the result models against the real DEV database: one result per student per exam, marks, grades, SGPA, CGPA,
 // publishing and unpublishing. It adds records for one test student and removes them again.
 // Run:  node scripts/check-result-models.js
 async function dup(fn) { try { await fn(); return false; } catch (e) { return e.code === 11000; } }
@@ -37,12 +37,15 @@ async function main() {
 
     await sheet.enterMarks([{ subjectId: s1, internalMarks: 35, externalMarks: 50 }, { subjectId: s2, internalMarks: 30, externalMarks: 40 }], { byUserId: admin });
     const saved = await Result.findById(sheet._id);
-    ok(saved.isComplete && saved.totalObtained === 155 && saved.percentage === 77.5 && saved.resultClass === 'Distinction', 'totals and class are saved');
+    ok(saved.isComplete && saved.totalObtained === 155 && saved.percentage === 77.5 && saved.outcome === 'pass' && saved.sgpa === 8.5 && saved.finalGrade === 'A+', 'totals, outcome, SGPA and final grade are saved');
+    ok(saved.lines[0].grade === 'A+' && saved.lines[1].grade === 'A' && saved.creditsEarned === saved.creditsTotal, 'each subject has its letter grade and earns its credits');
 
     ok((await Result.publishedFor(studentId)).length === 0, 'a student sees nothing before publishing');
     const published = await Result.publish(sheet._id, { byUserId: admin });
     ok(published.isPublished, 'a finished result publishes');
     ok((await Result.publishedFor(studentId)).length === 1, 'the student sees it after publishing');
+    const total = await Result.cgpaFor(studentId);
+    ok(total.cgpa === 8.5 && total.finalGrade === 'A+', 'CGPA is worked out from published results');
     let locked = false;
     try { await (await Result.findById(sheet._id)).enterMarks([{ subjectId: s1, internalMarks: 1, externalMarks: 1 }]); } catch (e) { locked = e.statusCode === 409; }
     ok(locked, 'a published result cannot be edited');
