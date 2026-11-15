@@ -16,4 +16,11 @@ export default {
   mongodbUri: process.env.MONGODB_URI,
   sessionSecret: process.env.SESSION_SECRET,
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  // Payment gateway (test mode only). "fake" needs no keys; "razorpay" needs all three.
+  payment: {
+    gateway: process.env.PAYMENT_GATEWAY || 'fake',
+    keyId: process.env.PAYMENT_KEY_ID || '',
+    keySecret: process.env.PAYMENT_KEY_SECRET || '',
+    webhookSecret: process.env.PAYMENT_WEBHOOK_SECRET || '',
+  },
 };
