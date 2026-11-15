@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -6,7 +7,6 @@ import {
   CalendarDays,
   ClipboardCheck,
   Download,
-  Plus,
   Ticket,
   Users,
 } from "lucide-react";
@@ -17,19 +17,21 @@ import TrendChart from "../../../components/charts/TrendChart";
 import Badge from "../../../components/ui/Badge";
 import Button from "../../../components/ui/Button";
 import Card, { CardBody, CardHeader } from "../../../components/ui/Card";
-import DataTable from "../../../components/ui/Table";
+import EmptyState from "../../../components/ui/EmptyState";
+import ErrorState from "../../../components/ui/ErrorState";
+import Loader from "../../../components/ui/Loader";
 import PageHeader from "../../../components/ui/PageHeader";
 import StatCard from "../../../components/ui/StatCard";
-import {
-  examActivities,
-  examAdminKpis,
-  examResultsProgress,
-  examSessions,
-  examSubmissionSeries,
-  examUpcomingExams,
-} from "../../../mocks/examAdminData";
+import DataTable from "../../../components/ui/Table";
 import { downloadCsv } from "../../../utils/csv";
 import { formatStatus, getStatusVariant } from "../../../utils/status";
+import DemoModeBanner from "./components/DemoModeBanner";
+import useExamAdminDashboard from "./hooks/useExamAdminDashboard";
+import { DATA_SOURCE } from "./services/dataSource";
+import { buildDashboardViewModel, formatCount } from "./utils/dashboardMetrics";
+
+const MIDDLE_DOT = "\u00b7";
+const EN_DASH = "\u2013";
 
 const KPI_ICONS = {
   sessions: CalendarDays,
@@ -71,7 +73,7 @@ const examColumns = [
     header: "Date",
     render: (exam) => (
       <span className="text-xs text-eromza-muted">
-        {exam.date} · {exam.time}
+        {exam.date} {MIDDLE_DOT} {exam.time}
       </span>
     ),
   },
@@ -91,7 +93,7 @@ const examColumns = [
   },
   {
     key: "actions",
-    header: "",
+    header: "Action",
     className: "text-right",
     cellClassName: "text-right",
     render: () => (
@@ -126,7 +128,7 @@ const sessionColumns = [
     header: "Dates",
     render: (session) => (
       <span className="text-xs text-eromza-muted">
-        {session.startDate} – {session.endDate}
+        {session.startDate} {EN_DASH} {session.endDate}
       </span>
     ),
   },
@@ -141,7 +143,7 @@ const sessionColumns = [
   },
   {
     key: "actions",
-    header: "",
+    header: "Action",
     className: "text-right",
     cellClassName: "text-right",
     render: () => (
@@ -158,43 +160,28 @@ const sessionColumns = [
   },
 ];
 
-export default function ExamAdminDashboard() {
-  const handleExport = () => {
-    downloadCsv("eromza-examination-report.csv", [
-      ["Metric", "Value"],
-      ...examAdminKpis.map((kpi) => [kpi.label, kpi.value]),
-      ["Latest monthly marks submitted", examSubmissionSeries.values.at(-1)],
-      ...examResultsProgress.map((item) => [item.label, item.value]),
-    ]);
-  };
+function ViewAllLink({ to, children }) {
+  return (
+    <Button as={Link} to={to} variant="ghost" size="sm">
+      {children}
+      <ArrowUpRight size={14} />
+    </Button>
+  );
+}
+
+function DashboardContent({ data, view, isDemo }) {
+  const { readiness } = view;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Examination administration"
-        title="Exam Admin Dashboard"
-        description="Plan exam sessions, publish timetables, issue hall tickets, and keep results moving."
-        actions={
-          <>
-            <Button variant="secondary" onClick={handleExport}>
-              <Download size={16} />
-              Export report
-            </Button>
-            <Button as={Link} to="/exam-admin/sessions">
-              <Plus size={16} />
-              Create session
-            </Button>
-          </>
-        }
-      />
+    <>
+      <DemoModeBanner source={isDemo ? DATA_SOURCE.DEMO : DATA_SOURCE.API} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {examAdminKpis.map((kpi) => (
+        {view.kpis.map((kpi) => (
           <StatCard
             key={kpi.id}
             label={kpi.label}
             value={kpi.value}
-            change={kpi.change}
             tone={kpi.tone}
             icon={KPI_ICONS[kpi.icon]}
           />
@@ -206,33 +193,56 @@ export default function ExamAdminDashboard() {
           <CardHeader
             title="Marks submitted"
             description="Monthly marks entry across the last six months"
-            action={<Badge variant="success">+9.3%</Badge>}
+            action={
+              view.marksChange ? (
+                <Badge variant="neutral">
+                  {view.marksChange} vs previous month
+                </Badge>
+              ) : null
+            }
           />
           <CardBody>
-            <TrendChart
-              labels={examSubmissionSeries.labels}
-              values={examSubmissionSeries.values}
-              color="#19845b"
-              ariaLabel="Marks submitted over the last six months"
-            />
+            {data.submissionSeries?.values?.length ? (
+              <TrendChart
+                labels={data.submissionSeries.labels}
+                values={data.submissionSeries.values}
+                color="#19845b"
+                ariaLabel="Marks submitted per month"
+              />
+            ) : (
+              <EmptyState
+                title="No marks submitted yet"
+                description="Monthly totals will appear here once marks are entered."
+              />
+            )}
           </CardBody>
         </Card>
 
         <Card>
           <CardHeader
             title="Hall ticket readiness"
-            description="Issued for the active examination session"
+            description="Registered students who have a hall ticket issued"
           />
           <CardBody className="space-y-6">
-            <ProgressRing
-              value={88}
-              label="Issued"
-              caption="1,102 of 1,248 registered students have received hall tickets."
-            />
-            <div className="rounded-lg bg-eromza-bg p-3 text-xs leading-5 text-eromza-muted">
-              146 students still need eligibility clearance before hall tickets
-              can be generated.
-            </div>
+            {readiness.percent === null ? (
+              <EmptyState
+                title="Figures unavailable"
+                description="Registered student numbers are needed to work out hall ticket coverage."
+              />
+            ) : (
+              <>
+                <ProgressRing
+                  value={readiness.percent}
+                  label="Issued"
+                  caption={`${formatCount(readiness.issued)} of ${formatCount(readiness.registered)} registered students have a hall ticket issued.`}
+                />
+                <div className="rounded-lg bg-eromza-bg p-3 text-xs leading-5 text-eromza-muted">
+                  {readiness.notYetIssued > 0
+                    ? `${formatCount(readiness.notYetIssued)} registered students do not have a hall ticket issued yet.`
+                    : "Every registered student has a hall ticket issued."}
+                </div>
+              </>
+            )}
           </CardBody>
         </Card>
       </div>
@@ -243,21 +253,16 @@ export default function ExamAdminDashboard() {
             title="Upcoming exams"
             description="Next scheduled papers across active sessions"
             action={
-              <Button
-                as={Link}
-                to="/exam-admin/timetables"
-                variant="ghost"
-                size="sm"
-              >
+              <ViewAllLink to="/exam-admin/timetables">
                 View timetable
-                <ArrowUpRight size={14} />
-              </Button>
+              </ViewAllLink>
             }
           />
           <DataTable
             columns={examColumns}
-            rows={examUpcomingExams}
+            rows={data.upcomingExams}
             emptyTitle="No upcoming exams"
+            emptyDescription="Scheduled papers will appear here once a timetable is created."
           />
         </Card>
 
@@ -265,23 +270,20 @@ export default function ExamAdminDashboard() {
           <CardHeader
             title="Results progress"
             description="Marks and result processing status"
-            action={
-              <Button
-                as={Link}
-                to="/exam-admin/marks"
-                variant="ghost"
-                size="sm"
-              >
-                Open marks
-                <ArrowUpRight size={14} />
-              </Button>
-            }
+            action={<ViewAllLink to="/exam-admin/marks">Open marks</ViewAllLink>}
           />
           <CardBody>
-            <BarList
-              items={examResultsProgress}
-              valueFormatter={(value) => `${value.toLocaleString("en-IN")} records`}
-            />
+            {data.resultsProgress?.length ? (
+              <BarList
+                items={data.resultsProgress}
+                valueFormatter={(value) => `${formatCount(value)} records`}
+              />
+            ) : (
+              <EmptyState
+                title="No results data"
+                description="Result processing figures will appear here."
+              />
+            )}
           </CardBody>
         </Card>
       </div>
@@ -290,22 +292,13 @@ export default function ExamAdminDashboard() {
         <CardHeader
           title="Exam sessions"
           description="Current and upcoming examination cycles"
-          action={
-            <Button
-              as={Link}
-              to="/exam-admin/sessions"
-              variant="ghost"
-              size="sm"
-            >
-              View all
-              <ArrowUpRight size={14} />
-            </Button>
-          }
+          action={<ViewAllLink to="/exam-admin/sessions">View all</ViewAllLink>}
         />
         <DataTable
           columns={sessionColumns}
-          rows={examSessions}
+          rows={data.sessions}
           emptyTitle="No exam sessions"
+          emptyDescription="Create a session to start planning an examination cycle."
         />
       </Card>
 
@@ -313,12 +306,88 @@ export default function ExamAdminDashboard() {
         <CardHeader
           title="Recent activity"
           description="Latest examination administration actions"
-          action={<Badge variant="neutral">Live</Badge>}
+          action={isDemo ? <Badge variant="warning">Demo data</Badge> : null}
         />
         <CardBody>
-          <ActivityFeed items={examActivities} icons={ACTIVITY_ICONS} />
+          {data.activities?.length ? (
+            <ActivityFeed items={data.activities} icons={ACTIVITY_ICONS} />
+          ) : (
+            <EmptyState
+              title="No recent activity"
+              description="Examination actions will be listed here."
+            />
+          )}
         </CardBody>
       </Card>
+    </>
+  );
+}
+
+export default function ExamAdminDashboard() {
+  const { status, source, data, error, reload } = useExamAdminDashboard();
+  const view = useMemo(() => (data ? buildDashboardViewModel(data) : null), [data]);
+  const isDemo = source === DATA_SOURCE.DEMO;
+
+  const handleExport = () => {
+    if (!view) return;
+
+    const { readiness } = view;
+    downloadCsv("eromza-examination-report.csv", [
+      ["Metric", "Value"],
+      [
+        "Data source",
+        isDemo ? "Demo data (sample values, not real college records)" : "Server",
+      ],
+      ["Exported on", new Date().toISOString().slice(0, 10)],
+      ...view.kpis.map((kpi) => [kpi.label, kpi.value]),
+      [
+        "Hall ticket coverage",
+        readiness.percent === null ? "Not available" : `${readiness.percent}%`,
+      ],
+      ["Latest monthly marks submitted", view.latestMarks ?? "Not available"],
+      ...(data.resultsProgress ?? []).map((item) => [item.label, item.value]),
+    ]);
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Examination administration"
+        title="Exam Admin Dashboard"
+        description="Plan exam sessions, publish timetables, issue hall tickets, and keep results moving."
+        actions={
+          <>
+            {status === "success" ? (
+              <Button variant="secondary" onClick={handleExport}>
+                <Download size={16} />
+                Export report
+              </Button>
+            ) : null}
+            <Button as={Link} to="/exam-admin/sessions">
+              <CalendarDays size={16} />
+              Manage sessions
+            </Button>
+          </>
+        }
+      />
+
+      {status === "loading" ? (
+        <Loader label="Loading examination dashboard..." />
+      ) : null}
+
+      {status === "error" ? (
+        <Card>
+          <ErrorState
+            title={error.title}
+            description={error.description}
+            onRetry={error.canRetry ? reload : undefined}
+          />
+        </Card>
+      ) : null}
+
+      {status === "success" ? (
+        <DashboardContent data={data} view={view} isDemo={isDemo} />
+      ) : null}
     </div>
   );
 }
