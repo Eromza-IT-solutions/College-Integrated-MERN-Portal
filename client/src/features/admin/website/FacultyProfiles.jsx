@@ -1,482 +1,687 @@
+
 import { useMemo, useState } from "react";
 import {
-  BadgeCheck,
-  BookOpen,
-  Download,
-  Eye,
-  GraduationCap,
+  Search,
   Plus,
   Users,
+  UserCheck,
+  UserX,
+  GraduationCap,
+  Pencil,
+  Trash2,
+  Eye,
+  X,
+  Mail,
+  Phone,
+  Briefcase,
+  Building2,
+  Filter,
+  BookOpen,
 } from "lucide-react";
-import Badge from "../../../components/ui/Badge";
-import Button from "../../../components/ui/Button";
-import Card, { CardHeader } from "../../../components/ui/Card";
-import DataTable from "../../../components/ui/Table";
-import Input from "../../../components/ui/Input";
-import Modal from "../../../components/ui/Modal";
-import PageHeader from "../../../components/ui/PageHeader";
-import Pagination from "../../../components/ui/Pagination";
-import SearchInput from "../../../components/ui/SearchInput";
-import Select from "../../../components/ui/Select";
-import StatCard from "../../../components/ui/StatCard";
-import { websiteFaculty } from "../../../mocks/websiteAdminData";
-import { downloadCsv } from "../../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../../utils/status";
 
-const PAGE_SIZE = 6;
-
-function initials(name) {
-  return name
-    .replace(/^(Dr\.|Prof\.)\s+/, "")
-    .split(" ")
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("");
-}
-
-export default function FacultyProfiles() {
-  const [rows, setRows] = useState(websiteFaculty);
-  const [query, setQuery] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [selectedFaculty, setSelectedFaculty] = useState(null);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
+const initialFaculty = [
+  {
+    id: 1,
+    name: "Dr. Rahul Sharma",
+    employeeId: "FAC001",
+    designation: "Head of Department",
     department: "Computer Science",
+    qualification: "Ph.D. in Computer Science",
+    specialization: "Artificial Intelligence",
+    experience: "12 Years",
+    email: "rahul.sharma@example.com",
+    phone: "9876543210",
+    status: "Active",
+  },
+  {
+    id: 2,
+    name: "Prof. Priya Patil",
+    employeeId: "FAC002",
     designation: "Assistant Professor",
-    email: "",
-    status: "draft",
-  });
+    department: "Computer Science",
+    qualification: "M.Sc. Computer Science",
+    specialization: "Web Development",
+    experience: "7 Years",
+    email: "priya.patil@example.com",
+    phone: "9876543211",
+    status: "Active",
+  },
+  {
+    id: 3,
+    name: "Dr. Amit Deshmukh",
+    employeeId: "FAC003",
+    designation: "Associate Professor",
+    department: "Commerce",
+    qualification: "Ph.D. in Commerce",
+    specialization: "Accounting",
+    experience: "10 Years",
+    email: "amit.d@example.com",
+    phone: "9876543212",
+    status: "Active",
+  },
+  {
+    id: 4,
+    name: "Prof. Sana Khan",
+    employeeId: "FAC004",
+    designation: "Assistant Professor",
+    department: "Arts & Humanities",
+    qualification: "M.A. English",
+    specialization: "English Literature",
+    experience: "5 Years",
+    email: "sana.khan@example.com",
+    phone: "9876543213",
+    status: "Inactive",
+  },
+  {
+    id: 5,
+    name: "Dr. Neha Kulkarni",
+    employeeId: "FAC005",
+    designation: "Professor",
+    department: "Computer Science",
+    qualification: "Ph.D. in Information Technology",
+    specialization: "Database Management",
+    experience: "15 Years",
+    email: "neha.k@example.com",
+    phone: "9876543214",
+    status: "Active",
+  },
+  {
+    id: 6,
+    name: "Prof. Faisal Shaikh",
+    employeeId: "FAC006",
+    designation: "Assistant Professor",
+    department: "Commerce",
+    qualification: "M.Com",
+    specialization: "Business Management",
+    experience: "6 Years",
+    email: "faisal.shaikh@example.com",
+    phone: "9876543215",
+    status: "Active",
+  },
+];
 
-  const departments = useMemo(
-    () => [...new Set(rows.map((row) => row.department))],
-    [rows],
-  );
+const emptyForm = {
+  name: "",
+  employeeId: "",
+  designation: "",
+  department: "",
+  qualification: "",
+  specialization: "",
+  experience: "",
+  email: "",
+  phone: "",
+  status: "Active",
+};
 
-  const filteredRows = useMemo(() => {
-    const search = query.trim().toLowerCase();
+const departments = [
+  "Computer Science",
+  "Commerce",
+  "Arts & Humanities",
+];
 
-    return rows.filter((row) => {
+function FacultyProfiles() {
+  const [faculty, setFaculty] = useState(initialFaculty);
+  const [search, setSearch] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [showForm, setShowForm] = useState(false);
+  const [selectedFaculty, setSelectedFaculty] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+
+  const totalFaculty = faculty.length;
+  const activeFaculty = faculty.filter(
+    (item) => item.status === "Active"
+  ).length;
+  const inactiveFaculty = faculty.filter(
+    (item) => item.status === "Inactive"
+  ).length;
+  const departmentsCount = new Set(
+    faculty.map((item) => item.department)
+  ).size;
+
+  const filteredFaculty = useMemo(() => {
+    return faculty.filter((item) => {
       const matchesSearch =
-        !search ||
-        row.name.toLowerCase().includes(search) ||
-        row.email.toLowerCase().includes(search) ||
-        row.designation.toLowerCase().includes(search);
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.employeeId.toLowerCase().includes(search.toLowerCase()) ||
+        item.designation.toLowerCase().includes(search.toLowerCase());
+
       const matchesDepartment =
-        departmentFilter === "all" || row.department === departmentFilter;
+        departmentFilter === "All" ||
+        item.department === departmentFilter;
+
       const matchesStatus =
-        statusFilter === "all" || row.status === statusFilter;
+        statusFilter === "All" || item.status === statusFilter;
 
       return matchesSearch && matchesDepartment && matchesStatus;
     });
-  }, [departmentFilter, query, rows, statusFilter]);
+  }, [faculty, search, departmentFilter, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = filteredRows.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
-  const counts = {
-    total: rows.length,
-    published: rows.filter((row) => row.status === "published").length,
-    review: rows.filter((row) => row.status === "review").length,
-    departments: departments.length,
+  const openAddForm = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
   };
 
-  const handleExport = () => {
-    downloadCsv("eromza-website-faculty.csv", [
-      ["Faculty", "Department", "Designation", "Email", "Qualification", "Status"],
-      ...filteredRows.map((row) => [
-        row.name,
-        row.department,
-        row.designation,
-        row.email,
-        row.qualification,
-        row.status,
-      ]),
-    ]);
+  const openEditForm = (item) => {
+    setEditingId(item.id);
+    setForm({ ...item });
+    setSelectedFaculty(null);
+    setShowForm(true);
   };
 
-  const handleAddFaculty = (event) => {
-    event.preventDefault();
-
-    if (!form.name.trim() || !form.email.trim()) return;
-
-    const nextRow = {
-      id: `FAC-${Date.now()}`,
-      name: form.name.trim(),
-      department: form.department,
-      designation: form.designation,
-      email: form.email.trim(),
-      phone: "To be updated",
-      qualification: "To be updated",
-      experience: "New profile",
-      courses: ["To be assigned"],
-      status: form.status,
-      joined: "2026",
-    };
-
-    setRows((current) => [nextRow, ...current]);
-    setForm({
-      name: "",
-      department: "Computer Science",
-      designation: "Assistant Professor",
-      email: "",
-      status: "draft",
-    });
-    setIsAddOpen(false);
-    setPage(1);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const columns = [
-    {
-      key: "name",
-      header: "Faculty",
-      render: (row) => (
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-eromza-sidebar text-[11px] font-semibold text-white">
-            {initials(row.name)}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-eromza-text">
-              {row.name}
-            </p>
-            <p className="mt-1 text-[11px] text-eromza-subtle">{row.email}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "department",
-      header: "Department",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.department}</span>
-      ),
-    },
-    {
-      key: "designation",
-      header: "Designation",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.designation}</span>
-      ),
-    },
-    {
-      key: "courses",
-      header: "Subjects",
-      render: (row) => (
-        <div className="flex flex-wrap gap-1.5">
-          {row.courses.map((course) => (
-            <Badge key={course} variant="neutral">
-              {course}
-            </Badge>
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => (
-        <Badge variant={getStatusVariant(row.status)}>
-          {formatStatus(row.status)}
-        </Badge>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      className: "text-right",
-      cellClassName: "text-right",
-      render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSelectedFaculty(row)}
-          className="text-eromza-accent hover:bg-rose-50"
-        >
-          <Eye size={14} />
-          View
-        </Button>
-      ),
-    },
-  ];
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const duplicateId = faculty.some(
+      (item) =>
+        item.employeeId.toLowerCase() ===
+          form.employeeId.trim().toLowerCase() &&
+        item.id !== editingId
+    );
+
+    if (duplicateId) {
+      alert("This Employee ID already exists.");
+      return;
+    }
+
+    if (editingId) {
+      setFaculty((prev) =>
+        prev.map((item) =>
+          item.id === editingId
+            ? { ...form, id: editingId }
+            : item
+        )
+      );
+    } else {
+      setFaculty((prev) => [
+        ...prev,
+        { ...form, id: Date.now() },
+      ]);
+    }
+
+    setShowForm(false);
+    setForm(emptyForm);
+    setEditingId(null);
+  };
+
+  const toggleStatus = (id) => {
+    setFaculty((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status:
+                item.status === "Active" ? "Inactive" : "Active",
+            }
+          : item
+      )
+    );
+  };
+
+  const deleteFaculty = (id) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this faculty profile?"
+    );
+
+    if (confirmed) {
+      setFaculty((prev) => prev.filter((item) => item.id !== id));
+      setSelectedFaculty(null);
+    }
+  };
+
+  const getInitials = (name) =>
+    name
+      .replace(/^(Dr\.|Prof\.)\s*/i, "")
+      .split(" ")
+      .map((word) => word[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Website administration"
-        title="Faculty Profiles"
-        description="Publish faculty biographies, qualifications, subjects, and department contact details."
-        actions={
-          <>
-            <Button variant="secondary" onClick={handleExport}>
-              <Download size={16} />
-              Export faculty
-            </Button>
-            <Button onClick={() => setIsAddOpen(true)}>
-              <Plus size={16} />
-              Add faculty
-            </Button>
-          </>
-        }
-      />
+    <div className="w-full space-y-6 pb-6">
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total Faculty"
-          value={String(counts.total)}
-          icon={Users}
-          tone="info"
-        />
-        <StatCard
-          label="Published Profiles"
-          value={String(counts.published)}
-          icon={BadgeCheck}
-          tone="success"
-        />
-        <StatCard
-          label="In Review"
-          value={String(counts.review)}
-          icon={BookOpen}
-          tone="warning"
-        />
-        <StatCard
-          label="Departments"
-          value={String(counts.departments)}
-          icon={GraduationCap}
-          tone="accent"
-        />
+      {/* Page Heading */}
+      <div className="flex flex-col justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#142B50] via-[#263B61] to-[#A00018] p-6 text-white shadow-lg md:flex-row md:items-center">
+        <div>
+          <p className="mb-2 text-sm font-medium text-white/70">
+            WEBSITE ADMIN / FACULTY
+          </p>
+          <h1 className="text-2xl font-bold md:text-3xl">
+            Faculty Profiles
+          </h1>
+          <p className="mt-2 text-sm text-white/75">
+            Manage faculty information, academic details and profiles.
+          </p>
+        </div>
+
+        <button
+          onClick={openAddForm}
+          className="flex items-center justify-center gap-2 rounded-xl bg-[#D6B56D] px-5 py-3 text-sm font-semibold text-[#142B50] shadow-md transition hover:bg-[#E7C77E]"
+        >
+          <Plus size={19} />
+          Add Faculty
+        </button>
       </div>
 
-      <Card>
-        <CardHeader
-          title="Faculty directory"
-          description="Public faculty profiles grouped across academic departments"
-        />
+      {/* Statistics */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            title: "Total Faculty",
+            value: totalFaculty,
+            icon: Users,
+            color: "bg-blue-50 text-blue-700",
+          },
+          {
+            title: "Active Faculty",
+            value: activeFaculty,
+            icon: UserCheck,
+            color: "bg-green-50 text-green-700",
+          },
+          {
+            title: "Inactive Faculty",
+            value: inactiveFaculty,
+            icon: UserX,
+            color: "bg-red-50 text-red-700",
+          },
+          {
+            title: "Departments",
+            value: departmentsCount,
+            icon: Building2,
+            color: "bg-amber-50 text-amber-700",
+          },
+        ].map((stat) => {
+          const Icon = stat.icon;
 
-        <div className="flex flex-col gap-3 border-b border-eromza-border p-4 sm:flex-row sm:items-center sm:justify-between">
-          <SearchInput
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by name, email, or designation..."
-            className="w-full sm:max-w-xs"
-          />
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Select
-              value={departmentFilter}
-              onChange={(event) => {
-                setDepartmentFilter(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter faculty by department"
-              className="min-w-[190px]"
+          return (
+            <div
+              key={stat.title}
+              className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
             >
-              <option value="all">All departments</option>
-              {departments.map((department) => (
-                <option key={department} value={department}>
-                  {department}
-                </option>
-              ))}
-            </Select>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">
+                    {stat.title}
+                  </p>
+                  <h2 className="mt-2 text-3xl font-bold text-[#142B50]">
+                    {stat.value}
+                  </h2>
+                </div>
 
-            <Select
-              value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter faculty by status"
-              className="min-w-[150px]"
-            >
-              <option value="all">All status</option>
-              <option value="published">Published</option>
-              <option value="review">In review</option>
-              <option value="draft">Draft</option>
-            </Select>
-          </div>
+                <div className={`rounded-xl p-3 ${stat.color}`}>
+                  <Icon size={24} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Search and Filters */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Filter size={19} className="text-[#A00018]" />
+          <h2 className="font-semibold text-[#142B50]">
+            Search & Filter Faculty
+          </h2>
         </div>
 
-        <DataTable
-          columns={columns}
-          rows={pageRows}
-          emptyTitle="No faculty profiles found"
-          emptyDescription="Try adjusting the search or filters."
-        />
-
-        <div className="flex flex-col gap-3 border-t border-eromza-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-eromza-subtle">
-            Showing {pageRows.length} of {filteredRows.length} faculty profiles
-          </p>
-          <Pagination
-            page={currentPage}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </div>
-      </Card>
-
-      <Modal
-        open={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        title="Add faculty profile"
-        description="Create a public profile for a faculty member."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="faculty-form">
-              Add faculty
-            </Button>
-          </>
-        }
-      >
-        <form id="faculty-form" onSubmit={handleAddFaculty} className="space-y-4">
-          <Input
-            label="Full name"
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-            placeholder="e.g. Dr. A. Rahman"
-            required
-          />
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select
-              label="Department"
-              value={form.department}
-              onChange={(event) =>
-                setForm({ ...form, department: event.target.value })
-              }
-            >
-              {departments.map((department) => (
-                <option key={department} value={department}>
-                  {department}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              label="Designation"
-              value={form.designation}
-              onChange={(event) =>
-                setForm({ ...form, designation: event.target.value })
-              }
-            >
-              <option value="Assistant Professor">Assistant Professor</option>
-              <option value="Associate Professor">Associate Professor</option>
-              <option value="Professor">Professor</option>
-              <option value="Visiting Faculty">Visiting Faculty</option>
-            </Select>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Email"
-              type="email"
-              value={form.email}
-              onChange={(event) => setForm({ ...form, email: event.target.value })}
-              placeholder="name@abeda.ac.in"
-              required
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="relative">
+            <Search
+              size={19}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
             />
-
-            <Select
-              label="Status"
-              value={form.status}
-              onChange={(event) =>
-                setForm({ ...form, status: event.target.value })
-              }
-            >
-              <option value="draft">Draft</option>
-              <option value="review">In review</option>
-              <option value="published">Published</option>
-            </Select>
+            <input
+              type="text"
+              placeholder="Search name, ID or designation..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#A00018] focus:ring-2 focus:ring-red-100"
+            />
           </div>
-        </form>
-      </Modal>
 
-      <Modal
-        open={Boolean(selectedFaculty)}
-        onClose={() => setSelectedFaculty(null)}
-        title={selectedFaculty?.name ?? "Faculty profile"}
-        description={
-          selectedFaculty
-            ? `${selectedFaculty.designation} · ${selectedFaculty.department}`
-            : undefined
-        }
-        size="lg"
-        footer={
-          <Button variant="secondary" onClick={() => setSelectedFaculty(null)}>
-            Close
-          </Button>
-        }
-      >
-        {selectedFaculty ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={getStatusVariant(selectedFaculty.status)}>
-                {formatStatus(selectedFaculty.status)}
-              </Badge>
-              <Badge variant="neutral">{selectedFaculty.qualification}</Badge>
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#A00018]"
+          >
+            <option value="All">All Departments</option>
+            {departments.map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#A00018]"
+          >
+            <option value="All">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Faculty Cards */}
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-[#142B50]">
+              Faculty Members
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Showing {filteredFaculty.length} faculty member(s)
+            </p>
+          </div>
+        </div>
+
+        {filteredFaculty.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
+            <Users size={40} className="mx-auto text-gray-300" />
+            <h3 className="mt-3 font-semibold text-gray-700">
+              No Faculty Found
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Try changing your search or filter.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {filteredFaculty.map((item) => (
+              <div
+                key={item.id}
+                className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+              >
+                <div className="h-2 bg-gradient-to-r from-[#142B50] to-[#A00018]" />
+
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#142B50] text-lg font-bold text-white">
+                        {getInitials(item.name)}
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3 className="truncate font-bold text-[#142B50]">
+                          {item.name}
+                        </h3>
+                        <p className="mt-1 text-xs text-gray-500">
+                          ID: {item.employeeId}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                        item.status === "Active"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {item.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 space-y-3 border-t border-gray-100 pt-4">
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <Briefcase size={17} className="shrink-0 text-[#A00018]" />
+                      <span>{item.designation}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <Building2 size={17} className="shrink-0 text-[#A00018]" />
+                      <span>{item.department}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <GraduationCap size={17} className="shrink-0 text-[#A00018]" />
+                      <span className="line-clamp-1">
+                        {item.qualification}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <BookOpen size={17} className="shrink-0 text-[#A00018]" />
+                      <span>{item.experience} Experience</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSelectedFaculty(item)}
+                      className="flex items-center justify-center gap-2 rounded-lg border border-[#142B50] px-3 py-2.5 text-xs font-semibold text-[#142B50] transition hover:bg-[#142B50] hover:text-white"
+                    >
+                      <Eye size={15} />
+                      View
+                    </button>
+
+                    <button
+                      onClick={() => openEditForm(item)}
+                      className="flex items-center justify-center gap-2 rounded-lg bg-[#A00018] px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-[#7F0013]"
+                    >
+                      <Pencil size={15} />
+                      Edit
+                    </button>
+                  </div>
+
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => toggleStatus(item.id)}
+                      className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+                    >
+                      {item.status === "Active"
+                        ? "Deactivate"
+                        : "Activate"}
+                    </button>
+
+                    <button
+                      onClick={() => deleteFaculty(item.id)}
+                      className="flex items-center justify-center gap-1 rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add / Edit Faculty Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 flex items-center justify-between bg-[#142B50] px-6 py-5 text-white">
+              <div>
+                <h2 className="text-xl font-bold">
+                  {editingId ? "Edit Faculty Profile" : "Add New Faculty"}
+                </h2>
+                <p className="mt-1 text-xs text-white/70">
+                  Enter faculty academic and contact details
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowForm(false)}
+                className="rounded-lg p-2 transition hover:bg-white/10"
+              >
+                <X size={22} />
+              </button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Email
-                </p>
-                <p className="mt-1 text-sm font-medium text-eromza-text">
-                  {selectedFaculty.email}
-                </p>
+            <form onSubmit={handleSubmit} className="space-y-5 p-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {[
+                  { label: "Faculty Name", name: "name", placeholder: "Enter full name" },
+                  { label: "Employee ID", name: "employeeId", placeholder: "e.g. FAC007" },
+                  { label: "Designation", name: "designation", placeholder: "e.g. Assistant Professor" },
+                  { label: "Qualification", name: "qualification", placeholder: "Enter qualification" },
+                  { label: "Specialization", name: "specialization", placeholder: "Enter specialization" },
+                  { label: "Experience", name: "experience", placeholder: "e.g. 5 Years" },
+                  { label: "Email Address", name: "email", placeholder: "Enter email", type: "email" },
+                  { label: "Phone Number", name: "phone", placeholder: "Enter phone number", type: "tel" },
+                ].map((field) => (
+                  <div key={field.name}>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                      {field.label} *
+                    </label>
+                    <input
+                      type={field.type || "text"}
+                      name={field.name}
+                      value={form[field.name]}
+                      onChange={handleChange}
+                      placeholder={field.placeholder}
+                      required
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#A00018] focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+                ))}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Department *
+                  </label>
+                  <select
+                    name="department"
+                    value={form.department}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#A00018]"
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map((department) => (
+                      <option key={department} value={department}>
+                        {department}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Status *
+                  </label>
+                  <select
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#A00018]"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Phone
-                </p>
-                <p className="mt-1 text-sm font-medium text-eromza-text">
-                  {selectedFaculty.phone}
-                </p>
+
+              <div className="flex flex-col-reverse justify-end gap-3 border-t border-gray-100 pt-5 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#A00018] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#7F0013]"
+                >
+                  {editingId ? "Update Faculty" : "Save Faculty"}
+                </button>
               </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Experience
-                </p>
-                <p className="mt-1 text-sm font-medium text-eromza-text">
-                  {selectedFaculty.experience}
-                </p>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Joined
-                </p>
-                <p className="mt-1 text-sm font-medium text-eromza-text">
-                  {selectedFaculty.joined}
-                </p>
-              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Faculty Modal */}
+      {selectedFaculty && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between bg-[#142B50] p-5 text-white">
+              <h2 className="text-lg font-bold">Faculty Details</h2>
+              <button
+                onClick={() => setSelectedFaculty(null)}
+                className="rounded-lg p-2 hover:bg-white/10"
+              >
+                <X size={21} />
+              </button>
             </div>
 
-            <div>
-              <p className="text-xs font-semibold text-eromza-text">
-                Subjects taught
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedFaculty.courses.map((course) => (
-                  <Badge key={course} variant="info">
-                    {course}
-                  </Badge>
+            <div className="p-6">
+              <div className="text-center">
+                <div className="mx-auto grid h-20 w-20 place-items-center rounded-2xl bg-[#142B50] text-2xl font-bold text-white">
+                  {getInitials(selectedFaculty.name)}
+                </div>
+                <h3 className="mt-3 text-xl font-bold text-[#142B50]">
+                  {selectedFaculty.name}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {selectedFaculty.designation}
+                </p>
+                <span
+                  className={`mt-3 inline-block rounded-full px-4 py-1 text-xs font-semibold ${
+                    selectedFaculty.status === "Active"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {selectedFaculty.status}
+                </span>
+              </div>
+
+              <div className="mt-6 space-y-4 border-t border-gray-100 pt-5 text-sm">
+                {[
+                  ["Employee ID", selectedFaculty.employeeId],
+                  ["Department", selectedFaculty.department],
+                  ["Qualification", selectedFaculty.qualification],
+                  ["Specialization", selectedFaculty.specialization],
+                  ["Experience", selectedFaculty.experience],
+                  ["Email", selectedFaculty.email],
+                  ["Phone", selectedFaculty.phone],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex flex-col justify-between gap-1 sm:flex-row"
+                  >
+                    <span className="font-semibold text-gray-500">
+                      {label}
+                    </span>
+                    <span className="break-all text-gray-800 sm:text-right">
+                      {value || "Not provided"}
+                    </span>
+                  </div>
                 ))}
               </div>
+
+              <button
+                onClick={() => openEditForm(selectedFaculty)}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#A00018] py-3 text-sm font-semibold text-white hover:bg-[#7F0013]"
+              >
+                <Pencil size={16} />
+                Edit Profile
+              </button>
             </div>
           </div>
-        ) : null}
-      </Modal>
+        </div>
+      )}
+
     </div>
   );
 }
+
+export default FacultyProfiles;

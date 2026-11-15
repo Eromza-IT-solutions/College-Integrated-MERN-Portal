@@ -1,261 +1,403 @@
-import { Link } from "react-router-dom";
+
+import { useNavigate } from "react-router-dom";
+
 import {
-  ArrowUpRight,
-  Building2,
-  Download,
   FileText,
   GraduationCap,
-  Image,
   Megaphone,
-  Plus,
+  Images,
+  ArrowUpRight,
+  ArrowRight,
+  Pencil,
+  CalendarDays,
+  TrendingUp,
+  Globe,
+  Sparkles,
+  Eye,
+  CheckCircle2,
 } from "lucide-react";
-import ActivityFeed from "../../../components/common/ActivityFeed";
-import BarList from "../../../components/charts/BarList";
-import ProgressRing from "../../../components/charts/ProgressRing";
-import TrendChart from "../../../components/charts/TrendChart";
-import Badge from "../../../components/ui/Badge";
-import Button from "../../../components/ui/Button";
-import Card, { CardBody, CardHeader } from "../../../components/ui/Card";
-import DataTable from "../../../components/ui/Table";
-import PageHeader from "../../../components/ui/PageHeader";
-import StatCard from "../../../components/ui/StatCard";
-import {
-  websiteActivities,
-  websiteAdminKpis,
-  websiteContentMix,
-  websiteNotices,
-  websiteRecentContent,
-  websiteTrafficSeries,
-} from "../../../mocks/websiteAdminData";
-import { downloadCsv } from "../../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../../utils/status";
 
-const KPI_ICONS = {
-  pages: FileText,
-  building: Building2,
-  faculty: GraduationCap,
-  notices: Megaphone,
-};
+import campusImage from "../../../assets/images/college-campus-reference.jpg";
 
-const ACTIVITY_ICONS = {
-  megaphone: Megaphone,
-  file: FileText,
-  faculty: GraduationCap,
-  image: Image,
-  document: FileText,
-};
+function WebsiteAdminDashboard() {
+  const navigate = useNavigate();
 
-const contentColumns = [
-  {
-    key: "title",
-    header: "Content",
-    render: (content) => (
-      <div className="min-w-0">
-        <p className="truncate text-xs font-semibold text-eromza-text">
-          {content.title}
-        </p>
-        <p className="mt-1 text-[11px] text-eromza-subtle">
-          {content.id} · {content.author}
-        </p>
-      </div>
-    ),
-  },
-  {
-    key: "type",
-    header: "Type",
-    render: (content) => <Badge variant="neutral">{content.type}</Badge>,
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (content) => (
-      <Badge variant={getStatusVariant(content.status)}>
-        {formatStatus(content.status)}
-      </Badge>
-    ),
-  },
-  {
-    key: "updated",
-    header: "Updated",
-    render: (content) => (
-      <span className="text-xs text-eromza-muted">{content.updated}</span>
-    ),
-  },
-  {
-    key: "actions",
-    header: "",
-    className: "text-right",
-    cellClassName: "text-right",
-    render: () => (
-      <Button
-        as={Link}
-        to="/website-admin/content"
-        variant="ghost"
-        size="sm"
-        className="text-eromza-accent hover:bg-rose-50"
-      >
-        Open
-      </Button>
-    ),
-  },
-];
+  const today = new Date().toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
-export default function WebsiteAdminDashboard() {
-  const handleExport = () => {
-    downloadCsv("eromza-website-report.csv", [
-      ["Metric", "Value"],
-      ...websiteAdminKpis.map((kpi) => [kpi.label, kpi.value]),
-      ["Monthly visits", websiteTrafficSeries.values.at(-1)],
-      ["Content items", websiteContentMix.reduce((sum, item) => sum + item.value, 0)],
-    ]);
-  };
+  const stats = [
+    {
+      title: "Website Pages",
+      count: "12",
+      description: "Pages published",
+      icon: FileText,
+      color: "text-[#A00018]",
+      bg: "bg-[#A00018]/10",
+      border: "border-t-[#A00018]",
+      path: "/website-admin/content",
+    },
+    {
+      title: "Departments",
+      count: "18",
+      description: "Departments & courses",
+      icon: GraduationCap,
+      color: "text-[#142B50]",
+      bg: "bg-[#142B50]/10",
+      border: "border-t-[#142B50]",
+      path: "/website-admin/departments",
+    },
+    {
+      title: "Notices",
+      count: "45",
+      description: "Announcements",
+      icon: Megaphone,
+      color: "text-[#B8860B]",
+      bg: "bg-[#B8860B]/10",
+      border: "border-t-[#B8860B]",
+      path: "/website-admin/notices",
+    },
+    {
+      title: "Gallery Items",
+      count: "22",
+      description: "Photos & documents",
+      icon: Images,
+      color: "text-[#526A91]",
+      bg: "bg-[#526A91]/10",
+      border: "border-t-[#526A91]",
+      path: "/website-admin/gallery",
+    },
+  ];
+
+  const quickActions = [
+    {
+      title: "Add New Notice",
+      description: "Publish a college announcement",
+      icon: Megaphone,
+      path: "/website-admin/notices",
+    },
+    {
+      title: "Update Departments",
+      description: "Manage courses and departments",
+      icon: GraduationCap,
+      path: "/website-admin/departments",
+    },
+    {
+      title: "Manage Gallery",
+      description: "Upload photos and documents",
+      icon: Images,
+      path: "/website-admin/gallery",
+    },
+    {
+      title: "Edit Website Content",
+      description: "Update pages and information",
+      icon: Pencil,
+      path: "/website-admin/content",
+    },
+  ];
+
+  const activities = [
+    {
+      title: "Website content updated",
+      time: "Today",
+      icon: Pencil,
+    },
+    {
+      title: "New notice published",
+      time: "Yesterday",
+      icon: Megaphone,
+    },
+    {
+      title: "Gallery images updated",
+      time: "2 days ago",
+      icon: Images,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Website administration"
-        title="Website Admin Dashboard"
-        description="Keep the public college website current, structured, and easy for prospective students to explore."
-        actions={
-          <>
-            <Button variant="secondary" onClick={handleExport}>
-              <Download size={16} />
-              Export report
-            </Button>
-            <Button as={Link} to="/website-admin/content">
-              <Plus size={16} />
-              New content
-            </Button>
-          </>
-        }
-      />
+    <div className="flex w-full flex-col gap-6 pb-5">
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {websiteAdminKpis.map((kpi) => (
-          <StatCard
-            key={kpi.id}
-            label={kpi.label}
-            value={kpi.value}
-            change={kpi.change}
-            tone={kpi.tone}
-            icon={KPI_ICONS[kpi.icon]}
-          />
-        ))}
-      </div>
+      {/* Welcome Banner */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#101D3A] via-[#172E55] to-[#8E0018] px-6 py-8 text-white shadow-xl md:px-9 md:py-10">
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
-        <Card>
-          <CardHeader
-            title="Website visits"
-            description="Monthly traffic across the last six months"
-            action={<Badge variant="success">+12.8%</Badge>}
-          />
-          <CardBody>
-            <TrendChart
-              labels={websiteTrafficSeries.labels}
-              values={websiteTrafficSeries.values}
-              ariaLabel="Website visits over the last six months"
-            />
-          </CardBody>
-        </Card>
+        {/* Decorative Background */}
+        <div className="pointer-events-none absolute -right-12 -top-24 h-72 w-72 rounded-full border-[35px] border-white/5" />
+        <div className="pointer-events-none absolute -bottom-28 right-1/3 h-64 w-64 rounded-full bg-[#D4AF37]/10 blur-3xl" />
 
-        <Card>
-          <CardHeader
-            title="Content health"
-            description="Published content across the website"
-          />
-          <CardBody className="space-y-6">
-            <ProgressRing
-              value={92}
-              label="Live"
-              caption="22 of 24 pages are published and visible to visitors."
-            />
-            <BarList
-              items={websiteContentMix}
-              valueFormatter={(value) => `${value} items`}
-            />
-          </CardBody>
-        </Card>
-      </div>
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
-        <Card>
-          <CardHeader
-            title="Recent content"
-            description="Latest pages, notices, and media updates"
-            action={
-              <Button
-                as={Link}
-                to="/website-admin/content"
-                variant="ghost"
-                size="sm"
+          <div className="max-w-2xl">
+            <div className="mb-4 flex w-fit items-center gap-2 rounded-full border border-[#D4AF37]/40 bg-white/10 px-3 py-1.5">
+              <Sparkles size={14} className="text-[#FFD76A]" />
+              <span className="text-xs font-semibold tracking-wide text-[#FFE8A3]">
+                COLLEGE WEBSITE MANAGEMENT
+              </span>
+            </div>
+
+            <p className="mb-2 text-sm font-medium text-white/70">
+              Welcome back, Website Admin!
+            </p>
+
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight md:text-4xl">
+              Manage Your College
+              <span className="block text-[#FFD76A]">
+                Website With Ease.
+              </span>
+            </h1>
+
+            <p className="mt-3 max-w-lg text-sm leading-6 text-white/75">
+              Keep your college website updated with academic information,
+              faculty details, gallery images and important announcements.
+            </p>
+
+            <button
+              onClick={() => navigate("/website-admin/content")}
+              className="mt-6 flex items-center gap-2 rounded-xl bg-[#D4AF37] px-5 py-3 text-sm font-bold text-[#172951] shadow-lg transition duration-300 hover:-translate-y-1 hover:bg-[#F2D477]"
+            >
+              Manage Website
+              <ArrowRight size={17} />
+            </button>
+          </div>
+
+          <div className="flex min-w-[190px] flex-col gap-3 rounded-2xl border border-white/15 bg-white/10 p-5 shadow-lg backdrop-blur-md">
+            <div className="flex items-center gap-2 text-[#FFE8A3]">
+              <CalendarDays size={17} />
+              <span className="text-xs font-semibold">TODAY'S DATE</span>
+            </div>
+
+            <p className="text-xl font-bold text-white">
+              {today}
+            </p>
+
+            <div className="h-px bg-white/20" />
+
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#34D399]" />
+              <span className="text-sm font-medium text-white/90">
+                Website is Active
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Statistics Heading */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-extrabold text-[#142B50]">
+              Website Overview
+            </h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Your website statistics at a glance
+            </p>
+          </div>
+
+          <span className="hidden rounded-full bg-[#A00018]/10 px-3 py-1.5 text-xs font-bold text-[#A00018] sm:block">
+            ADMIN PANEL
+          </span>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.title}
+                onClick={() => navigate(item.path)}
+                className={`group relative overflow-hidden rounded-2xl border border-gray-100 border-t-4 ${item.border} bg-white p-5 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
               >
-                View all
-                <ArrowUpRight size={14} />
-              </Button>
-            }
-          />
-          <DataTable
-            columns={contentColumns}
-            rows={websiteRecentContent}
-            emptyTitle="No content found"
-          />
-        </Card>
+                <div className="flex items-center justify-between">
+                  <div className={`rounded-xl p-3 ${item.bg} ${item.color}`}>
+                    <Icon size={23} />
+                  </div>
 
-        <Card>
-          <CardHeader
-            title="Publishing queue"
-            description="Notices waiting for attention"
-            action={
-              <Button
-                as={Link}
-                to="/website-admin/notices"
-                variant="ghost"
-                size="sm"
-              >
-                Manage
-                <ArrowUpRight size={14} />
-              </Button>
-            }
-          />
-          <CardBody className="space-y-3">
-            {websiteNotices.slice(0, 4).map((notice) => (
-              <div
-                key={notice.id}
-                className="rounded-xl border border-eromza-border p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs font-semibold leading-5 text-eromza-text">
-                    {notice.title}
-                  </p>
-                  <Badge
-                    variant={notice.priority === "High" ? "accent" : "neutral"}
-                  >
-                    {notice.priority}
-                  </Badge>
+                  <ArrowUpRight
+                    size={19}
+                    className="text-gray-300 transition group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-[#A00018]"
+                  />
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-eromza-subtle">
-                  <Badge variant={getStatusVariant(notice.status)}>
-                    {formatStatus(notice.status)}
-                  </Badge>
-                  <span>{notice.publishDate}</span>
+
+                <div className="mt-5">
+                  <p className="text-sm font-semibold text-gray-500">
+                    {item.title}
+                  </p>
+
+                  <h3 className="mt-1 text-3xl font-extrabold text-[#142B50]">
+                    {item.count}
+                  </h3>
+
+                  <p className={`mt-1 text-xs font-medium ${item.color}`}>
+                    {item.description}
+                  </p>
+                </div>
+
+                <div className="absolute -bottom-8 -right-5 h-24 w-24 rounded-full bg-gray-50/80 transition group-hover:scale-150" />
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Main Content */}
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+
+        {/* College Overview */}
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-lg xl:col-span-2">
+
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div>
+              <h3 className="text-lg font-extrabold text-[#142B50]">
+                About Our College
+              </h3>
+              <p className="mt-1 text-xs text-gray-500">
+                College website information
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-[#A00018]/10 p-2.5 text-[#A00018]">
+              <GraduationCap size={22} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 p-5 md:grid-cols-2">
+
+            {/* Campus Image */}
+            <div className="group relative min-h-[250px] overflow-hidden rounded-2xl">
+              <img
+                src={campusImage}
+                alt="Abeda Inamdar Senior College campus"
+                className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-110"
+              />
+
+              <div className="absolute inset-0 bg-gradient-to-t from-[#101D3A]/90 via-[#101D3A]/10 to-transparent" />
+
+              <div className="absolute left-4 top-4 rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md">
+                M.C.E. Society's
+              </div>
+
+              <div className="absolute bottom-5 left-5 text-white">
+                <p className="text-xs font-medium text-white/75">
+                  EDUCATION • EXCELLENCE • FUTURE
+                </p>
+
+                <h3 className="mt-2 text-2xl font-extrabold leading-tight">
+                  Abeda Inamdar
+                  <span className="block text-[#FFD76A]">
+                    Senior College
+                  </span>
+                </h3>
+              </div>
+            </div>
+
+            {/* College Information */}
+            <div className="flex flex-col justify-center">
+              <span className="mb-3 flex w-fit items-center gap-2 rounded-full bg-[#D4AF37]/15 px-3 py-1.5 text-[10px] font-extrabold tracking-wider text-[#997000]">
+                <Sparkles size={13} />
+                OUR COLLEGE
+              </span>
+
+              <h3 className="text-2xl font-extrabold leading-tight text-[#142B50]">
+                Welcome to Abeda Inamdar Senior College
+              </h3>
+
+              <p className="mt-3 text-sm leading-7 text-gray-500">
+                Manage and maintain your college website from one place.
+                Keep students, faculty and visitors informed about the
+                latest academic updates, events and announcements.
+              </p>
+
+              <div className="mt-5 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                  <CheckCircle2 size={17} className="text-emerald-600" />
+                  Academic information and updates
+                </div>
+
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                  <CheckCircle2 size={17} className="text-emerald-600" />
+                  Faculty and department details
+                </div>
+
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                  <CheckCircle2 size={17} className="text-emerald-600" />
+                  Notices, events and gallery
                 </div>
               </div>
-            ))}
-          </CardBody>
-        </Card>
-      </div>
 
-      <Card>
-        <CardHeader
-          title="Recent activity"
-          description="Latest website administration actions"
-          action={<Badge variant="neutral">Live</Badge>}
-        />
-        <CardBody>
-          <ActivityFeed items={websiteActivities} icons={ACTIVITY_ICONS} />
-        </CardBody>
-      </Card>
+              <button
+                onClick={() => navigate("/website-admin/content")}
+                className="mt-6 flex w-fit items-center gap-2 rounded-xl bg-[#A00018] px-5 py-3 text-sm font-bold text-white shadow-md shadow-red-900/20 transition duration-300 hover:-translate-y-1 hover:bg-[#780013]"
+              >
+                Edit Website Content
+                <ArrowRight size={17} />
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-lg">
+
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-extrabold text-[#142B50]">
+                Quick Actions
+              </h3>
+              <p className="mt-1 text-xs text-gray-500">
+                Frequently used options
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-[#D4AF37]/15 p-2.5 text-[#997000]">
+              <Sparkles size={20} />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+
+              return (
+                <button
+                  key={action.title}
+                  onClick={() => navigate(action.path)}
+                  className="group flex items-center gap-3 rounded-xl border border-gray-100 bg-[#F8F9FC] p-3.5 text-left transition duration-300 hover:border-[#A00018]/20 hover:bg-[#A00018]/5 hover:shadow-sm"
+                >
+                  <div className="rounded-xl bg-white p-3 text-[#A00018] shadow-sm transition group-hover:bg-[#A00018] group-hover:text-white">
+                    <Icon size={19} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-[#142B50]">
+                      {action.title}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {action.description}
+                    </p>
+                  </div>
+
+                  <ArrowRight
+                    size={17}
+                    className="shrink-0 text-gray-400 transition group-hover:translate-x-1 group-hover:text-[#A00018]"
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      
+      
+
     </div>
   );
 }
+
+export default WebsiteAdminDashboard;
