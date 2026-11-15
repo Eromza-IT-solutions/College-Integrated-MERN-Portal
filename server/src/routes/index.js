@@ -3,8 +3,10 @@
 //   router.use('/auth', authRoutes);
 import express from 'express';
 import mongoose from 'mongoose';
+import auditLogsRoutes from '../modules/admin/super/auditLogs.routes.js';
 
 const router = express.Router();
+
 
 // Quick check that the server and database are up.
 router.get('/health', (req, res) => {
@@ -18,5 +20,7 @@ router.get('/health', (req, res) => {
     meta: { requestId: req.id },
   });
 });
+
+router.use('/audit-logs', auditLogsRoutes);
 
 export default router;
