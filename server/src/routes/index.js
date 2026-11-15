@@ -3,6 +3,9 @@
 //   router.use('/auth', authRoutes);
 import express from 'express';
 import mongoose from 'mongoose';
+import auditLogsRoutes from '../modules/admin/super/auditLogs.routes.js';
+import paymentsRoutes from '../modules/payments/payments.routes.js';
+import refundsRoutes from '../modules/payments/refunds.routes.js';
 
 const router = express.Router();
 
@@ -18,5 +21,9 @@ router.get('/health', (req, res) => {
     meta: { requestId: req.id },
   });
 });
+
+router.use('/audit-logs', auditLogsRoutes);
+router.use('/payments', paymentsRoutes);
+router.use('/refunds', refundsRoutes);
 
 export default router;
