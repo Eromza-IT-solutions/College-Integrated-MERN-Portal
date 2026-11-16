@@ -1,8 +1,13 @@
-// Reads .env and stops the server early, with a clear message, if something is missing.
-import dotenv from 'dotenv';
-dotenv.config();
 
-const required = ['MONGODB_URI', 'SESSION_SECRET'];
+// Reads .env and stops the server early, with a clear message, if something is missing.
+import 'dotenv/config';
+import crypto from 'node:crypto';
+
+const nodeEnv = process.env.NODE_ENV || 'development';
+
+// RATE_LIMIT_HASH_SECRET is also required in production.
+const required = nodeEnv === 'test' ? [] : ['MONGODB_URI', 'SESSION_SECRET'];
+
 const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
@@ -11,13 +16,75 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// In production, the session secret must be at least 32 characters.
+if (nodeEnv === 'production' && process.env.SESSION_SECRET.length < 32) {
+  console.error('SESSION_SECRET must be at least 32 characters in production.');
+  process.exit(1);
+}
+
+// Private fingerprint secret for login identifiers.
+const configuredHashSecret = process.env.RATE_LIMIT_HASH_SECRET || '';
+
+if (nodeEnv === 'production' && !configuredHashSecret) {
+  console.error('Missing environment variable: RATE_LIMIT_HASH_SECRET (required in production, 32+ characters).');
+  console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+  process.exit(1);
+}
+
+if (nodeEnv !== 'test' && configuredHashSecret && configuredHashSecret.length < 32) {
+  console.error('RATE_LIMIT_HASH_SECRET must be at least 32 characters.');
+  process.exit(1);
+}
+
+const rateLimitHashSecret =
+  configuredHashSecret ||
+  crypto.createHmac(
+    'sha256',
+    process.env.SESSION_SECRET || 'test-only-secret-not-for-real-use'
+  ).update('eromza:rate-limit-hash:v1').digest('hex');
+
+// Reads a number from .env; falls back to a default.
+function positiveNumber(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 export default {
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   port: Number(process.env.PORT) || 5000,
   mongodbUri: process.env.MONGODB_URI,
   sessionSecret: process.env.SESSION_SECRET,
+  rateLimitHashSecret,
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
-  // Payment gateway (test mode only). "fake" needs no keys; "razorpay" needs all three.
+
+  // Session configuration.
+  sessionName: process.env.SESSION_NAME || 'icms.sid',
+  sessionMaxAgeMs: positiveNumber(process.env.SESSION_MAX_AGE_MS, 30 * 60 * 1000),
+
+  // Brute-force protection.
+  security: {
+    loginIpMax: positiveNumber(process.env.RATE_LIMIT_LOGIN_MAX, 20),
+    loginIpWindowMs: positiveNumber(process.env.RATE_LIMIT_LOGIN_WINDOW_MS, 15 * 60 * 1000),
+    forgotIpMax: positiveNumber(process.env.RATE_LIMIT_FORGOT_IP_MAX, 5),
+    forgotEmailMax: positiveNumber(process.env.RATE_LIMIT_FORGOT_EMAIL_MAX, 3),
+    forgotWindowMs: positiveNumber(process.env.RATE_LIMIT_FORGOT_WINDOW_MS, 60 * 60 * 1000),
+    resetIpMax: positiveNumber(process.env.RATE_LIMIT_RESET_MAX, 10),
+    resetWindowMs: positiveNumber(process.env.RATE_LIMIT_RESET_WINDOW_MS, 60 * 60 * 1000),
+    lockoutThreshold: positiveNumber(process.env.LOGIN_LOCKOUT_THRESHOLD, 5),
+    lockoutMs: positiveNumber(process.env.LOGIN_LOCKOUT_MS, 15 * 60 * 1000),
+  },
+
+  // Outgoing email configuration.
+  smtp: {
+    host: process.env.SMTP_HOST || '',
+    port: positiveNumber(process.env.SMTP_PORT, 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.EMAIL_FROM || '',
+  },
+
+  // Payment gateway configuration.
   payment: {
     gateway: process.env.PAYMENT_GATEWAY || 'fake',
     keyId: process.env.PAYMENT_KEY_ID || '',

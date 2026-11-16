@@ -26,7 +26,7 @@ function requirePermission(resource, action) {
 
   return asyncHandler(async (req, res, next) => {
     const actor = getActor(req);
-    if (!actor) throw new AppError('Please sign in', 401);
+    if (!actor) throw new AppError('Please sign in', 401, undefined, 'UNAUTHENTICATED');
 
     const scope = await getScope(actor.role, resource, action);
     if (!scope) {
@@ -41,7 +41,7 @@ function requirePermission(resource, action) {
           details: { role: actor.role, attempted: action, method: req.method, path: `${req.baseUrl || ''}${req.path || ''}` },
         })
       ).catch(() => {});
-      throw new AppError('You do not have permission to do this', 403);
+      throw new AppError('You do not have permission to do this', 403, undefined, 'FORBIDDEN');
     }
 
     req.permission = { resource, action, scope };

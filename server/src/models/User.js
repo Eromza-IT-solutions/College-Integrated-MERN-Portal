@@ -37,6 +37,8 @@ const userSchema = new mongoose.Schema(
     lockedUntil: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
     mustChangePassword: { type: Boolean, required: true, default: false },
+    // Set when the password is reset. Any login older than this stops working (see middleware/authenticate.js).
+    passwordChangedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

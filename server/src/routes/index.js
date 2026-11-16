@@ -3,6 +3,8 @@
 //   router.use('/auth', require('../modules/auth/auth.routes'));
 import express from 'express';
 import mongoose from 'mongoose';
+import authRoutes from '../modules/auth/auth.routes.js';
+import rbacRoutes from '../modules/admin/super/rbac.routes.js';
 import auditLogsRoutes from '../modules/admin/super/auditLogs.routes.js';
 import paymentsRoutes from '../modules/payments/payments.routes.js';
 import refundsRoutes from '../modules/payments/refunds.routes.js';
@@ -13,6 +15,9 @@ import resultsRoutes from '../modules/academics/results.routes.js';
 import buildWebsiteRouter from '../modules/website/website.routes.js';
 
 const router = express.Router();
+
+router.use('/auth', authRoutes);
+router.use(rbacRoutes); // /roles and /permissions (Super Admin only)
 
 // Quick check that the server and database are up.
 router.get('/health', (req, res) => {

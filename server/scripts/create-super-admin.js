@@ -17,9 +17,9 @@ import { ROLES, USER_STATUS, AUDIT_OUTCOME } from '../src/utils/constants.js';
 import { hashPassword } from '../src/utils/password.js';
 import User from '../src/models/User.js';
 import AuditLog from '../src/models/AuditLog.js';
+import { validatePassword } from '../src/utils/passwordPolicy.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const WEAK_WORDS = ['password', 'passw0rd', '123456', 'qwerty', 'admin', 'letmein', 'welcome', 'eromza', 'college'];
 
 export function validateEmail(email) {
   if (!EMAIL_RE.test(email || '')) return 'Enter a valid email address';
@@ -31,16 +31,8 @@ export function validateName(name) {
   return null;
 }
 
-// Returns a message if the password is not acceptable, or null if it is fine.
-export function validatePassword(password, email = '') {
-  if (!password || password.length < 12) return 'Use at least 12 characters';
-  if (new Set(password).size < 5) return 'Use a more varied password (too many repeated characters)';
-  const lower = password.toLowerCase();
-  if (WEAK_WORDS.some((w) => lower.includes(w))) return 'Do not use common words such as "password" or "admin"';
-  const local = String(email).split('@')[0].toLowerCase();
-  if (local.length >= 4 && lower.includes(local)) return 'Do not include your email name in the password';
-  return null;
-}
+// The password rules now live in src/utils/passwordPolicy.js (shared with password reset); re-exported here.
+export { validatePassword };
 
 async function audit(entry) {
   try {
