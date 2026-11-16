@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Landmark, GraduationCap, BarChart3, ShieldCheck, CheckCircle2, Users,
-  Plus, Bell, ChevronDown, Search, ArrowRight, Clock, X, LogOut, User, Settings,
+  Plus, Search, ArrowRight, Clock, X,
   BookOpen, Library, FlaskConical,
 } from "lucide-react";
 
@@ -156,14 +156,6 @@ export default function ManageAdminPanels({ onManage = (p) => console.log("Manag
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [menu, setMenu] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const close = (e) => menuRef.current && !menuRef.current.contains(e.target) && setMenu(false);
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, []);
 
   const stats = useMemo(() => ({
     total: panels.length,
@@ -194,31 +186,6 @@ export default function ManageAdminPanels({ onManage = (p) => console.log("Manag
   return (
     <div className="ap-page">
       <style>{CSS}</style>
-
-      <header className="top">
-        <div>
-          <h1>Manage Admin Panels</h1>
-          <p>Create panels, assign admins and control access.</p>
-        </div>
-        <div className="top-actions">
-          <button className="btn-primary" onClick={() => setShowModal(true)}><Plus size={18} /> Add Panel</button>
-          <button className="bell" aria-label="Notifications"><Bell size={18} /><i /></button>
-          <div className="profile" ref={menuRef}>
-            <button className="profile-btn" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
-              <span className="avatar big">SA</span>
-              <b>Super Admin</b>
-              <ChevronDown size={16} className={menu ? "flip" : ""} />
-            </button>
-            {menu && (
-              <div className="dropdown">
-                <button><User size={16} /> My profile</button>
-                <button><Settings size={16} /> Settings</button>
-                <button className="danger"><LogOut size={16} /> Sign out</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
 
       <section className="stats">
         <StatCard icon={ShieldCheck} value={stats.total} label="Total panels" tone="navy" />
@@ -286,13 +253,6 @@ const CSS = `
 .ap-page button{font-family:inherit;cursor:pointer}
 .ap-page :focus-visible{outline:3px solid rgba(232,185,35,.7);outline-offset:2px}
 
-/* header */
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:26px}
-.top h1{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,38px);margin:0;line-height:1.1;color:var(--navy)}
-.top h1::after{content:"";display:block;width:56px;height:4px;border-radius:4px;background:var(--gold);margin-top:10px}
-.top p{margin:10px 0 0;color:var(--muted);font-size:14px}
-.top-actions{display:flex;align-items:center;gap:12px}
-
 .btn-primary{display:inline-flex;align-items:center;gap:8px;border:0;color:#fff;font-weight:600;font-size:14px;
   padding:12px 20px;border-radius:12px;background:linear-gradient(180deg,var(--maroon2),var(--maroon));
   box-shadow:0 10px 22px -8px rgba(138,11,28,.65);transition:transform .15s, box-shadow .15s, filter .15s}
@@ -302,24 +262,8 @@ const CSS = `
 .btn-ghost{border:1px solid var(--line);background:#fff;color:var(--navy);font-weight:600;font-size:14px;padding:12px 20px;border-radius:12px}
 .btn-ghost:hover{background:#f1f3fa}
 
-.bell{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;
-  display:grid;place-items:center;color:var(--navy);box-shadow:0 6px 16px -10px rgba(20,33,79,.5);transition:transform .15s}
-.bell:hover{transform:translateY(-2px)}
-.bell i{position:absolute;top:10px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--maroon2);border:2px solid #fff}
-
-.profile{position:relative}
-.profile-btn{display:flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--line);
-  background:#fff;color:var(--navy);font-size:14px;box-shadow:0 6px 16px -10px rgba(20,33,79,.5)}
-.profile-btn svg{transition:transform .2s}.profile-btn .flip{transform:rotate(180deg)}
 .avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#fff;color:var(--navy);
   font-size:10px;font-weight:600;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
-.avatar.big{width:34px;height:34px;font-size:12px;color:#fff;background:linear-gradient(135deg,var(--navy2),var(--maroon));border:0;box-shadow:none}
-.dropdown{position:absolute;right:0;top:calc(100% + 8px);min-width:180px;padding:6px;border-radius:14px;background:#fff;
-  border:1px solid var(--line);box-shadow:0 20px 40px -16px rgba(20,33,79,.4);z-index:20;animation:pop .16s ease-out}
-.dropdown button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:none;border-radius:9px;
-  font-size:14px;color:var(--navy);text-align:left}
-.dropdown button:hover{background:#f1f3fa}
-.dropdown .danger{color:var(--maroon)}
 
 /* stats */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-bottom:24px}
@@ -430,6 +374,5 @@ const CSS = `
 @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
-@media (max-width:640px){.top-actions{width:100%;justify-content:space-between}.profile-btn b{display:none}}
 @media (prefers-reduced-motion:reduce){.ap-page *{animation:none!important;transition:none!important}}
 `;

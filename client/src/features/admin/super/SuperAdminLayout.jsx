@@ -1,4 +1,5 @@
 import SuperAdmin_Sidebar from "./SuperAdmin_Sidebar";
+import SuperAdmin_Topbar from "./SuperAdmin_Topbar";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const ACTIVE_ITEM_BY_PATH = {
@@ -17,14 +18,16 @@ export default function SuperAdminLayout() {
 
   return (
     <div className="min-h-screen">
-      <SuperAdmin_Sidebar
-        activeItem={activeItem}
-        onNavigate={(item) => navigate(item.path)}
-      />
+    <SuperAdmin_Sidebar
+  activeItem={activeItem}
+  onNavigate={(item) => navigate(item.path)}
+/>
 
-      <div className="lg:pl-64">
-        <Outlet />
-      </div>
+<SuperAdmin_Topbar />
+
+<div className="lg:pl-64 pt-24">
+  <Outlet />
+</div>
     </div>
   );
 }

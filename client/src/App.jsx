@@ -12,6 +12,9 @@ import ManageAdminPanels from "./features/admin/super/ManageAdminPanels";
 import SystemSettings from "./features/admin/super/SystemSettings";
 import ReportsAnalytics from "./features/admin/super/ReportsAnalytics";
 import AuditLogs from "./features/admin/super/AuditLogs";
+import StudentRegistration from "./features/admissions/StudentRegistration";
+import TeacherLogin from "./features/auth/TeacherLogin";
+import TeacherRegistration from "./features/auth/TeacherRegistration";
 
 // College Website Admin
 import WebsiteAdminLayout from "./features/admin/website/WebsiteAdminLayout";
@@ -37,6 +40,11 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/student-register" element={<StudentRegistration />} />
+        <Route path="/teacher-login" element={<TeacherLogin />} />
+        <Route path="/teacher-register" element={<TeacherRegistration />} />
+        {/* Super Admin Layout */}
+        <Route path="/" element={<SuperAdminLayout />}>
 
         {/* Super Admin Routes */}
         <Route path="/super-admin" element={<SuperAdminLayout />}>
