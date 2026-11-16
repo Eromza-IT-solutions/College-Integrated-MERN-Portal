@@ -56,7 +56,7 @@ function appFor(user) {
 async function buildWorld() {
   const deptA = await Department.create({ code: 'CS', name: 'Computer Science' });
   const deptB = await Department.create({ code: 'COM', name: 'Commerce' });
-  const progA = await Program.create({ name: 'F.Y.B.Sc. CS', code: 'FYCS', departmentId: deptA._id });
+  const progA = await Program.create({ name: 'F.Y.B.Sc. CS', code: 'FYCS', departmentId: deptA._id, level: 'Undergraduate' });
   const year = await AcademicYear.create({ label: '2026-27', startDate: new Date('2026-06-01'), endDate: new Date('2027-05-31'), status: 'current' });
 
   const mkUser = (role, key, departmentId = null) => User.create({
