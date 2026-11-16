@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import env from '../src/config/env.js';
+import '../src/models/index.js'; // register every model
 import User from '../src/models/User.js';
 import Program from '../src/models/Program.js';
 import Subject from '../src/models/Subject.js';

@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Activity, Users, LogIn, LogOut, Pencil, UserPlus, FileText, Download, Trash2,
-  Bell, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown, Search, X,
-  Radio, User, ShieldCheck,
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown, Search, X,
+  Radio,
 } from "lucide-react";
 
 /* ---------- demo data (replace with your API) ---------- */
@@ -145,16 +145,9 @@ export default function AuditLogs() {
   const [sort, setSort] = useState({ key: "time", dir: "desc" });
   const [page, setPage] = useState(1);
   const [per, setPer] = useState(5);
-  const [menu, setMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const menuRef = useRef(null);
 
   useEffect(() => { const t = setTimeout(() => setMounted(true), 150); return () => clearTimeout(t); }, []);
-  useEffect(() => {
-    const close = (e) => menuRef.current && !menuRef.current.contains(e.target) && setMenu(false);
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, []);
 
   /* stats (all data) */
   const stats = useMemo(() => ({
@@ -209,29 +202,6 @@ export default function AuditLogs() {
   return (
     <div className="al">
       <style>{CSS}</style>
-
-      <header className="top">
-        <div>
-          <h1>Audit Logs</h1>
-          <p>Track every action, user and module across the portal.</p>
-        </div>
-        <div className="top-actions">
-          <span className="demo"><i /> Demo data</span>
-          <button className="bell" aria-label="Notifications"><Bell size={18} /><b /></button>
-          <div className="profile" ref={menuRef}>
-            <button className="profile-btn" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
-              <span className="avatar">SA</span><strong>Super Admin</strong>
-              <ChevronDown size={16} className={menu ? "flip" : ""} />
-            </button>
-            {menu && (
-              <div className="dropdown">
-                <button><User size={16} /> My profile</button>
-                <button className="danger"><LogOut size={16} /> Sign out</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
 
       <section className="stats">
         <StatCard icon={Activity} label="Total Events" value={stats.total} caption="Across all modules" tone="navy" delay={0} />
@@ -373,24 +343,6 @@ const CSS = `
 .al button{font-family:inherit;cursor:pointer}
 .al :focus-visible{outline:3px solid rgba(232,185,35,.7);outline-offset:2px}
 
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:26px}
-.top h1{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,38px);margin:0;line-height:1.1}
-.top h1::after{content:"";display:block;width:56px;height:4px;border-radius:4px;background:var(--gold);margin-top:10px}
-.top p{margin:10px 0 0;color:var(--muted);font-size:14px}
-.top-actions{display:flex;align-items:center;gap:12px}
-.demo{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:#fff6dc;border:1px solid #f3dd9a;color:#a87203;font-size:12.5px;font-weight:600}
-.demo i{width:8px;height:8px;border-radius:50%;background:var(--gold)}
-.bell{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--navy);box-shadow:0 6px 16px -10px rgba(20,33,79,.5);transition:transform .15s}
-.bell:hover{transform:translateY(-2px)}
-.bell b{position:absolute;top:10px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--maroon2);border:2px solid #fff}
-.profile{position:relative}
-.profile-btn{display:flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:14px;box-shadow:0 6px 16px -10px rgba(20,33,79,.5)}
-.profile-btn svg{transition:transform .2s}.profile-btn .flip{transform:rotate(180deg)}
-.avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:#fff;font-size:12px;font-weight:600;background:linear-gradient(135deg,var(--navy2),var(--maroon))}
-.dropdown{position:absolute;right:0;top:calc(100% + 8px);min-width:180px;padding:6px;border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 40px -16px rgba(20,33,79,.4);z-index:20;animation:pop .16s ease-out}
-.dropdown button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:none;border-radius:9px;font-size:14px;color:var(--navy);text-align:left}
-.dropdown button:hover{background:#f1f3fa}.dropdown .danger{color:var(--maroon)}
-
 /* stats */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;margin-bottom:24px}
 .stat{--c:#1b2d6b;--ct:#e8ecfb;position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;padding:20px 22px;border-radius:20px;background:#fff;border:1px solid var(--line);
@@ -500,6 +452,6 @@ tbody tr:hover .act-ic{background:var(--navy2);color:#fff;transform:scale(1.08)}
 @keyframes blink{50%{opacity:.3}}
 
 @media (max-width:1060px){.layout{grid-template-columns:1fr}}
-@media (max-width:640px){.profile-btn strong{display:none}.head-actions{width:100%}.seg-ctl{overflow-x:auto;max-width:100%}}
+@media (max-width:640px){.head-actions{width:100%}.seg-ctl{overflow-x:auto;max-width:100%}}
 @media (prefers-reduced-motion:reduce){.al *{animation:none!important;transition:none!important}}
 `;

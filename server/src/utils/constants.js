@@ -130,6 +130,16 @@ export const DOCUMENT_RULES = Object.freeze({ mimeTypes: ['image/jpeg', 'image/p
   size: { photo: { width: 80, height: 100 }, signature: { width: 80, height: 50 } } });
 
 
+// ---- Website content (notices, events, news, gallery, pages) ----
+export const WEBSITE_CONTENT_TYPE = Object.freeze({"NOTICE": "notice", "EVENT": "event", "NEWS": "news", "GALLERY": "gallery", "PAGE": "page"});
+export const WEBSITE_CONTENT_TYPE_VALUES = Object.values(WEBSITE_CONTENT_TYPE);
+export const WEBSITE_CONTENT_STATUS = Object.freeze({"DRAFT": "draft", "PUBLISHED": "published", "ARCHIVED": "archived"});
+export const WEBSITE_CONTENT_STATUS_VALUES = Object.values(WEBSITE_CONTENT_STATUS);
+// Which permission-matrix resource governs each type. Notices have their own rows; the rest use "publicPages".
+// (Events, news and gallery are not named in the signed-off matrix; they are treated as public pages until the team says otherwise.)
+export const WEBSITE_CONTENT_RESOURCE = Object.freeze({"notice": "notices", "event": "publicPages", "news": "publicPages", "gallery": "publicPages", "page": "publicPages"});
+export const WEBSITE_LIMITS = Object.freeze({ titleMax: 200, summaryMax: 500, bodyMax: 20000, attachmentsMax: 10, imagesMax: 60, slugMax: 80 });
+
 // ---- Fees and payments ----
 // ---- Programs ----
 export const PROGRAM_LEVELS = Object.freeze(["Undergraduate", "Post Graduate", "Ph.D.", "Post-Doctoral", "UG Diploma", "PG Diploma", "Certificate Course"]);

@@ -1,6 +1,6 @@
 // Mounts every feature's routes under /api/v1.
 // Each module keeps its own routes file; add them here as they are built:
-//   router.use('/auth', authRoutes);
+//   router.use('/auth', require('../modules/auth/auth.routes'));
 import express from 'express';
 import mongoose from 'mongoose';
 import auditLogsRoutes from '../modules/admin/super/auditLogs.routes.js';
@@ -10,6 +10,7 @@ import timetableRoutes from '../modules/academics/timetable.routes.js';
 import attendanceRoutes from '../modules/academics/attendance.routes.js';
 import marksRoutes from '../modules/academics/marks.routes.js';
 import resultsRoutes from '../modules/academics/results.routes.js';
+import buildWebsiteRouter from '../modules/website/website.routes.js';
 
 const router = express.Router();
 
@@ -33,5 +34,6 @@ router.use('/timetable', timetableRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/marks', marksRoutes);
 router.use('/results', resultsRoutes);
+router.use('/website', buildWebsiteRouter());
 
 export default router;

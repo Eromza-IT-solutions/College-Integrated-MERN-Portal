@@ -98,24 +98,6 @@ function WebsiteAdminDashboard() {
     },
   ];
 
-  const activities = [
-    {
-      title: "Website content updated",
-      time: "Today",
-      icon: Pencil,
-    },
-    {
-      title: "New notice published",
-      time: "Yesterday",
-      icon: Megaphone,
-    },
-    {
-      title: "Gallery images updated",
-      time: "2 days ago",
-      icon: Images,
-    },
-  ];
-
   return (
     <div className="flex w-full flex-col gap-6 pb-5">
 

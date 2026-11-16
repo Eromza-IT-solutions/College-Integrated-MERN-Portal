@@ -12,12 +12,13 @@ describe("WebsiteAdminDashboard", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Website Admin Dashboard" }),
+      screen.getByRole("heading", {
+        name: /Manage Your College Website With Ease/i,
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Published Pages")).toBeInTheDocument();
-    expect(screen.getByText("Website visits")).toBeInTheDocument();
-    expect(screen.getByText("Content health")).toBeInTheDocument();
-    expect(screen.getByText("Recent content")).toBeInTheDocument();
-    expect(screen.getByText("Publishing queue")).toBeInTheDocument();
+    expect(screen.getByText("Website Overview")).toBeInTheDocument();
+    expect(screen.getByText("Website Pages")).toBeInTheDocument();
+    expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+    expect(screen.getByText("About Our College")).toBeInTheDocument();
   });
 });

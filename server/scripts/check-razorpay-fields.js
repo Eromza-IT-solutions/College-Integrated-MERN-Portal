@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import env from '../src/config/env.js';
+import '../src/models/index.js'; // register every model
 import FeeStructure from '../src/models/FeeStructure.js';
 import Payment from '../src/models/Payment.js';
 import User from '../src/models/User.js';
@@ -37,6 +38,16 @@ async function main() {
     };
     const a = await make();
     ok(a.gateway === 'razorpay' && a.currency === 'INR' && a.failedAttempts === 0, 'a new payment uses Razorpay, INR, no failed attempts');
+
+    let dupOpen = false;
+    try {
+      const extra = await Payment.create({
+        purpose: 'admission', payerUserId: applicant._id, academicYearId: year._id, feeStructureId: fee._id,
+        applicationId: a.applicationId, amountPaise: 100000,
+      });
+      made.push(extra._id);
+    } catch (e) { dupOpen = e.code === 11000; }
+    ok(dupOpen, 'a second open payment for the same application is refused (unique index)');
 
     const orderA = `order_A${stamp}`;
     const race = await Promise.allSettled([
