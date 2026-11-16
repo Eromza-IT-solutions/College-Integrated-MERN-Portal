@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Settings, ShieldCheck, Bell, HardDrive, ChevronDown, CheckCircle2, RotateCcw,
   Save, Loader2, Building2, CalendarDays, UserCog, Lock, Clock, KeyRound,
-  Mail, MessageSquare, GraduationCap, BarChart3, CloudUpload, LogOut, User,
+  Mail, MessageSquare, GraduationCap, BarChart3, CloudUpload,
 } from "lucide-react";
 
 /* ---------- config ---------- */
@@ -97,21 +97,13 @@ export default function SystemSettings() {
   const [tab, setTab] = useState("general");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [backup, setBackup] = useState({ running: false, pct: 0, last: "Today, 02:00 AM" });
-  const menuRef = useRef(null);
 
   const set = (k) => (v) => setS((p) => ({ ...p, [k]: v }));
   const dirtyKeys = useMemo(() => Object.keys(s).filter((k) => s[k] !== saved[k]), [s, saved]);
   const dirty = dirtyKeys.length > 0;
   const tabDirty = (t) => t.keys.some((k) => dirtyKeys.includes(k));
   const nameOk = s.name.trim().length > 2;
-
-  useEffect(() => {
-    const close = (e) => menuRef.current && !menuRef.current.contains(e.target) && setMenu(false);
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, []);
 
   useEffect(() => {
     const warn = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } };
@@ -146,28 +138,6 @@ export default function SystemSettings() {
   return (
     <div className="ss">
       <style>{CSS}</style>
-
-      <header className="top">
-        <div>
-          <h1>System Settings</h1>
-          <p>Configure how the college portal looks, behaves and protects data.</p>
-        </div>
-        <div className="top-actions">
-          <button className="bell" aria-label="Notifications"><Bell size={18} /><i /></button>
-          <div className="profile" ref={menuRef}>
-            <button className="profile-btn" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
-              <span className="avatar">SA</span><b>Super Admin</b>
-              <ChevronDown size={16} className={menu ? "flip" : ""} />
-            </button>
-            {menu && (
-              <div className="dropdown">
-                <button><User size={16} /> My profile</button>
-                <button className="danger"><LogOut size={16} /> Sign out</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
 
       <section className="panel">
         <nav className="tabs" role="tablist" style={{ "--i": idx, "--n": TABS.length }}>
@@ -290,22 +260,6 @@ const CSS = `
 .ss button{font-family:inherit;cursor:pointer}
 .ss :focus-visible{outline:3px solid rgba(232,185,35,.7);outline-offset:2px}
 
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:24px}
-.top h1{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,38px);margin:0;line-height:1.1}
-.top h1::after{content:"";display:block;width:56px;height:4px;border-radius:4px;background:var(--gold);margin-top:10px}
-.top p{margin:10px 0 0;color:var(--muted);font-size:14px}
-.top-actions{display:flex;align-items:center;gap:12px}
-.bell{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--navy);box-shadow:0 6px 16px -10px rgba(20,33,79,.5);transition:transform .15s}
-.bell:hover{transform:translateY(-2px)}
-.bell i{position:absolute;top:10px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--maroon2);border:2px solid #fff}
-.profile{position:relative}
-.profile-btn{display:flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:14px;box-shadow:0 6px 16px -10px rgba(20,33,79,.5)}
-.profile-btn svg{transition:transform .2s}.profile-btn .flip{transform:rotate(180deg)}
-.avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:#fff;font-size:12px;font-weight:600;background:linear-gradient(135deg,var(--navy2),var(--maroon))}
-.dropdown{position:absolute;right:0;top:calc(100% + 8px);min-width:180px;padding:6px;border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 40px -16px rgba(20,33,79,.4);z-index:20;animation:pop .16s ease-out}
-.dropdown button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:none;border-radius:9px;font-size:14px;color:var(--navy);text-align:left}
-.dropdown button:hover{background:#f1f3fa}.dropdown .danger{color:var(--maroon)}
-
 .panel{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 24px 50px -34px rgba(20,33,79,.6);overflow:hidden;display:flex;flex-direction:column;min-height:560px}
 
 .tabs{--i:0;--n:4;position:relative;display:flex;gap:6px;padding:0 20px;border-bottom:1px solid var(--line);overflow-x:auto}
@@ -392,14 +346,12 @@ const CSS = `
 
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,185,35,.6)}70%{box-shadow:0 0 0 8px rgba(232,185,35,0)}100%{box-shadow:0 0 0 0 rgba(232,185,35,0)}}
 
 @media (max-width:860px){
   .split{grid-template-columns:1fr}.preview{position:relative;top:0}
   .row{grid-template-columns:1fr;gap:10px}.row-wide{grid-template-columns:1fr auto;align-items:center}
-  .profile-btn b{display:none}
 }
 @media (prefers-reduced-motion:reduce){.ss *{animation:none!important;transition:none!important}}
 `;

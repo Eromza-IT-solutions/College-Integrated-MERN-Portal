@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  Users, FileText, Activity, Clock, Bell, ChevronDown, TrendingUp, Download,
-  ArrowUp, ArrowDown, LogOut, User, Radio,
+  Users, FileText, Activity, Clock, TrendingUp, Download,
+  ArrowUp, Radio,
 } from "lucide-react";
 
 /* ---------- data (replace with your API) ---------- */
@@ -222,8 +222,6 @@ export default function ReportsAnalytics() {
   const [hidden, setHidden] = useState([]);
   const [sessions, setSessions] = useState(8686);
   const [hist, setHist] = useState([8420, 8470, 8450, 8530, 8580, 8560, 8640, 8686]);
-  const [menu, setMenu] = useState(false);
-  const menuRef = useRef(null);
 
   const labels = MONTHS_12.slice(-range);
   const data = USERS_12.slice(-range);
@@ -238,12 +236,6 @@ export default function ReportsAnalytics() {
       return next;
     }), 3000);
     return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const close = (e) => menuRef.current && !menuRef.current.contains(e.target) && setMenu(false);
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
   }, []);
 
   const toggleType = (k) =>
@@ -261,29 +253,6 @@ export default function ReportsAnalytics() {
   return (
     <div className="ra">
       <style>{CSS}</style>
-
-      <header className="top">
-        <div>
-          <h1>Reports &amp; Analytics</h1>
-          <p>Track users, reports and engagement across the portal.</p>
-        </div>
-        <div className="top-actions">
-          <span className="live"><i /> Live</span>
-          <button className="bell" aria-label="Notifications"><Bell size={18} /><b /></button>
-          <div className="profile" ref={menuRef}>
-            <button className="profile-btn" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
-              <span className="avatar">SA</span><strong>Super Admin</strong>
-              <ChevronDown size={16} className={menu ? "flip" : ""} />
-            </button>
-            {menu && (
-              <div className="dropdown">
-                <button><User size={16} /> My profile</button>
-                <button className="danger"><LogOut size={16} /> Sign out</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
 
       <section className="stats">
         <StatCard icon={Users} label="Total Users" value={1250} trend={12} tone="navy" delay={0} spark={[640, 780, 950, 1010, 1100, 1180, 1250]} />
@@ -338,24 +307,6 @@ const CSS = `
 .ra button{font-family:inherit;cursor:pointer}
 .ra :focus-visible{outline:3px solid rgba(232,185,35,.7);outline-offset:2px}
 
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:26px}
-.top h1{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,38px);margin:0;line-height:1.1}
-.top h1::after{content:"";display:block;width:56px;height:4px;border-radius:4px;background:var(--gold);margin-top:10px}
-.top p{margin:10px 0 0;color:var(--muted);font-size:14px}
-.top-actions{display:flex;align-items:center;gap:12px}
-.live{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:#e1f5ec;border:1px solid #bfe6d2;color:#0f7a4b;font-size:12.5px;font-weight:600}
-.live i{width:8px;height:8px;border-radius:50%;background:#12915a;animation:pulse 1.6s infinite}
-.bell{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--navy);box-shadow:0 6px 16px -10px rgba(20,33,79,.5);transition:transform .15s}
-.bell:hover{transform:translateY(-2px)}
-.bell b{position:absolute;top:10px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--maroon2);border:2px solid #fff}
-.profile{position:relative}
-.profile-btn{display:flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:14px;box-shadow:0 6px 16px -10px rgba(20,33,79,.5)}
-.profile-btn svg{transition:transform .2s}.profile-btn .flip{transform:rotate(180deg)}
-.avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:#fff;font-size:12px;font-weight:600;background:linear-gradient(135deg,var(--navy2),var(--maroon))}
-.dropdown{position:absolute;right:0;top:calc(100% + 8px);min-width:180px;padding:6px;border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 40px -16px rgba(20,33,79,.4);z-index:20;animation:pop .16s ease-out}
-.dropdown button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:none;border-radius:9px;font-size:14px;color:var(--navy);text-align:left}
-.dropdown button:hover{background:#f1f3fa}.dropdown .danger{color:var(--maroon)}
-
 /* stat cards */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;margin-bottom:24px}
 .stat{--c:#1b2d6b;--ct:#e8ecfb;position:relative;overflow:hidden;padding:20px 22px 16px;border-radius:20px;background:#fff;border:1px solid var(--line);
@@ -406,7 +357,7 @@ const CSS = `
 .tip{position:absolute;transform:translate(-50%,-100%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 14px;border-radius:12px;
   background:var(--navy);color:#fff;font-size:11.5px;box-shadow:0 14px 26px -10px rgba(20,33,79,.7);border-bottom:3px solid var(--gold);white-space:nowrap;animation:fadein .12s}
 .tip b{font-family:'Playfair Display',serif;font-size:18px}
-.tip span{opacity:.75}.tip .delta{font-style:normal;font-weight:600;margin-top:2px}.tip .delta{font-style:normal;font-weight:600;margin-top:2px}.tip .up{color:#7af0b4}.tip .down{color:#ff9aa8}
+.tip span{opacity:.75}.tip .delta{font-style:normal;font-weight:600;margin-top:2px}.tip .up{color:#7af0b4}.tip .down{color:#ff9aa8}
 
 /* donut */
 .donut-wrap{display:flex;align-items:center;justify-content:center;gap:clamp(16px,3vw,36px);flex-wrap:wrap;padding:20px 0 10px;min-height:300px}
@@ -425,13 +376,12 @@ const CSS = `
 .lg-total{margin-top:8px;padding:10px 12px 0;border-top:1px dashed var(--line);font-size:12px;color:var(--muted)}
 
 @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
-@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 @keyframes draw{to{stroke-dashoffset:0}}
 @keyframes fadein{to{opacity:1}}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(18,145,90,.55)}70%{box-shadow:0 0 0 8px rgba(18,145,90,0)}100%{box-shadow:0 0 0 0 rgba(18,145,90,0)}}
 @keyframes pulse-o{50%{opacity:.3}}
 
 @media (max-width:1000px){.charts{grid-template-columns:1fr}}
-@media (max-width:640px){.profile-btn strong{display:none}.head-actions{width:100%;justify-content:space-between}}
+@media (max-width:640px){.head-actions{width:100%;justify-content:space-between}}
 @media (prefers-reduced-motion:reduce){.ra *{animation:none!important;transition:none!important}.draw{stroke-dashoffset:0}.area{opacity:1}}
 `;
