@@ -6,6 +6,10 @@ import mongoose from 'mongoose';
 import auditLogsRoutes from '../modules/admin/super/auditLogs.routes.js';
 import paymentsRoutes from '../modules/payments/payments.routes.js';
 import refundsRoutes from '../modules/payments/refunds.routes.js';
+import timetableRoutes from '../modules/academics/timetable.routes.js';
+import attendanceRoutes from '../modules/academics/attendance.routes.js';
+import marksRoutes from '../modules/academics/marks.routes.js';
+import resultsRoutes from '../modules/academics/results.routes.js';
 
 const router = express.Router();
 
@@ -25,5 +29,9 @@ router.get('/health', (req, res) => {
 router.use('/audit-logs', auditLogsRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/refunds', refundsRoutes);
+router.use('/timetable', timetableRoutes);
+router.use('/attendance', attendanceRoutes);
+router.use('/marks', marksRoutes);
+router.use('/results', resultsRoutes);
 
 export default router;
