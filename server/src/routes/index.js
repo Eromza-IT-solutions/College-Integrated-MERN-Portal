@@ -1,8 +1,11 @@
 // Mounts every feature's routes under /api/v1.
 // Each module keeps its own routes file; add them here as they are built:
-//   router.use('/auth', authRoutes);
+//   router.use('/auth', require('../modules/auth/auth.routes'));
 import express from 'express';
 import mongoose from 'mongoose';
+import env from '../config/env.js';
+import buildPaymentsRouter from '../modules/payments/payments.routes.js';
+import buildWebsiteRouter from '../modules/website/website.routes.js';
 
 const router = express.Router();
 
@@ -18,5 +21,8 @@ router.get('/health', (req, res) => {
     meta: { requestId: req.id },
   });
 });
+
+router.use('/payments', buildPaymentsRouter({ razorpay: env.razorpay }));
+router.use('/website', buildWebsiteRouter());
 
 export default router;

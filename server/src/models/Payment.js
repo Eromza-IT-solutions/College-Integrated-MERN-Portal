@@ -49,6 +49,10 @@ const paymentSchema = new Schema(
   { timestamps: true }
 );
 
+// A form can have only one OPEN payment at a time (a double click or two tabs cannot create two).
+// Once a payment is paid or failed, a new one may be made.
+paymentSchema.index({ applicationId: 1, status: 1 }, { unique: true, name: 'one_open_payment_per_application', partialFilterExpression: { status: PAYMENT_STATUS.CREATED, applicationId: { $type: 'objectId' } } });
+paymentSchema.index({ examFormId: 1, status: 1 }, { unique: true, name: 'one_open_payment_per_exam_form', partialFilterExpression: { status: PAYMENT_STATUS.CREATED, examFormId: { $type: 'objectId' } } });
 paymentSchema.index({ receiptNumber: 1 }, { unique: true, partialFilterExpression: { receiptNumber: { $type: 'string' } } });
 paymentSchema.index({ gateway: 1, gatewayOrderId: 1 }, { unique: true, partialFilterExpression: { gatewayOrderId: { $type: 'string' } } });
 paymentSchema.index({ gateway: 1, gatewayPaymentId: 1 }, { unique: true, partialFilterExpression: { gatewayPaymentId: { $type: 'string' } } });
