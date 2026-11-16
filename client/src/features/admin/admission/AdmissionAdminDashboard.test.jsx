@@ -12,12 +12,13 @@ describe("AdmissionAdminDashboard", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Admission Admin Dashboard" }),
+      screen.getByRole("heading", {
+        name: "Welcome to Admission Dashboard!",
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Total Applications")).toBeInTheDocument();
-    expect(screen.getByText("Admission funnel")).toBeInTheDocument();
-    expect(screen.getByText("Recent applications")).toBeInTheDocument();
-    expect(screen.getByText("Program demand")).toBeInTheDocument();
-    expect(screen.getByText("Rida Khan")).toBeInTheDocument();
+    expect(screen.getByText("Dashboard Overview")).toBeInTheDocument();
+    expect(screen.getByText("Application Overview")).toBeInTheDocument();
+    expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+    expect(screen.getByText("Admission Fee Management")).toBeInTheDocument();
   });
 });

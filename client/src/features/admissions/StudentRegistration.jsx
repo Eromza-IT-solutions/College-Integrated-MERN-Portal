@@ -124,7 +124,7 @@ function OtpInput({ value, onChange, disabled, label }) {
 
 /* ---------- page ---------- */
 export default function StudentRegistration({
-  logo, bgImage, onBack = () => {}, onLogin = () => {}, onRecover = () => {},
+  logo, bgImage, onLogin = () => {}, onRecover = () => {},
   // async (values) => {}  – call your API here; throw to show an error
   onRegister = async () => {}, onVerify = async () => {},
 }) {
