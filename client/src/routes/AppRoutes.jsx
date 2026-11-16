@@ -12,13 +12,15 @@ import ProtectedRoute from "./ProtectedRoute";
 const HomePage = lazy(() => import("../features/public-website/HomePage"));
 const LoginRoute = lazy(() => import("./LoginRoute"));
 const SuperAdminDashboard = lazy(
-  () => import("../features/admin/super/SuperAdminDashboard"),
+  () => import("../features/admin/super/SuperAdmin_dashboard"),
 );
-const Users = lazy(() => import("../features/admin/super/Users"));
-const AdminPanels = lazy(() => import("../features/admin/super/AdminPanels"));
-const Reports = lazy(() => import("../features/admin/super/Reports"));
+const Users = lazy(() => import("../features/admin/super/ManageUsers"));
+const AdminPanels = lazy(
+  () => import("../features/admin/super/ManageAdminPanels"),
+);
+const Reports = lazy(() => import("../features/admin/super/ReportsAnalytics"));
 const AuditLogs = lazy(() => import("../features/admin/super/AuditLogs"));
-const Settings = lazy(() => import("../features/admin/super/Settings"));
+const Settings = lazy(() => import("../features/admin/super/SystemSettings"));
 const WebsiteAdminDashboard = lazy(
   () => import("../features/admin/website/WebsiteAdminDashboard"),
 );
@@ -44,7 +46,7 @@ const NoticesAndAnnouncements = lazy(
   () => import("../features/admin/website/NoticesAndAnnouncements"),
 );
 const Applications = lazy(
-  () => import("../features/admin/admission/Applications"),
+  () => import("../features/admin/admission/ManageApplications"),
 );
 const VerifyDocuments = lazy(
   () => import("../features/admin/admission/VerifyDocuments"),
@@ -53,7 +55,7 @@ const AdmissionStatus = lazy(
   () => import("../features/admin/admission/AdmissionStatus"),
 );
 const FeesAndPayments = lazy(
-  () => import("../features/admin/admission/FeesAndPayments"),
+  () => import("../features/admin/admission/FeesPayments"),
 );
 const ExamSessions = lazy(
   () => import("../features/admin/examination/ExamSessions"),

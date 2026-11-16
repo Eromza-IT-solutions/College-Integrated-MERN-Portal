@@ -94,8 +94,6 @@ function DepartmentsAndCourses() {
 
   const [editingDepartmentId, setEditingDepartmentId] = useState(null);
   const [editingCourseId, setEditingCourseId] = useState(null);
-  const [selectedCourseDepartmentId, setSelectedCourseDepartmentId] =
-    useState(null);
 
   const [previewDepartment, setPreviewDepartment] = useState(null);
 
@@ -655,7 +653,7 @@ function DepartmentsAndCourses() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {filteredDepartments.map((department, index) => (
+                {filteredDepartments.map((department) => (
                   <div
                     key={department.id}
                     className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#A00018]/20 hover:shadow-xl"
@@ -714,10 +712,7 @@ function DepartmentsAndCourses() {
                         </button>
 
                         <button
-                          onClick={() => {
-                            setSelectedCourseDepartmentId(department.id);
-                            openAddCourse(department.id);
-                          }}
+                          onClick={() => openAddCourse(department.id)}
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#A00018]/5 px-3 py-2.5 text-xs font-bold text-[#A00018] transition hover:bg-[#A00018] hover:text-white"
                         >
                           <Plus size={14} />

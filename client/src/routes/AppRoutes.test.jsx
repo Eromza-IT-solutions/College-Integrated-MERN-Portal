@@ -38,15 +38,20 @@ async function expectPageHeading(name) {
   expect(await within(main).findByRole("heading", { name })).toBeInTheDocument();
 }
 
+async function expectPageText(text) {
+  const main = await screen.findByRole("main");
+  expect(await within(main).findByText(text)).toBeInTheDocument();
+}
+
 describe("admin role routes", () => {
   it("renders website content management route", async () => {
     renderRoute("websiteAdmin", "/website-admin/content");
-    await expectPageHeading("Manage Content");
+    await expectPageHeading("Manage Website Content");
   });
 
   it("renders admission applications route", async () => {
     renderRoute("admissionAdmin", "/admission-admin/applications");
-    await expectPageHeading("Applications");
+    await expectPageHeading("Manage Applications");
   });
 
   it("renders examination marks route", async () => {
@@ -71,12 +76,12 @@ describe("admin role routes", () => {
 
   it("renders admission document verification route", async () => {
     renderRoute("admissionAdmin", "/admission-admin/documents");
-    await expectPageHeading("Verify Documents");
+    await expectPageHeading("Verify Student Documents");
   });
 
   it("renders admission status route", async () => {
     renderRoute("admissionAdmin", "/admission-admin/status");
-    await expectPageHeading("Admission Status");
+    await expectPageHeading("Admission Status Tracking");
   });
 
   it("renders examination subjects route", async () => {
@@ -98,27 +103,27 @@ describe("admin role routes", () => {
 describe("super admin secondary routes", () => {
   it("renders the users route", async () => {
     renderRoute("superAdmin", "/super-admin/users");
-    await expectPageHeading("Users");
+    await expectPageText("Total Users");
   });
 
   it("renders the admin panels route", async () => {
     renderRoute("superAdmin", "/super-admin/admin-panels");
-    await expectPageHeading("Admin Panels");
+    await expectPageText("Total panels");
   });
 
   it("renders the reports route", async () => {
     renderRoute("superAdmin", "/super-admin/reports");
-    await expectPageHeading("Reports & Analytics");
+    await expectPageHeading("User Growth");
   });
 
   it("renders the audit logs route", async () => {
     renderRoute("superAdmin", "/super-admin/audit-logs");
-    await expectPageHeading("Audit Logs");
+    await expectPageHeading("Activity Log");
   });
 
   it("renders the system settings route", async () => {
     renderRoute("superAdmin", "/super-admin/settings");
-    await expectPageHeading("System Settings");
+    await expectPageText("College Name");
   });
 });
 

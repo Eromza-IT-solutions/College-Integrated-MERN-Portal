@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser'
 import rateLimit from 'express-rate-limit'
 import morgan from 'morgan'
 import env from './config/env.js'
+import './models/index.js' // register every model (some look up others by name)
 import routes from './routes/index.js'
 import { requestId } from './middleware/requestId.js'
 import { notFound } from './middleware/notFound.js'
