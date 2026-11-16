@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import auditLogsRoutes from '../modules/admin/super/auditLogs.routes.js';
 import paymentsRoutes from '../modules/payments/payments.routes.js';
 import refundsRoutes from '../modules/payments/refunds.routes.js';
+import buildWebsiteRouter from '../modules/website/website.routes.js';
 
 const router = express.Router();
 
@@ -25,5 +26,6 @@ router.get('/health', (req, res) => {
 router.use('/audit-logs', auditLogsRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/refunds', refundsRoutes);
+router.use('/website', buildWebsiteRouter());
 
 export default router;

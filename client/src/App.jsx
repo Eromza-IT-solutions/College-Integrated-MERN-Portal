@@ -43,8 +43,6 @@ function App() {
         <Route path="/student-register" element={<StudentRegistration />} />
         <Route path="/teacher-login" element={<TeacherLogin />} />
         <Route path="/teacher-register" element={<TeacherRegistration />} />
-        {/* Super Admin Layout */}
-        <Route path="/" element={<SuperAdminLayout />}>
 
         {/* Super Admin Routes */}
         <Route path="/super-admin" element={<SuperAdminLayout />}>
