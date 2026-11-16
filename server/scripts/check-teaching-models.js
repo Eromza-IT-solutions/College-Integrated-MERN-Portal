@@ -35,7 +35,7 @@ async function main() {
 
     made.teacher = await User.create({ fullName: 'Check Teacher', email: `check-t-${stamp}@demo.example`, passwordHash: 'x', role: 'teacher', departmentId: dept._id, status: 'active' });
     made.hod = await User.create({ fullName: 'Check HOD', email: `check-h-${stamp}@demo.example`, passwordHash: 'x', role: 'hod', departmentId: dept._id, status: 'active' });
-    made.program = await Program.create({ name: `CHECK-PROGRAM-${stamp}`, code: `CHK-${stamp}`, departmentId: dept._id });
+    made.program = await Program.create({ name: `CHECK-PROGRAM-${stamp}`, code: `CHK-${stamp}`, departmentId: dept._id, level: 'Undergraduate' });
     made.subject = await Subject.create({ code: 'CHK-1', name: 'Check Subject', programId: made.program._id, semester: 1, category: 'major' });
     made.student = await Student.create({ userId: oid(), applicationId: oid(), programId: made.program._id, admissionYearId: year._id, enrollmentNumber: `CHECK-${stamp}` });
     made.enrollment = await Enrollment.create({ studentId: made.student._id, subjectId: made.subject._id, semester: 1, academicYearId: year._id });

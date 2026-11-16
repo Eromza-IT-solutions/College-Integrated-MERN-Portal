@@ -159,17 +159,18 @@ describe('AdmissionDocument', () => {
     await expect(doc({ status: 'rejected', reviewNote: 'Blurry' }).validate()).resolves.toBeUndefined();
   });
 
-  test('missingRequired lists the required documents not uploaded yet', async () => {
-    AdmissionDocument.find = () => ({ distinct: async () => ['originalLc', 'photo'] });
-    expect(await AdmissionDocument.missingRequired(id())).toEqual(['marksheet10', 'marksheet12']);
+  test('missingRequired lists the required documents not uploaded yet (open category)', async () => {
+    Application.findById = () => ({ select: () => ({ session: async () => ({ feesCategory: 'PAYING', student: { casteCategory: 'OPEN' }, lastExam: { hasGap: false } }) }) });
+    AdmissionDocument.find = () => ({ session: () => ({ distinct: async () => ['originalLc', 'photo', 'aadhaar'] }) });
+    expect(await AdmissionDocument.missingRequired(id())).toEqual(['marksheet10', 'marksheet12', 'eligibilityForm', 'antiRagingForm', 'undertakingForm']);
   });
 });
 
 describe('Program', () => {
-  test('needs name, code and department; code is upper-cased', async () => {
+  test('needs name, code, department and level; code is upper-cased', async () => {
     await expect(new Program({}).validate()).rejects.toThrow();
-    const p = new Program({ name: 'F.Y.B.Sc.(Computer Application)', code: 'fybsc-ca', departmentId: id() });
+    const p = new Program({ name: 'B.Sc. Computer Science', code: 'bdpscs', departmentId: id(), level: 'Undergraduate' });
     await expect(p.validate()).resolves.toBeUndefined();
-    expect(p.code).toBe('FYBSC-CA');
+    expect(p.code).toBe('BDPSCS');
   });
 });

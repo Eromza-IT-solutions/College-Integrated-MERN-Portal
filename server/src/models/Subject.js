@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { SUBJECT_CATEGORIES } from '../utils/constants.js';
+import { SUBJECT_CATEGORIES, GRADING } from '../utils/constants.js';
 
 // A subject taught in one class and semester, for example "Financial Accounting" in F.Y.B.Com, semester 1.
 // Students are linked to subjects through Enrollment.
@@ -10,7 +10,12 @@ const subjectSchema = new mongoose.Schema(
     programId: { type: mongoose.Schema.Types.ObjectId, ref: 'Program', required: true, index: true },
     semester: { type: Number, required: true, min: 1, max: 12, validate: { validator: Number.isInteger, message: 'Semester must be a whole number' } },
     category: { type: String, required: true, enum: SUBJECT_CATEGORIES }, // major, minor, SEC, AEC ...
-    credits: { type: Number, min: 0 },
+    credits: { type: Number, min: 0, default: GRADING.defaultCredits },
+    // Maximum marks of the internal part (CIE) and the external part (SEE). The college marking rules are in GRADING.
+    maxInternal: { type: Number, min: 0, default: GRADING.defaultMaxInternal },
+    maxExternal: { type: Number, min: 0, default: GRADING.defaultMaxExternal },
+    // false for a "non CGPA course": it is graded but left out of SGPA and CGPA.
+    countsForCgpa: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

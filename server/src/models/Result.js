@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 import AppError from '../utils/AppError.js';
-import { evaluate } from '../utils/resultRules.js';
+import { evaluate, cgpa } from '../utils/resultRules.js';
 import {
-  EXAM_FORM_STATUS, RESULT_CLASS_VALUES, RESULT_LINE_STATUS_VALUES, RESULT_RULES, SUBJECT_CATEGORIES,
+  EXAM_FORM_STATUS, RESULT_OUTCOME_VALUES, RESULT_LINE_STATUS_VALUES, GRADE_LETTERS, GRADING, SUBJECT_CATEGORIES,
 } from '../utils/constants.js';
 
 const { Schema } = mongoose;
@@ -11,7 +11,8 @@ const { Schema } = mongoose;
 const marks = { type: Number, min: 0, validate: { validator: (v) => v == null || Number.isInteger(v * 2), message: 'Marks go in steps of 0.5' } };
 
 // One student's result for one exam: a line for every subject on the approved exam form.
-// The Examination Admin enters the marks; totals, subject results and the class are worked out automatically.
+// The Examination Admin enters the marks; totals, grades, SGPA and the pass/fail outcome are worked out automatically
+// by the college's CBCS credit system (see utils/resultRules.js).
 // A student sees the result only after it is published.
 const resultSchema = new Schema(
   {
@@ -27,13 +28,19 @@ const resultSchema = new Schema(
         {
           subjectId: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
           code: String, name: String, category: { type: String, enum: SUBJECT_CATEGORIES },
-          maxInternal: { type: Number, min: 0, required: true },
-          maxExternal: { type: Number, min: 0, required: true },
+          maxInternal: { type: Number, min: 0, required: true }, // CIE maximum
+          maxExternal: { type: Number, min: 0, required: true }, // SEE maximum
+          credits: { type: Number, min: 0, default: 0 },
+          countsForCgpa: { type: Boolean, default: true },
           internalMarks: marks,
           externalMarks: marks,
           absent: { type: Boolean, default: false },
           // Worked out, never typed in:
-          total: Number, max: Number, status: { type: String, enum: RESULT_LINE_STATUS_VALUES },
+          total: Number, max: Number, percent: Number,
+          status: { type: String, enum: RESULT_LINE_STATUS_VALUES },
+          grade: { type: String, enum: GRADE_LETTERS },
+          gradePoint: Number,
+          creditsEarned: { type: Number, default: 0 },
         },
         { _id: false }
       ),
@@ -43,7 +50,11 @@ const resultSchema = new Schema(
     totalMax: Number,
     percentage: Number,
     failedSubjects: { type: Number, default: 0 },
-    resultClass: { type: String, enum: RESULT_CLASS_VALUES },
+    outcome: { type: String, enum: RESULT_OUTCOME_VALUES },
+    sgpa: Number,
+    finalGrade: { type: String, enum: GRADE_LETTERS },
+    creditsTotal: { type: Number, default: 0 },
+    creditsEarned: { type: Number, default: 0 },
     isComplete: { type: Boolean, default: false, index: true },
 
     isPublished: { type: Boolean, default: false, index: true },
@@ -69,20 +80,30 @@ resultSchema.pre('validate', function calculate() {
   });
   const r = evaluate(this.lines.map((l) => ({
     maxInternal: l.maxInternal, maxExternal: l.maxExternal, internalMarks: l.internalMarks, externalMarks: l.externalMarks, absent: l.absent,
+    credits: l.credits, countsForCgpa: l.countsForCgpa,
   })));
-  r.lines.forEach((x, i) => { this.lines[i].total = x.total; this.lines[i].max = x.max; this.lines[i].status = x.status; });
+  r.lines.forEach((x, i) => {
+    const l = this.lines[i];
+    l.total = x.total; l.max = x.max; l.percent = x.percent; l.status = x.status;
+    l.grade = x.grade; l.gradePoint = x.gradePoint; l.creditsEarned = x.creditsEarned;
+  });
   this.totalObtained = r.totalObtained;
   this.totalMax = r.totalMax;
   this.percentage = r.percentage;
   this.failedSubjects = r.failedSubjects;
-  this.resultClass = r.resultClass || undefined;
+  this.outcome = r.outcome || undefined;
+  this.sgpa = r.sgpa == null ? undefined : r.sgpa;
+  this.finalGrade = r.finalGrade || undefined;
+  this.creditsTotal = r.creditsTotal;
+  this.creditsEarned = r.creditsEarned;
   this.isComplete = r.isComplete;
   if (this.isPublished && !r.isComplete) this.invalidate('isPublished', 'An incomplete result cannot be published');
 });
 
 /**
  * Open the result sheet for a student whose exam form was approved: one line per ticked subject, marks still empty.
- * Maximum marks start at the proposed defaults (RESULT_RULES) and can be changed per subject. Returns the existing sheet if there is one.
+ * Maximum marks (CIE and SEE), credits and the CGPA flag are copied from each Subject; a subject that cannot be found gets the
+ * proposed defaults (GRADING). They can be changed per line when marks are entered. Returns the existing sheet if there is one.
  */
 resultSchema.statics.openForApprovedForm = async function openForApprovedForm(examFormId, { session } = {}) {
   const s = session || null;
@@ -91,14 +112,23 @@ resultSchema.statics.openForApprovedForm = async function openForApprovedForm(ex
   if (form.status !== EXAM_FORM_STATUS.APPROVED) throw new AppError('A result sheet is opened only for an approved exam form', 409);
   const existing = await this.findOne({ examId: form.examId, studentId: form.studentId }).session(s);
   if (existing) return existing;
+  const subjectDocs = await this.db.model('Subject').find({ _id: { $in: form.subjects.map((x) => x.subjectId) } }).session(s);
+  const subjectById = new Map((subjectDocs || []).map((d) => [String(d._id), d]));
   const [sheet] = await this.create(
     [{
       examId: form.examId, studentId: form.studentId, examFormId: form._id,
       enrollmentNumber: form.details.enrollmentNumber, fullName: form.details.fullName, semester: form.details.semester,
-      lines: form.subjects.map((x) => ({
-        subjectId: x.subjectId, code: x.code, name: x.name, category: x.category,
-        maxInternal: RESULT_RULES.defaultMaxInternal, maxExternal: RESULT_RULES.defaultMaxExternal,
-      })),
+      lines: form.subjects.map((x) => {
+        const sub = subjectById.get(String(x.subjectId)) || {};
+        const pick = (v, d) => (v == null ? d : v);
+        return {
+          subjectId: x.subjectId, code: x.code, name: x.name, category: x.category,
+          maxInternal: pick(sub.maxInternal, GRADING.defaultMaxInternal),
+          maxExternal: pick(sub.maxExternal, GRADING.defaultMaxExternal),
+          credits: pick(sub.credits, GRADING.defaultCredits),
+          countsForCgpa: sub.countsForCgpa !== false,
+        };
+      }),
     }],
     { session }
   );
@@ -123,6 +153,7 @@ resultSchema.methods.enterMarks = async function enterMarks(entries, { byUserId,
     line.externalMarks = e.absent ? undefined : e.externalMarks;
     if (e.maxInternal != null) line.maxInternal = e.maxInternal;
     if (e.maxExternal != null) line.maxExternal = e.maxExternal;
+    if (e.credits != null) line.credits = e.credits;
   }
   this.lastEditedByUserId = byUserId || null;
   return this.save({ session });
@@ -170,6 +201,18 @@ resultSchema.statics.unpublish = async function unpublish(id, { reason, session 
 /** What a student may see: only published results. */
 resultSchema.statics.publishedFor = function publishedFor(studentId) {
   return this.find({ studentId, isPublished: true }).sort({ publishedAt: -1 });
+};
+
+/**
+ * Cumulative grade point average (CGPA) over everything the student has published so far.
+ * If a subject was written again, only its latest published line counts. Returns { cgpa, finalGrade, credits, subjects }.
+ */
+resultSchema.statics.cgpaFor = async function cgpaFor(studentId) {
+  const sheets = await this.find({ studentId, isPublished: true }).sort({ publishedAt: 1 });
+  const latest = new Map();
+  for (const sheet of sheets) for (const l of sheet.lines) latest.set(String(l.subjectId), l); // later sheets overwrite earlier ones
+  const lines = [...latest.values()];
+  return { ...cgpa(lines), subjects: lines.length };
 };
 
 export default mongoose.model('Result', resultSchema);

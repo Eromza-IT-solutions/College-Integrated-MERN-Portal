@@ -1,760 +1,378 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Bell,
-  ChevronDown,
-  Plus,
-  ArrowRight,
-  Search,
-  X,
-  Pencil,
-  Trash2,
-  Landmark,
-  GraduationCap,
-  BarChart3,
-  FileText,
-  Users,
-  Settings,
-  ShieldCheck,
-  BookOpen,
-  LogOut,
-  User as UserIcon,
-  Undo2,
-  CheckCircle2,
-  SearchX,
-  UserPlus,
-  Clock,
+  Landmark, GraduationCap, BarChart3, ShieldCheck, CheckCircle2, Users,
+  Plus, Search, ArrowRight, Clock, X,
+  BookOpen, Library, FlaskConical,
 } from "lucide-react";
 
-/*
-  Add to index.html:
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+/* ---------- data ---------- */
+const ICONS = { Landmark, GraduationCap, BarChart3, BookOpen, Library, FlaskConical };
+const TONES = ["navy", "emerald", "maroon", "gold"];
 
-  Usage: render it in the area to the right of your sidebar (it fills that whole area).
-  <ManageAdminPanels user={{ name: "Super Admin" }} onLogout={...} onManage={(panel) => navigate(`/panels/${panel.id}`)} />
+const INITIAL_PANELS = [
+  { id: 1, name: "College Admin", desc: "Manage college content and info", icon: "Landmark", tone: "navy",
+    admins: ["AK", "OF"], updated: "2 hours ago", active: true },
+  { id: 2, name: "Admission Admin", desc: "Handle admissions and applications", icon: "GraduationCap", tone: "emerald",
+    admins: ["SP"], updated: "1 day ago", active: true },
+  { id: 3, name: "Criterion Admin", desc: "Manage AQAR criteria & metrics", icon: "BarChart3", tone: "maroon",
+    admins: ["IQ", "RK", "ZA"], updated: "5 hours ago", active: true },
+];
 
-  - "Manage →" calls onManage(panel) if you pass it; otherwise it opens a side drawer with the panel's admins.
-  - Panels below are sample data (SEED_PANELS). Replace the "load panels" timeout and the save/delete/toggle
-    handlers with your API calls.
-*/
-
-/* ───────────── theme + sample data ───────────── */
-const THEMES = {
-  blue: { card: "from-[#e8f0fd] to-[#f6f9ff]", blob: "bg-[#cfe0fa]", fg: "text-[#2f6fdd]", ring: "ring-[#2f6fdd]/15", btn: "border-[#2f6fdd] text-[#2f6fdd] hover:bg-[#2f6fdd]", swatch: "bg-[#2f6fdd]" },
-  green: { card: "from-[#e3f4ea] to-[#f4fbf7]", blob: "bg-[#c6e8d1]", fg: "text-[#1f9d55]", ring: "ring-[#1f9d55]/15", btn: "border-[#1f9d55] text-[#1f9d55] hover:bg-[#1f9d55]", swatch: "bg-[#1f9d55]" },
-  purple: { card: "from-[#ece7f8] to-[#f8f5fd]", blob: "bg-[#d9d0f2]", fg: "text-[#6a4cc7]", ring: "ring-[#6a4cc7]/15", btn: "border-[#6a4cc7] text-[#6a4cc7] hover:bg-[#6a4cc7]", swatch: "bg-[#6a4cc7]" },
-  amber: { card: "from-[#fdf0dc] to-[#fffaf0]", blob: "bg-[#f8dcae]", fg: "text-[#d97706]", ring: "ring-[#d97706]/15", btn: "border-[#d97706] text-[#d97706] hover:bg-[#d97706]", swatch: "bg-[#d97706]" },
-  rose: { card: "from-[#fde8e4] to-[#fff4f2]", blob: "bg-[#fad0c9]", fg: "text-[#e0473b]", ring: "ring-[#e0473b]/15", btn: "border-[#e0473b] text-[#e0473b] hover:bg-[#e0473b]", swatch: "bg-[#e0473b]" },
-};
-
-const ICONS = { landmark: Landmark, cap: GraduationCap, chart: BarChart3, file: FileText, users: Users, settings: Settings, shield: ShieldCheck, book: BookOpen };
-
-const HOUR = 3600 * 1000;
-const seedPanels = () => {
-  const now = Date.now();
-  return [
-    { id: "p1", name: "College Admin", description: "Manage college content and info", icon: "landmark", theme: "blue", admins: ["Ayesha Khan", "Omar Farooq"], active: true, updated: now - 2 * HOUR },
-    { id: "p2", name: "Admission Admin", description: "Handle admissions and applications", icon: "cap", theme: "green", admins: ["Sana Patel"], active: true, updated: now - 26 * HOUR },
-    { id: "p3", name: "Criterion Admin", description: "Manage AQAR criteria & metrics", icon: "chart", theme: "purple", admins: ["Imran Qureshi", "Rohan Kulkarni", "Zara Ansari"], active: true, updated: now - 5 * HOUR },
-  ];
-};
-
-/* ───────────── helpers ───────────── */
-const initialsOf = (name) => name.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-
-const timeAgo = (ts, now) => {
-  const m = Math.floor(Math.max(0, now - ts) / 60000);
-  if (m < 1) return "Just now";
-  if (m < 60) return `${m} min${m > 1 ? "s" : ""} ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} hour${h > 1 ? "s" : ""} ago`;
-  const d = Math.floor(h / 24);
-  return `${d} day${d > 1 ? "s" : ""} ago`;
-};
-
-function useCountUp(end, duration = 900) {
+/* ---------- hooks ---------- */
+function useCountUp(target, duration = 700) {
   const [val, setVal] = useState(0);
-  const prev = useRef(0);
+  const from = useRef(0);
   useEffect(() => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const from = prev.current;
-    if (reduce || from === end) {
-      setVal(end);
-      prev.current = end;
-      return;
-    }
-    let raf;
     const start = performance.now();
+    const begin = from.current;
+    let raf;
     const tick = (now) => {
-      const t = Math.min((now - start) / duration, 1);
-      const v = from + (end - from) * (1 - Math.pow(1 - t, 3));
-      setVal(v);
-      prev.current = v;
-      if (t < 1) raf = requestAnimationFrame(tick);
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(Math.round(begin + (target - begin) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else from.current = target;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [end, duration]);
-  return Math.round(val);
+  }, [target, duration]);
+  return val;
 }
 
-function useClickOutside(ref, handler) {
-  useEffect(() => {
-    const onDown = (e) => ref.current && !ref.current.contains(e.target) && handler();
-    const onKey = (e) => e.key === "Escape" && handler();
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [ref, handler]);
-}
-
-/* ───────────── small UI pieces ───────────── */
-function Modal({ title, onClose, children }) {
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+/* ---------- small components ---------- */
+function StatCard({ icon: Icon, value, label, tone }) {
+  const n = useCountUp(value);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="fade absolute inset-0 bg-[#14234b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="pop relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-lg font-bold text-[#14234b]">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
-            <X size={18} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Switch({ checked, onChange, label }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-[#1f9d55]" : "bg-slate-300"}`}
-    >
-      <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : ""}`} />
-    </button>
-  );
-}
-
-function SummaryCard({ label, value, icon: Icon, tone, delay }) {
-  const shown = useCountUp(value);
-  return (
-    <div className="rise flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100" style={{ animationDelay: `${delay}ms` }}>
-      <span className={`grid h-12 w-12 place-items-center rounded-xl ${tone}`}><Icon size={22} /></span>
+    <div className={`stat stat-${tone}`}>
+      <div className="stat-icon"><Icon size={22} /></div>
       <div>
-        <p className="text-2xl font-bold tabular-nums leading-none text-[#14234b]">{shown}</p>
-        <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
+        <div className="stat-num">{n}</div>
+        <div className="stat-label">{label}</div>
       </div>
     </div>
   );
 }
 
-function PanelForm({ mode, initial, panels, onSave, onClose }) {
-  const [form, setForm] = useState(initial || { name: "", description: "", icon: "landmark", theme: "blue" });
-  const [errors, setErrors] = useState({});
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+function PanelCard({ panel, onToggle, onManage, index }) {
+  const Icon = ICONS[panel.icon] || Landmark;
+  const n = panel.admins.length;
+  return (
+    <article className={`card tone-${panel.tone} ${panel.active ? "" : "is-off"}`}
+      style={{ animationDelay: `${index * 90}ms` }}>
+      <div className="card-head">
+        <span className="pc-ring pc-r1" /><span className="pc-ring pc-r2" />
+        <Icon className="watermark" size={120} strokeWidth={1.2} />
+        <div className="head-row">
+          <div className="card-icon"><Icon size={26} /></div>
+          <span className="chip"><i /> {panel.active ? "Active" : "Disabled"}</span>
+        </div>
+      </div>
+
+      <div className="card-body">
+        <h3>{panel.name}</h3>
+        <p>{panel.desc}</p>
+
+        <div className="meta">
+          <div className="avatars">
+            {n === 0 && <span className="none">No admins yet</span>}
+            {panel.admins.map((a) => <span key={a} className="avatar">{a}</span>)}
+            <button className="add-admin" title="Assign admin" aria-label="Assign admin"><Plus size={13} /></button>
+          </div>
+          <span className="foot-time"><Clock size={12} /> {panel.updated}</span>
+        </div>
+      </div>
+
+      <footer>
+        <label className="switch-wrap">
+          <button role="switch" aria-checked={panel.active} aria-label={`Toggle ${panel.name}`}
+            className={`switch ${panel.active ? "on" : ""}`} onClick={() => onToggle(panel.id)}>
+            <i />
+          </button>
+          <span>{n} admin{n !== 1 && "s"}</span>
+        </label>
+        <button className="manage" onClick={() => onManage(panel)} disabled={!panel.active}>
+          Manage <ArrowRight size={16} />
+        </button>
+      </footer>
+    </article>
+  );
+}
+
+function AddPanelModal({ onClose, onCreate }) {
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [icon, setIcon] = useState("Landmark");
+  const valid = name.trim().length > 1;
+
+  useEffect(() => {
+    const esc = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
 
   const submit = (e) => {
     e.preventDefault();
-    const err = {};
-    if (form.name.trim().length < 3) err.name = "Panel name must be at least 3 characters.";
-    else if (panels.some((p) => p.name.toLowerCase() === form.name.trim().toLowerCase() && p.id !== initial?.id))
-      err.name = "A panel with this name already exists.";
-    if (!form.description.trim()) err.description = "Add a short description.";
-    setErrors(err);
-    if (Object.keys(err).length) return;
-    onSave({ ...form, name: form.name.trim(), description: form.description.trim() });
+    if (valid) onCreate({ name: name.trim(), desc: desc.trim() || "New department panel", icon });
   };
 
-  const input = "w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 transition focus:outline-none focus:ring-4";
-  const ok = "border-slate-300 focus:border-[#5b47d6] focus:ring-[#5b47d6]/10";
-  const bad = "border-[#e0473b] focus:ring-[#e0473b]/10";
-  const T = THEMES[form.theme];
-  const PreviewIcon = ICONS[form.icon];
-
   return (
-    <Modal title={mode === "add" ? "Add New Panel" : "Edit Panel"} onClose={onClose}>
-      <form onSubmit={submit} noValidate className="space-y-4 px-6 py-5">
-        {/* live preview */}
-        <div className={`flex items-center gap-3 rounded-xl bg-gradient-to-br ${T.card} p-3 ring-1 ${T.ring}`}>
-          <span className={`grid h-11 w-11 place-items-center rounded-full bg-white shadow ${T.fg}`}><PreviewIcon size={22} /></span>
-          <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-bold text-[#14234b]">{form.name || "Panel name"}</p>
-            <p className="truncate text-xs text-slate-500">{form.description || "Short description"}</p>
-          </div>
-        </div>
+    <div className="overlay" onMouseDown={onClose}>
+      <form className="modal" onMouseDown={(e) => e.stopPropagation()} onSubmit={submit}>
+        <button type="button" className="modal-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        <h2>Create new panel</h2>
+        <p className="modal-sub">Add a panel for another department, then assign admins to it.</p>
 
-        <div>
-          <label htmlFor="pf-name" className="mb-1.5 block text-xs font-semibold tracking-wide text-[#14234b] uppercase">Panel name</label>
-          <input id="pf-name" autoFocus value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Examination Admin" className={`${input} ${errors.name ? bad : ok}`} />
-          {errors.name && <p className="mt-1 text-xs text-[#e0473b]">{errors.name}</p>}
-        </div>
-        <div>
-          <label htmlFor="pf-desc" className="mb-1.5 flex justify-between text-xs font-semibold tracking-wide text-[#14234b] uppercase">
-            Description <span className="font-normal normal-case text-slate-400">{form.description.length}/60</span>
-          </label>
-          <input id="pf-desc" maxLength={60} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="What does this panel manage?" className={`${input} ${errors.description ? bad : ok}`} />
-          {errors.description && <p className="mt-1 text-xs text-[#e0473b]">{errors.description}</p>}
-        </div>
+        <label className="field">
+          <span>Panel name</span>
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Library Admin" />
+        </label>
+        <label className="field">
+          <span>Description</span>
+          <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What will this panel manage?" />
+        </label>
 
-        <div>
-          <span className="mb-1.5 block text-xs font-semibold tracking-wide text-[#14234b] uppercase">Colour</span>
-          <div className="flex gap-2.5">
-            {Object.keys(THEMES).map((k) => (
-              <button
-                type="button"
-                key={k}
-                onClick={() => set("theme", k)}
-                aria-label={k}
-                aria-pressed={form.theme === k}
-                className={`h-8 w-8 rounded-full ${THEMES[k].swatch} transition ${form.theme === k ? "scale-110 ring-4 ring-offset-2 ring-slate-200" : "opacity-80 hover:opacity-100"}`}
-              />
-            ))}
-          </div>
-        </div>
-        <div>
-          <span className="mb-1.5 block text-xs font-semibold tracking-wide text-[#14234b] uppercase">Icon</span>
-          <div className="grid grid-cols-8 gap-1.5">
-            {Object.entries(ICONS).map(([k, I]) => (
-              <button
-                type="button"
-                key={k}
-                onClick={() => set("icon", k)}
-                aria-label={k}
-                aria-pressed={form.icon === k}
-                className={`grid h-9 place-items-center rounded-lg transition ${form.icon === k ? "bg-[#5b47d6] text-white shadow" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
-              >
-                <I size={17} />
-              </button>
+        <div className="field">
+          <span>Icon</span>
+          <div className="icon-pick">
+            {Object.entries(ICONS).map(([key, I]) => (
+              <button type="button" key={key} className={icon === key ? "sel" : ""}
+                onClick={() => setIcon(key)} aria-label={key}><I size={20} /></button>
             ))}
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100">Cancel</button>
-          <button type="submit" className="rounded-lg bg-[#5b47d6] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b47d6]/25 transition hover:bg-[#4a38bb]">
-            {mode === "add" ? "Add Panel" : "Save Changes"}
-          </button>
+        <div className="modal-actions">
+          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn-primary" disabled={!valid}>Create panel</button>
         </div>
       </form>
-    </Modal>
-  );
-}
-
-function Drawer({ panel, onClose, onAssign, onRemove, onOpen }) {
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
-  const T = THEMES[panel.theme];
-  const Icon = ICONS[panel.icon];
-
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const add = (e) => {
-    e.preventDefault();
-    const n = name.trim();
-    if (!n) return setError("Enter the admin’s name.");
-    if (panel.admins.some((a) => a.toLowerCase() === n.toLowerCase())) return setError("This admin is already assigned.");
-    onAssign(panel.id, n);
-    setName("");
-    setError("");
-  };
-
-  return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={`${panel.name} details`}>
-      <div className="fade absolute inset-0 bg-[#14234b]/50 backdrop-blur-sm" onClick={onClose} />
-      <aside className="drawer absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-        <div className={`relative overflow-hidden bg-gradient-to-br ${T.card} px-6 pb-6 pt-7`}>
-          <span className={`absolute -right-8 -top-8 h-32 w-32 rounded-full ${T.blob} opacity-60`} aria-hidden="true" />
-          <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-500 transition hover:bg-white/70"><X size={18} /></button>
-          <span className={`relative grid h-14 w-14 place-items-center rounded-full bg-white shadow ${T.fg}`}><Icon size={28} /></span>
-          <h2 className="relative mt-4 text-xl font-bold text-[#14234b]">{panel.name}</h2>
-          <p className="relative mt-1 text-sm text-slate-600">{panel.description}</p>
-          <span className={`relative mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${panel.active ? "bg-white text-[#1f7a46]" : "bg-white text-slate-500"}`}>
-            <span className={`h-2 w-2 rounded-full ${panel.active ? "bg-[#1f9d55]" : "bg-slate-400"}`} /> {panel.active ? "Active" : "Disabled"}
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <h3 className="text-sm font-bold text-[#14234b]">Assigned admins <span className="ml-1 text-slate-400">({panel.admins.length})</span></h3>
-          <ul className="mt-3 space-y-2">
-            {panel.admins.map((a) => (
-              <li key={a} className="row-in flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-                <span className={`grid h-9 w-9 place-items-center rounded-full bg-white text-xs font-bold shadow-sm ${T.fg}`}>{initialsOf(a)}</span>
-                <span className="flex-1 text-sm font-semibold text-[#14234b]">{a}</span>
-                <button onClick={() => onRemove(panel.id, a)} aria-label={`Remove ${a}`} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-[#e0473b]/10 hover:text-[#e0473b]"><X size={16} /></button>
-              </li>
-            ))}
-            {panel.admins.length === 0 && <li className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No admins assigned yet.</li>}
-          </ul>
-
-          <form onSubmit={add} className="mt-4">
-            <label htmlFor="assign" className="mb-1.5 block text-xs font-semibold tracking-wide text-[#14234b] uppercase">Assign an admin</label>
-            <div className="flex gap-2">
-              <input
-                id="assign"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setError("");
-                }}
-                placeholder="Admin name"
-                className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm placeholder:text-slate-400 focus:border-[#5b47d6] focus:outline-none focus:ring-4 focus:ring-[#5b47d6]/10"
-              />
-              <button type="submit" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#5b47d6] px-4 text-sm font-semibold text-white transition hover:bg-[#4a38bb]"><UserPlus size={15} /> Add</button>
-            </div>
-            {error && <p className="mt-1 text-xs text-[#e0473b]">{error}</p>}
-          </form>
-        </div>
-
-        <div className="border-t border-slate-100 p-5">
-          <button
-            onClick={() => onOpen(panel)}
-            disabled={!panel.active}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#14234b] py-3 text-sm font-semibold text-white transition hover:bg-[#1c3170] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Open {panel.name} <ArrowRight size={16} />
-          </button>
-        </div>
-      </aside>
     </div>
   );
 }
 
-/* ───────────── page ───────────── */
-export default function ManageAdminPanels({ user = { name: "Super Admin" }, onLogout, onManage }) {
-  const [panels, setPanels] = useState([]);
-  const [loading, setLoading] = useState(true);
+/* ---------- page ---------- */
+export default function ManageAdminPanels({ onManage = (p) => console.log("Manage", p.name) }) {
+  const [panels, setPanels] = useState(INITIAL_PANELS);
+  const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("All");
-  const [modal, setModal] = useState(null); // { type: "add" | "edit" | "delete", panel? }
-  const [drawerId, setDrawerId] = useState(null);
-  const [toasts, setToasts] = useState([]);
-  const [log, setLog] = useState([]);
-  const [unread, setUnread] = useState(0);
-  const [now, setNow] = useState(Date.now());
-  const [bellOpen, setBellOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const nextId = useRef(10);
+  const [showModal, setShowModal] = useState(false);
 
-  const bellRef = useRef(null);
-  const menuRef = useRef(null);
-  useClickOutside(bellRef, () => setBellOpen(false));
-  useClickOutside(menuRef, () => setMenuOpen(false));
+  const stats = useMemo(() => ({
+    total: panels.length,
+    active: panels.filter((p) => p.active).length,
+    admins: panels.reduce((s, p) => s + p.admins.length, 0),
+  }), [panels]);
 
-  // load panels (replace this timeout with your API call)
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setPanels(seedPanels());
-      setLoading(false);
-    }, 600);
-    return () => clearTimeout(id);
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  const stats = useMemo(
-    () => ({
-      total: panels.length,
-      active: panels.filter((p) => p.active).length,
-      admins: new Set(panels.flatMap((p) => p.admins.map((a) => a.toLowerCase()))).size,
-    }),
-    [panels]
-  );
-
-  const visible = useMemo(() => {
+  const visible = panels.filter((p) => {
     const q = query.trim().toLowerCase();
-    return panels.filter(
-      (p) =>
-        (filter === "All" || (filter === "Active" ? p.active : !p.active)) &&
-        (!q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.admins.some((a) => a.toLowerCase().includes(q)))
-    );
-  }, [panels, query, filter]);
+    const matchQ = !q || p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q);
+    const matchF = filter === "all" || (filter === "active" ? p.active : !p.active);
+    return matchQ && matchF;
+  });
 
-  const drawerPanel = panels.find((p) => p.id === drawerId);
-  const filtersActive = query || filter !== "All";
+  const toggle = (id) =>
+    setPanels((ps) => ps.map((p) => (p.id === id ? { ...p, active: !p.active, updated: "just now" } : p)));
 
-  /* feedback */
-  const toast = (message, undo) => {
-    const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, message, undo }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5500);
-  };
-  const dismissToast = (id) => setToasts((t) => t.filter((x) => x.id !== id));
-  const addLog = (text) => {
-    setLog((l) => [{ id: Date.now() + Math.random(), text, ts: Date.now() }, ...l].slice(0, 8));
-    setUnread((u) => u + 1);
-  };
-  const touch = (id, patch) => setPanels((list) => list.map((p) => (p.id === id ? { ...p, ...patch, updated: Date.now() } : p)));
-
-  /* actions */
-  const togglePanel = (p) => {
-    touch(p.id, { active: !p.active });
-    addLog(`${p.name} ${p.active ? "disabled" : "enabled"}`);
-    toast(`${p.name} is now ${p.active ? "disabled" : "active"}.`);
+  const create = ({ name, desc, icon }) => {
+    setPanels((ps) => [...ps, {
+      id: Date.now(), name, desc, icon, tone: TONES[ps.length % TONES.length],
+      admins: [], updated: "just now", active: true,
+    }]);
+    setShowModal(false);
   };
 
-  const savePanel = (data) => {
-    if (modal.type === "add") {
-      const created = { ...data, id: `p${nextId.current++}`, admins: [], active: true, updated: Date.now() };
-      setPanels((list) => [...list, created]);
-      addLog(`Created panel ${created.name}`);
-      toast(`${created.name} was created.`);
-    } else {
-      touch(modal.panel.id, data);
-      addLog(`Updated panel ${data.name}`);
-      toast(`${data.name} was updated.`);
-    }
-    setModal(null);
-  };
-
-  const confirmDelete = () => {
-    const target = modal.panel;
-    const index = panels.findIndex((p) => p.id === target.id);
-    setPanels((list) => list.filter((p) => p.id !== target.id));
-    if (drawerId === target.id) setDrawerId(null);
-    addLog(`Deleted panel ${target.name}`);
-    toast(`${target.name} was deleted.`, () => {
-      setPanels((list) => {
-        const copy = [...list];
-        copy.splice(Math.min(index, copy.length), 0, target);
-        return copy;
-      });
-      addLog(`Restored panel ${target.name}`);
-    });
-    setModal(null);
-  };
-
-  const assignAdmin = (id, name) => {
-    const p = panels.find((x) => x.id === id);
-    touch(id, { admins: [...p.admins, name] });
-    addLog(`${name} assigned to ${p.name}`);
-  };
-  const removeAdmin = (id, name) => {
-    const p = panels.find((x) => x.id === id);
-    touch(id, { admins: p.admins.filter((a) => a !== name) });
-    addLog(`${name} removed from ${p.name}`);
-    toast(`${name} was removed from ${p.name}.`, () => {
-      setPanels((list) => list.map((x) => (x.id === id ? { ...x, admins: [...x.admins, name] } : x)));
-    });
-  };
-
-  const manage = (p) => (onManage ? onManage(p) : setDrawerId(p.id));
+  const tabs = ["all", "active", "disabled"];
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#fbf7f4] font-['Poppins',sans-serif] text-slate-700">
-      <style>{`
-        @keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
-        .rise { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; }
-        @keyframes rowIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
-        .row-in { animation: rowIn .35s ease both; }
-        @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.97) } to { opacity: 1; transform: none } }
-        .pop { animation: pop .25s cubic-bezier(.2,.7,.2,1) both; }
-        @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
-        .fade { animation: fade .2s ease both; }
-        @keyframes drawerIn { from { transform: translateX(100%) } to { transform: none } }
-        .drawer { animation: drawerIn .3s cubic-bezier(.2,.7,.2,1) both; }
-        @keyframes toastIn { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
-        .toast-in { animation: toastIn .3s ease both; }
-        @media (prefers-reduced-motion: reduce) { .rise, .row-in, .pop, .fade, .drawer, .toast-in, .animate-pulse { animation: none; } }
-      `}</style>
+    <div className="ap-page">
+      <style>{CSS}</style>
 
-      <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#f4c9d0]/40 blur-3xl" aria-hidden="true" />
-      <div className="pointer-events-none absolute -left-24 bottom-0 h-72 w-72 rounded-full bg-[#cfe0fa]/40 blur-3xl" aria-hidden="true" />
+      <section className="stats">
+        <StatCard icon={ShieldCheck} value={stats.total} label="Total panels" tone="navy" />
+        <StatCard icon={CheckCircle2} value={stats.active} label="Active panels" tone="emerald" />
+        <StatCard icon={Users} value={stats.admins} label="Admins assigned" tone="gold" />
+      </section>
 
-      <div className="relative flex w-full flex-1 flex-col px-5 py-6 sm:px-8 lg:px-10">
-        {/* ── Header ── */}
-        <header className="flex flex-wrap items-center justify-between gap-4 pl-14 lg:pl-0">
-          <div>
-            <h1 className="text-2xl font-bold text-[#14234b] sm:text-[28px]">Manage Admin Panels</h1>
-            <p className="mt-0.5 text-xs text-slate-500">Create panels, assign admins and control access.</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setModal({ type: "add" })}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#5b47d6] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b47d6]/25 transition hover:-translate-y-0.5 hover:bg-[#4a38bb]"
-            >
-              <Plus size={16} /> Add Panel
+      <section className="toolbar">
+        <div className="tabs" role="tablist" style={{ "--i": tabs.indexOf(filter) }}>
+          <span className="tab-pill" />
+          {tabs.map((t) => (
+            <button key={t} role="tab" aria-selected={filter === t}
+              className={filter === t ? "on" : ""} onClick={() => setFilter(t)}>
+              {t[0].toUpperCase() + t.slice(1)}
             </button>
-
-            <div className="relative" ref={bellRef}>
-              <button
-                onClick={() => {
-                  setBellOpen(!bellOpen);
-                  setUnread(0);
-                  setMenuOpen(false);
-                }}
-                aria-label={`Notifications${unread ? `, ${unread} new` : ""}`}
-                aria-expanded={bellOpen}
-                className="relative grid h-11 w-11 place-items-center rounded-full bg-white text-[#14234b] shadow-sm ring-1 ring-slate-200 transition hover:shadow-md"
-              >
-                <Bell size={20} />
-                {unread > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-[#8f0014] px-1 text-[10px] font-bold text-white">{unread > 9 ? "9+" : unread}</span>
-                )}
-              </button>
-              {bellOpen && (
-                <div className="pop absolute right-0 z-30 mt-2 w-72 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200">
-                  <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-[#14234b]">Recent changes</p>
-                  {log.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-slate-400">Nothing yet. Changes you make will show up here.</p>
-                  ) : (
-                    <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
-                      {log.map((l) => (
-                        <li key={l.id} className="px-4 py-3">
-                          <p className="text-sm font-medium text-slate-800">{l.text}</p>
-                          <p className="text-[11px] text-slate-400">{timeAgo(l.ts, now)}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => {
-                  setMenuOpen(!menuOpen);
-                  setBellOpen(false);
-                }}
-                aria-expanded={menuOpen}
-                className="flex items-center gap-2.5 rounded-full bg-white py-1.5 pl-1.5 pr-3 shadow-sm ring-1 ring-slate-200 transition hover:shadow-md"
-              >
-                {user.avatar ? (
-                  <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
-                ) : (
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[#14234b] to-[#8f0014] text-xs font-bold text-white">{initialsOf(user.name)}</span>
-                )}
-                <span className="hidden text-sm font-semibold text-[#14234b] sm:block">{user.name}</span>
-                <ChevronDown size={16} className={`text-slate-500 transition ${menuOpen ? "rotate-180" : ""}`} />
-              </button>
-              {menuOpen && (
-                <div className="pop absolute right-0 z-30 mt-2 w-48 overflow-hidden rounded-xl bg-white py-1 shadow-2xl ring-1 ring-slate-200">
-                  <a href="#" className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"><UserIcon size={16} className="text-slate-400" /> Profile</a>
-                  <a href="#" className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"><Settings size={16} className="text-slate-400" /> Settings</a>
-                  <button onClick={onLogout} className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-2.5 text-sm text-[#8f0014] hover:bg-[#8f0014]/5"><LogOut size={16} /> Logout</button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* ── Summary ── */}
-        <section className="mt-7 grid gap-4 sm:grid-cols-3" aria-label="Summary">
-          <SummaryCard label="Total panels" value={stats.total} icon={ShieldCheck} tone="bg-[#5b47d6]/10 text-[#5b47d6]" delay={0} />
-          <SummaryCard label="Active panels" value={stats.active} icon={CheckCircle2} tone="bg-[#1f9d55]/10 text-[#1f9d55]" delay={80} />
-          <SummaryCard label="Admins assigned" value={stats.admins} icon={Users} tone="bg-[#d97706]/10 text-[#d97706]" delay={160} />
-        </section>
-
-        {/* ── Toolbar ── */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-100" role="group" aria-label="Filter by status">
-            {["All", "Active", "Disabled"].map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilter(s)}
-                aria-pressed={filter === s}
-                className={`rounded-md px-4 py-1.5 text-xs font-semibold transition ${filter === s ? "bg-[#14234b] text-white shadow" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition focus-within:border-[#5b47d6] focus-within:ring-4 focus-within:ring-[#5b47d6]/10">
-            <Search size={16} className="text-slate-400" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search panels or admins..." aria-label="Search panels" className="w-56 bg-transparent text-sm placeholder:text-slate-400 focus:outline-none" />
-            {query && (
-              <button onClick={() => setQuery("")} aria-label="Clear search" className="text-slate-400 hover:text-slate-700"><X size={14} /></button>
-            )}
-          </div>
+          ))}
         </div>
+        <div className="search">
+          <Search size={16} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search panels or admins…" />
+        </div>
+      </section>
 
-        {/* ── Panel cards ── */}
-        <section className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-label="Admin panels">
-          {loading &&
-            [0, 1, 2].map((i) => (
-              <div key={i} className="h-72 animate-pulse rounded-2xl bg-white/70 ring-1 ring-slate-100" />
-            ))}
+      <section className="panel-grid">
+        {visible.map((p, i) => (
+          <PanelCard key={p.id} panel={p} index={i} onToggle={toggle} onManage={onManage} />
+        ))}
 
-          {!loading &&
-            visible.map((p, i) => {
-              const T = THEMES[p.theme];
-              const Icon = ICONS[p.icon];
-              return (
-                <article
-                  key={p.id}
-                  className={`rise group relative overflow-hidden rounded-2xl bg-gradient-to-br ${T.card} p-6 text-center shadow-sm ring-1 ${T.ring} transition duration-300 hover:-translate-y-1.5 hover:shadow-xl ${p.active ? "" : "saturate-50"}`}
-                  style={{ animationDelay: `${i * 80}ms` }}
-                >
-                  <span className={`absolute -right-10 -top-10 h-36 w-36 rounded-full ${T.blob} opacity-60 transition duration-500 group-hover:scale-125`} aria-hidden="true" />
-
-                  {/* edit / delete (visible on hover or focus) */}
-                  <div className="absolute right-3 top-3 z-10 flex gap-1 opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100">
-                    <button onClick={() => setModal({ type: "edit", panel: p })} aria-label={`Edit ${p.name}`} title="Edit" className="rounded-lg bg-white/90 p-2 text-slate-500 shadow-sm transition hover:text-[#d97706]"><Pencil size={15} /></button>
-                    <button onClick={() => setModal({ type: "delete", panel: p })} aria-label={`Delete ${p.name}`} title="Delete" className="rounded-lg bg-white/90 p-2 text-slate-500 shadow-sm transition hover:text-[#e0473b]"><Trash2 size={15} /></button>
-                  </div>
-
-                  <span className={`relative mx-auto grid h-16 w-16 place-items-center rounded-full bg-white shadow-md ${T.fg} transition duration-300 group-hover:scale-110 group-hover:rotate-[-6deg]`}>
-                    <Icon size={30} />
-                  </span>
-                  <h2 className="relative mt-4 text-lg font-bold leading-tight text-[#14234b]">{p.name}</h2>
-                  <p className="relative mx-auto mt-1.5 max-w-[16rem] text-sm text-slate-600">{p.description}</p>
-
-                  <button
-                    onClick={() => manage(p)}
-                    disabled={!p.active}
-                    className={`relative mt-5 inline-flex items-center gap-2 rounded-full border-2 bg-white px-6 py-2 text-sm font-semibold transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-slate-500 ${T.btn}`}
-                  >
-                    Manage <ArrowRight size={16} className="transition group-hover:translate-x-0.5" />
-                  </button>
-
-                  <div className="relative mt-5 flex items-center justify-between gap-3 border-t border-black/5 pt-4 text-left">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex -space-x-2">
-                        {p.admins.slice(0, 3).map((a) => (
-                          <span key={a} title={a} className={`grid h-7 w-7 place-items-center rounded-full bg-white text-[10px] font-bold ring-2 ring-white ${T.fg}`}>{initialsOf(a)}</span>
-                        ))}
-                        {p.admins.length === 0 && <span className="grid h-7 w-7 place-items-center rounded-full bg-white/80 text-slate-400 ring-2 ring-white"><Users size={13} /></span>}
-                      </div>
-                      <div className="leading-tight">
-                        <p className="text-xs font-semibold text-[#14234b]">{p.admins.length} admin{p.admins.length === 1 ? "" : "s"}</p>
-                        <p className="flex items-center gap-1 text-[10px] text-slate-500"><Clock size={10} /> {timeAgo(p.updated, now)}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold text-slate-500">{p.active ? "Active" : "Disabled"}</span>
-                      <Switch checked={p.active} onChange={() => togglePanel(p)} label={`${p.active ? "Disable" : "Enable"} ${p.name}`} />
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-
-          {/* create-new tile */}
-          {!loading && !filtersActive && (
-            <button
-              onClick={() => setModal({ type: "add" })}
-              className="rise group grid min-h-[18rem] place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 p-6 text-center transition hover:border-[#5b47d6] hover:bg-white"
-              style={{ animationDelay: `${visible.length * 80}ms` }}
-            >
-              <span>
-                <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#5b47d6]/10 text-[#5b47d6] transition group-hover:scale-110 group-hover:bg-[#5b47d6] group-hover:text-white"><Plus size={26} /></span>
-                <span className="mt-3 block font-semibold text-[#14234b]">Create new panel</span>
-                <span className="mt-1 block text-xs text-slate-500">Add a panel for another department</span>
-              </span>
-            </button>
-          )}
-        </section>
-
-        {!loading && visible.length === 0 && (
-          <div className="mt-4 grid place-items-center rounded-2xl bg-white px-6 py-14 text-center shadow-sm ring-1 ring-slate-100">
-            <span className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-slate-400"><SearchX size={28} /></span>
-            <p className="mt-4 font-semibold text-[#14234b]">No panels found</p>
-            <p className="mt-1 text-sm text-slate-500">Try a different search or clear the filters.</p>
-            <button onClick={() => { setQuery(""); setFilter("All"); }} className="mt-4 rounded-lg bg-[#5b47d6] px-4 py-2 text-sm font-semibold text-white hover:bg-[#4a38bb]">Clear filters</button>
-          </div>
+        {filter === "all" && !query && (
+          <button className="card create" onClick={() => setShowModal(true)}>
+            <span className="create-plus"><Plus size={26} /></span>
+            <h3>Create new panel</h3>
+            <p>Add a panel for another department</p>
+          </button>
         )}
 
-        {/* ── Activity (fills the remaining height) ── */}
-        <section className="mt-6 flex flex-1 flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100" aria-label="Panel activity">
-          <h2 className="text-lg font-bold text-[#14234b]">Panel Activity</h2>
-          {log.length === 0 ? (
-            <div className="grid flex-1 place-items-center py-8 text-center">
-              <div>
-                <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400"><Clock size={22} /></span>
-                <p className="mt-3 text-sm text-slate-500">Changes you make to panels and admins will appear here.</p>
-              </div>
-            </div>
-          ) : (
-            <ul className="mt-3 divide-y divide-slate-100" aria-live="polite">
-              {log.map((l) => (
-                <li key={l.id} className="row-in flex items-center gap-3 py-3">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#5b47d6]" />
-                  <span className="flex-1 text-sm font-medium text-[#14234b]">{l.text}</span>
-                  <time className="text-xs text-slate-400">{timeAgo(l.ts, now)}</time>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {/* ── Modals / drawer ── */}
-      {(modal?.type === "add" || modal?.type === "edit") && (
-        <PanelForm mode={modal.type} initial={modal.panel} panels={panels} onSave={savePanel} onClose={() => setModal(null)} />
-      )}
-
-      {modal?.type === "delete" && (
-        <Modal title="Delete panel?" onClose={() => setModal(null)}>
-          <div className="px-6 py-6">
-            <div className="flex gap-4">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#e0473b]/10 text-[#e0473b]"><Trash2 size={22} /></span>
-              <p className="text-sm leading-relaxed text-slate-600">
-                You are about to delete <strong className="text-[#14234b]">{modal.panel.name}</strong>
-                {modal.panel.admins.length > 0 && <> and unassign its {modal.panel.admins.length} admin{modal.panel.admins.length > 1 ? "s" : ""}</>}. You can undo this right after.
-              </p>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setModal(null)} className="rounded-lg px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
-              <button onClick={confirmDelete} autoFocus className="rounded-lg bg-[#e0473b] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#e0473b]/25 hover:bg-[#c2362b]">Delete</button>
-            </div>
+        {visible.length === 0 && (
+          <div className="empty">
+            <b>No panels found</b>
+            <span>Try a different search or switch the filter back to All.</span>
           </div>
-        </Modal>
-      )}
+        )}
+      </section>
 
-      {drawerPanel && (
-        <Drawer
-          panel={drawerPanel}
-          onClose={() => setDrawerId(null)}
-          onAssign={assignAdmin}
-          onRemove={removeAdmin}
-          onOpen={(p) => {
-            addLog(`Opened ${p.name}`);
-            toast(`Opening ${p.name}… connect this to your panel route with the onManage prop.`);
-          }}
-        />
-      )}
-
-      {/* ── Toasts ── */}
-      <div className="fixed bottom-5 right-5 z-[60] flex w-80 max-w-[calc(100vw-2.5rem)] flex-col gap-2" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} className="toast-in flex items-center gap-3 rounded-xl bg-[#14234b] px-4 py-3 text-sm text-white shadow-2xl">
-            <CheckCircle2 size={18} className="shrink-0 text-[#6ee7a0]" />
-            <span className="flex-1">{t.message}</span>
-            {t.undo && (
-              <button
-                onClick={() => {
-                  t.undo();
-                  dismissToast(t.id);
-                }}
-                className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-1 text-xs font-semibold transition hover:bg-white/25"
-              >
-                <Undo2 size={13} /> Undo
-              </button>
-            )}
-            <button onClick={() => dismissToast(t.id)} aria-label="Dismiss" className="text-white/60 hover:text-white"><X size={15} /></button>
-          </div>
-        ))}
-      </div>
+      {showModal && <AddPanelModal onClose={() => setShowModal(false)} onCreate={create} />}
     </div>
   );
 }
+
+/* ---------- styles ---------- */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600&display=swap');
+
+.ap-page{font-style:normal;
+  --navy:#14214f; --navy2:#1b2d6b; --maroon:#8a0b1c; --maroon2:#a50d22; --gold:#e8b923;
+  --ink:#14214f; --muted:#5d6785; --line:#e4e7f0; --bg:#f6f4f2;
+  min-height:100vh; padding:32px clamp(16px,4vw,44px) 56px; box-sizing:border-box;
+  font-family:'Poppins',system-ui,sans-serif; color:var(--ink);
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(138,11,28,.10), transparent 60%),
+    radial-gradient(800px 420px at -10% 0%, rgba(27,45,107,.10), transparent 60%),
+    var(--bg);
+}
+.ap-page *{box-sizing:border-box;font-style:normal}
+.ap-page button{font-family:inherit;cursor:pointer}
+.ap-page :focus-visible{outline:3px solid rgba(232,185,35,.7);outline-offset:2px}
+
+.btn-primary{display:inline-flex;align-items:center;gap:8px;border:0;color:#fff;font-weight:600;font-size:14px;
+  padding:12px 20px;border-radius:12px;background:linear-gradient(180deg,var(--maroon2),var(--maroon));
+  box-shadow:0 10px 22px -8px rgba(138,11,28,.65);transition:transform .15s, box-shadow .15s, filter .15s}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 26px -8px rgba(138,11,28,.75)}
+.btn-primary:active:not(:disabled){transform:translateY(0)}
+.btn-primary:disabled{filter:grayscale(.6) opacity(.55);cursor:not-allowed}
+.btn-ghost{border:1px solid var(--line);background:#fff;color:var(--navy);font-weight:600;font-size:14px;padding:12px 20px;border-radius:12px}
+.btn-ghost:hover{background:#f1f3fa}
+
+.avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#fff;color:var(--navy);
+  font-size:10px;font-weight:600;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-bottom:24px}
+.stat{display:flex;align-items:center;gap:16px;padding:20px 22px;border-radius:18px;background:#fff;border:1px solid var(--line);
+  box-shadow:0 14px 30px -22px rgba(20,33,79,.55);transition:transform .2s, box-shadow .2s;position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;left:0;top:18%;bottom:18%;width:4px;border-radius:0 4px 4px 0;background:var(--c)}
+.stat:hover{transform:translateY(-3px);box-shadow:0 20px 34px -20px rgba(20,33,79,.55)}
+.stat-icon{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;color:var(--c);background:var(--cb)}
+.stat-num{font-family:'Playfair Display',serif;font-size:32px;font-weight:700;line-height:1}
+.stat-label{margin-top:4px;font-size:13px;color:var(--muted)}
+.stat-navy{--c:#1b2d6b;--cb:#e8ecfb}.stat-emerald{--c:#12915a;--cb:#e1f5ec}.stat-gold{--c:#c98a06;--cb:#fdf1d6}
+
+/* toolbar */
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+.tabs{--i:0;position:relative;display:grid;grid-template-columns:repeat(3,1fr);padding:4px;border-radius:14px;background:#fff;border:1px solid var(--line)}
+.tab-pill{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/3);border-radius:10px;background:var(--navy);
+  transform:translateX(calc(var(--i) * 100%));transition:transform .28s cubic-bezier(.3,.9,.3,1)}
+.tabs button{position:relative;z-index:1;border:0;background:none;padding:8px 20px;font-size:13px;font-weight:500;color:var(--muted);transition:color .2s}
+.tabs button.on{color:#fff}
+.search{display:flex;align-items:center;gap:10px;width:min(100%,320px);padding:0 14px;height:44px;border-radius:12px;background:#fff;
+  border:1px solid var(--line);color:var(--muted);transition:border-color .2s, box-shadow .2s}
+.search:focus-within{border-color:var(--navy2);box-shadow:0 0 0 4px rgba(27,45,107,.1)}
+.search input{flex:1;border:0;outline:0;background:none;font:inherit;font-size:14px;color:var(--ink)}
+
+/* cards */
+.panel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:24px}
+.card{position:relative;display:flex;flex-direction:column;overflow:hidden;border-radius:24px;background:#fff;border:1px solid var(--line);
+  box-shadow:0 16px 36px -26px rgba(20,33,79,.6);transition:transform .28s, box-shadow .28s, filter .3s;animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+.card:hover{transform:translateY(-6px);box-shadow:0 30px 50px -28px var(--sh)}
+
+.card-head{position:relative;height:132px;padding:18px 18px 0;overflow:hidden;color:#fff;
+  background:linear-gradient(135deg,var(--g1),var(--g2))}
+.pc-ring{position:absolute;border-radius:50%;border:1.5px solid rgba(255,255,255,.18)}
+.pc-r1{width:170px;height:170px;right:-50px;top:-70px}
+.pc-r2{width:110px;height:110px;right:20px;top:-30px;border-color:rgba(255,255,255,.12)}
+.watermark{position:absolute;right:-14px;bottom:-26px;color:rgba(255,255,255,.12);transition:transform .5s}
+.card:hover .watermark{transform:translate(-10px,-6px) rotate(-6deg) scale(1.08)}
+.head-row{position:relative;display:flex;justify-content:space-between;align-items:flex-start}
+.card-icon{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;color:#fff;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);backdrop-filter:blur(6px);
+  box-shadow:0 10px 20px -10px rgba(0,0,0,.45);transition:transform .3s}
+.card:hover .card-icon{transform:rotate(-6deg) scale(1.06)}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px)}
+.chip i{width:8px;height:8px;border-radius:50%;background:#5cf2a6;box-shadow:0 0 0 3px rgba(92,242,166,.3)}
+.is-off .chip i{background:#c7ccdb;box-shadow:none}
+
+.card-body{flex:1;display:flex;flex-direction:column;padding:20px 22px 6px}
+.card h3{margin:0;font-family:'Playfair Display',serif;font-size:22px;color:var(--navy)}
+.card h3::after{content:"";display:block;width:32px;height:3px;border-radius:3px;background:var(--gold);margin-top:8px}
+.card p{margin:12px 0 18px;font-size:14px;line-height:1.55;color:var(--muted);flex:1}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#f6f7fc}
+.avatars{display:flex;align-items:center}
+.avatars .avatar{margin-left:-8px;width:30px;height:30px;font-size:10px;color:#fff;border:2px solid #f6f7fc;box-shadow:none;background:var(--g2)}
+.avatars .avatar:first-child{margin-left:0}
+.avatars .avatar:nth-child(2){background:var(--g1)}
+.avatars .avatar:nth-child(3){background:#c98a06}
+.none{font-size:12.5px;color:var(--muted);margin-right:8px}
+.add-admin{width:30px;height:30px;margin-left:6px;border-radius:50%;border:1.5px dashed #aab2cc;background:#fff;color:var(--muted);display:grid;place-items:center;transition:all .2s}
+.add-admin:hover{border-color:var(--maroon);color:var(--maroon);transform:rotate(90deg)}
+.foot-time{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:11.5px;color:var(--muted)}
+
+.card footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 22px 20px}
+.switch-wrap{display:flex;align-items:center;gap:10px;white-space:nowrap;font-size:12.5px;font-weight:600;color:var(--navy)}
+.switch{width:44px;height:26px;border:0;padding:3px;border-radius:999px;background:#b9bfd1;transition:background .25s;display:block}
+.switch i{display:block;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25);transition:transform .25s cubic-bezier(.3,1.4,.5,1)}
+.switch.on{background:#12915a}.switch.on i{transform:translateX(18px)}
+.manage{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;border:0;color:#fff;font-weight:600;font-size:14px;
+  background:linear-gradient(135deg,var(--g1),var(--g2));box-shadow:0 10px 20px -10px var(--sh);transition:transform .2s, box-shadow .2s}
+.manage svg{transition:transform .2s}
+.manage:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 22px -10px var(--sh)}
+.manage:hover:not(:disabled) svg{transform:translateX(4px)}
+.manage:disabled{opacity:.45;cursor:not-allowed}
+.card.is-off{filter:grayscale(.85)}
+.card.is-off .card-head{opacity:.85}
+
+.tone-navy{--g1:#14214f;--g2:#2c4396;--sh:rgba(27,45,107,.6)}
+.tone-emerald{--g1:#0a5c3b;--g2:#16a468;--sh:rgba(18,145,90,.55)}
+.tone-maroon{--g1:#5c0614;--g2:#b3112a;--sh:rgba(138,11,28,.6)}
+.tone-gold{--g1:#8a5a00;--g2:#e0a712;--sh:rgba(201,138,6,.55)}
+
+.create{align-items:center;justify-content:center;text-align:center;min-height:380px;padding:28px 24px;background:rgba(255,255,255,.55);
+  border:2px dashed #c3c9de;box-shadow:none;font-family:inherit;color:var(--navy)}
+.create h3::after{margin:8px auto 0}
+.create p{flex:0;margin-bottom:0}
+.create:hover{border-color:var(--maroon);background:#fff;box-shadow:0 24px 40px -28px rgba(138,11,28,.5)}
+.create-plus{display:grid;place-items:center;width:62px;height:62px;border-radius:50%;background:#e8ecfb;color:var(--navy2);margin-bottom:16px;transition:transform .3s, background .2s, color .2s}
+.create:hover .create-plus{transform:rotate(90deg);background:var(--maroon);color:#fff}
+.empty{grid-column:1/-1;display:flex;flex-direction:column;gap:4px;align-items:center;padding:48px 16px;color:var(--muted);font-size:14px}
+.empty b{color:var(--navy);font-size:16px}
+
+/* modal */
+.overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(14,22,56,.55);backdrop-filter:blur(6px);animation:fade .2s}
+.modal{position:relative;width:min(100%,460px);padding:30px;border-radius:22px;background:#fff;box-shadow:0 40px 80px -30px rgba(0,0,0,.6);animation:pop .22s ease-out}
+.modal h2{margin:0;font-family:'Playfair Display',serif;font-size:26px;color:var(--navy)}
+.modal-sub{margin:6px 0 20px;font-size:13.5px;color:var(--muted)}
+.modal-x{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;border:0;background:#f1f3fa;color:var(--navy);display:grid;place-items:center}
+.field{display:block;margin-bottom:16px}
+.field>span{display:block;margin-bottom:6px;font-size:12px;font-weight:600;color:var(--navy)}
+.field input{width:100%;height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:#eef2fd;font:inherit;font-size:14px;color:var(--ink);outline:0;transition:border-color .2s, box-shadow .2s}
+.field input:focus{border-color:var(--navy2);box-shadow:0 0 0 4px rgba(27,45,107,.12);background:#fff}
+.icon-pick{display:flex;gap:8px;flex-wrap:wrap}
+.icon-pick button{width:44px;height:44px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:var(--muted);display:grid;place-items:center;transition:all .15s}
+.icon-pick button:hover{color:var(--navy)}
+.icon-pick .sel{border-color:var(--maroon);color:var(--maroon);background:#fbeff2;transform:translateY(-2px)}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.ap-page *{animation:none!important;transition:none!important}}
+`;

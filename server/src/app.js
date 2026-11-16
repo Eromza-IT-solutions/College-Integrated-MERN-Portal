@@ -20,7 +20,8 @@ if (env.nodeEnv === 'production') app.set('trust proxy', 1)
 app.use(requestId)
 app.use(helmet())
 app.use(cors({ origin: env.clientOrigin, credentials: true }))
-app.use(express.json({ limit: '1mb' }))
+// rawBody: the webhook signature is checked over the exact bytes that arrived, so keep a copy of them.
+app.use(express.json({ limit: '1mb', verify: (req, _res, buf) => { req.rawBody = buf } }))
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 app.use(cookieParser())
 app.use(createSessionMiddleware()) // adds req.session; see config/session.js

@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import AppError from '../utils/AppError.js';
+import { yearOfSemester } from '../utils/academic.js';
 import {
-  EXAM_FORM_STATUS, EXAM_FORM_STATUS_VALUES, STUDENT_STATUS, ENROLLMENT_STATUS, PAYMENT_STATUS, PAYMENT_PURPOSE, SUBJECT_CATEGORIES,
+  EXAM_FORM_STATUS, EXAM_FORM_STATUS_VALUES, STUDENT_STATUS, ENROLLMENT_STATUS, PAYMENT_STATUS, PAYMENT_PURPOSE, SUBJECT_CATEGORIES, DEFAULT_DIVISION,
 } from '../utils/constants.js';
 
 const { Schema } = mongoose;
@@ -16,7 +17,7 @@ const examFormSchema = new Schema(
     // Copied when the form is started, so a later change to the student record does not change a filed form.
     details: {
       enrollmentNumber: String, fullName: String, mobile: String, email: String,
-      semester: Number, feesCategory: String,
+      semester: Number, feesCategory: String, divisionType: String,
     },
     subjects: [
       new Schema(
@@ -69,7 +70,7 @@ examFormSchema.statics.start = async function start({ examId, studentId }, { ses
       examId, studentId,
       details: {
         enrollmentNumber: student.enrollmentNumber, fullName: a.fullName, mobile: a.mobile, email: a.email,
-        semester: exam.semester, feesCategory: application.feesCategory,
+        semester: exam.semester, feesCategory: application.feesCategory, divisionType: application.divisionType,
       },
     }],
     { session }
@@ -112,6 +113,7 @@ examFormSchema.methods.continueToPayment = async function continueToPayment({ se
   if (!this.subjects.length) throw new AppError('Tick at least one subject first', 400);
   const fee = await db.model('FeeStructure').findOne({
     purpose: PAYMENT_PURPOSE.EXAM, academicYearId: exam.academicYearId, programId: exam.programId,
+    yearOfStudy: yearOfSemester(exam.semester), divisionType: this.details.divisionType || DEFAULT_DIVISION,
     feesCategory: this.details.feesCategory, isActive: true,
   }).session(s);
   if (!fee) throw new AppError('No exam fee is set for your class and fees category', 409);
