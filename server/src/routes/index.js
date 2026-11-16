@@ -3,8 +3,13 @@
 //   router.use('/auth', authRoutes);
 import express from 'express';
 import mongoose from 'mongoose';
+import authRoutes from '../modules/auth/auth.routes.js';
+import rbacRoutes from '../modules/admin/super/rbac.routes.js';
 
 const router = express.Router();
+
+router.use('/auth', authRoutes);
+router.use(rbacRoutes); // /roles and /permissions (Super Admin only)
 
 // Quick check that the server and database are up.
 router.get('/health', (req, res) => {
