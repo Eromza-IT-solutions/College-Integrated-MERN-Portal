@@ -3,9 +3,9 @@
 //   router.use('/auth', require('../modules/auth/auth.routes'));
 import express from 'express';
 import mongoose from 'mongoose';
-import env from '../config/env.js';
-import buildPaymentsRouter from '../modules/payments/payments.routes.js';
-import buildWebsiteRouter from '../modules/website/website.routes.js';
+import auditLogsRoutes from '../modules/admin/super/auditLogs.routes.js';
+import paymentsRoutes from '../modules/payments/payments.routes.js';
+import refundsRoutes from '../modules/payments/refunds.routes.js';
 
 const router = express.Router();
 
@@ -22,7 +22,8 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.use('/payments', buildPaymentsRouter({ razorpay: env.razorpay }));
-router.use('/website', buildWebsiteRouter());
+router.use('/audit-logs', auditLogsRoutes);
+router.use('/payments', paymentsRoutes);
+router.use('/refunds', refundsRoutes);
 
 export default router;

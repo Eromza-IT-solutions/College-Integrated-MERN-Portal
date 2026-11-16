@@ -17,9 +17,8 @@ app.disable('x-powered-by')
 app.use(requestId)
 app.use(helmet())
 app.use(cors({ origin: env.clientOrigin, credentials: true }))
-// Razorpay's webhook signature is checked on the raw bytes, so this route must be parsed before express.json().
-app.use('/api/v1/payments/webhook/razorpay', express.raw({ type: '*/*', limit: '1mb' }))
-app.use(express.json({ limit: '1mb' }))
+// rawBody: the webhook signature is checked over the exact bytes that arrived, so keep a copy of them.
+app.use(express.json({ limit: '1mb', verify: (req, _res, buf) => { req.rawBody = buf } }))
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 app.use(cookieParser())
 if (env.nodeEnv === 'development') app.use(morgan('dev'))

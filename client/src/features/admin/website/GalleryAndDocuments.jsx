@@ -1,449 +1,622 @@
-import { useMemo, useState } from "react";
+
+import { useMemo, useRef, useState } from "react";
 import {
-  Download,
-  Eye,
+  Images,
   FileText,
+  Upload,
+  Search,
+  Trash2,
+  Eye,
+  Download,
+  Image as ImageIcon,
+  X,
   FolderOpen,
-  Image,
+  Filter,
   Plus,
-  Video,
+  GraduationCap,
+  CalendarDays,
+  File,
+  FilePlus2,
+  ImagePlus,
 } from "lucide-react";
-import Badge from "../../../components/ui/Badge";
-import Button from "../../../components/ui/Button";
-import Card, { CardHeader } from "../../../components/ui/Card";
-import DataTable from "../../../components/ui/Table";
-import Input from "../../../components/ui/Input";
-import Modal from "../../../components/ui/Modal";
-import PageHeader from "../../../components/ui/PageHeader";
-import Pagination from "../../../components/ui/Pagination";
-import SearchInput from "../../../components/ui/SearchInput";
-import Select from "../../../components/ui/Select";
-import StatCard from "../../../components/ui/StatCard";
-import { websiteGallery } from "../../../mocks/websiteAdminData";
-import { downloadCsv } from "../../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../../utils/status";
 
-const PAGE_SIZE = 6;
+const categories = [
+  "All",
+  "Campus",
+  "Events",
+  "Activities",
+  "Certificates",
+  "Documents",
+  "Others",
+];
 
-const TYPE_ICONS = {
-  "Photo album": Image,
-  Document: FileText,
-  Video: Video,
-};
+function GalleryAndDocuments() {
+  const [items, setItems] = useState([]);
+  const [activeTab, setActiveTab] = useState("All");
+  const [category, setCategory] = useState("All");
+  const [search, setSearch] = useState("");
+  const [previewItem, setPreviewItem] = useState(null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState("Campus");
+  const [toast, setToast] = useState("");
 
-const ASSET_TYPES = ["Photo album", "Document", "Video"];
+  const fileInputRef = useRef(null);
+  const previewUrls = useRef(new Set());
 
-export default function GalleryAndDocuments() {
-  const [rows, setRows] = useState(websiteGallery);
-  const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [selectedAsset, setSelectedAsset] = useState(null);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    type: "Photo album",
-    category: "Campus Life",
-    status: "draft",
-  });
+  const imageCount = items.filter(
+    (item) => item.type === "Image"
+  ).length;
 
-  const filteredRows = useMemo(() => {
-    const search = query.trim().toLowerCase();
+  const documentCount = items.filter(
+    (item) => item.type === "Document"
+  ).length;
 
-    return rows.filter((row) => {
-      const matchesSearch =
-        !search ||
-        row.title.toLowerCase().includes(search) ||
-        row.category.toLowerCase().includes(search);
-      const matchesType = typeFilter === "all" || row.type === typeFilter;
-      const matchesStatus =
-        statusFilter === "all" || row.status === statusFilter;
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const matchesTab =
+        activeTab === "All" ||
+        (activeTab === "Images" && item.type === "Image") ||
+        (activeTab === "Documents" && item.type === "Document");
 
-      return matchesSearch && matchesType && matchesStatus;
+      const matchesCategory =
+        category === "All" || item.category === category;
+
+      const matchesSearch = item.name
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+      return matchesTab && matchesCategory && matchesSearch;
     });
-  }, [query, rows, statusFilter, typeFilter]);
+  }, [items, activeTab, category, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = filteredRows.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
-  const counts = {
-    total: rows.length,
-    albums: rows.filter((row) => row.type === "Photo album").length,
-    documents: rows.filter((row) => row.type === "Document").length,
-    published: rows.filter((row) => row.status === "published").length,
+  const showMessage = (message) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2500);
   };
 
-  const handleExport = () => {
-    downloadCsv("eromza-website-gallery.csv", [
-      ["Asset", "Type", "Category", "Files", "Size", "Status", "Updated"],
-      ...filteredRows.map((row) => [
-        row.title,
-        row.type,
-        row.category,
-        row.files,
-        row.size,
-        row.status,
-        row.updated,
-      ]),
-    ]);
-  };
+  const handleUpload = (event) => {
+    const files = Array.from(event.target.files || []);
 
-  const handleAddAsset = (event) => {
-    event.preventDefault();
+    if (!files.length) return;
 
-    if (!form.title.trim()) return;
+    const newItems = files.map((file, index) => {
+      const isImage = file.type.startsWith("image/");
+      const url = URL.createObjectURL(file);
 
-    const nextRow = {
-      id: `GAL-${Date.now()}`,
-      title: form.title.trim(),
-      type: form.type,
-      category: form.category,
-      files: 0,
-      size: "0 MB",
-      status: form.status,
-      updated: "Just now",
-      description:
-        "This media item is ready for files to be uploaded and published to the website.",
-    };
+      previewUrls.current.add(url);
 
-    setRows((current) => [nextRow, ...current]);
-    setForm({
-      title: "",
-      type: "Photo album",
-      category: "Campus Life",
-      status: "draft",
+      return {
+        id: `${Date.now()}-${index}`,
+        name: file.name,
+        type: isImage ? "Image" : "Document",
+        category: isImage ? uploadCategory : "Documents",
+        size: file.size,
+        url,
+        uploadedAt: new Date().toLocaleDateString("en-GB"),
+        isLocal: true,
+      };
     });
-    setIsAddOpen(false);
-    setPage(1);
+
+    setItems((previous) => [...newItems, ...previous]);
+    setShowUpload(false);
+    event.target.value = "";
+    showMessage(`${newItems.length} file(s) uploaded successfully`);
   };
 
-  const columns = [
-    {
-      key: "title",
-      header: "Asset",
-      render: (row) => {
-        const Icon = TYPE_ICONS[row.type] ?? FolderOpen;
+  const deleteItem = (id) => {
+    const item = items.find((entry) => entry.id === id);
 
-        return (
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-eromza-bg text-eromza-accent">
-              <Icon size={16} />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-semibold text-eromza-text">
-                {row.title}
-              </p>
-              <p className="mt-1 text-[11px] text-eromza-subtle">{row.id}</p>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "type",
-      header: "Type",
-      render: (row) => <Badge variant="neutral">{row.type}</Badge>,
-    },
-    {
-      key: "category",
-      header: "Category",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.category}</span>
-      ),
-    },
-    {
-      key: "files",
-      header: "Files",
-      render: (row) => (
-        <span className="text-xs font-medium text-eromza-text">{row.files}</span>
-      ),
-    },
-    {
-      key: "size",
-      header: "Size",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.size}</span>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => (
-        <Badge variant={getStatusVariant(row.status)}>
-          {formatStatus(row.status)}
-        </Badge>
-      ),
-    },
-    {
-      key: "updated",
-      header: "Updated",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.updated}</span>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      className: "text-right",
-      cellClassName: "text-right",
-      render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSelectedAsset(row)}
-          className="text-eromza-accent hover:bg-rose-50"
-        >
-          <Eye size={14} />
-          View
-        </Button>
-      ),
-    },
-  ];
+    if (!item) return;
+
+    if (item.isLocal && previewUrls.current.has(item.url)) {
+      URL.revokeObjectURL(item.url);
+      previewUrls.current.delete(item.url);
+    }
+
+    setItems((previous) =>
+      previous.filter((entry) => entry.id !== id)
+    );
+
+    if (previewItem?.id === id) {
+      setPreviewItem(null);
+    }
+
+    showMessage("File deleted successfully");
+  };
+
+  const formatSize = (bytes) => {
+    if (!bytes) return "—";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleImageError = (event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src =
+      "https://placehold.co/900x600/F1F3F8/142B50?text=Image+Unavailable";
+  };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Website administration"
-        title="Gallery & Documents"
-        description="Manage campus photo albums, event galleries, videos, and public documents."
-        actions={
-          <>
-            <Button variant="secondary" onClick={handleExport}>
-              <Download size={16} />
-              Export library
-            </Button>
-            <Button onClick={() => setIsAddOpen(true)}>
-              <Plus size={16} />
-              Add media
-            </Button>
-          </>
-        }
-      />
+    <div className="min-h-screen w-full space-y-6 pb-8">
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Media Assets"
-          value={String(counts.total)}
-          icon={FolderOpen}
-          tone="info"
-        />
-        <StatCard
-          label="Photo Albums"
-          value={String(counts.albums)}
-          icon={Image}
-          tone="accent"
-        />
-        <StatCard
-          label="Documents"
-          value={String(counts.documents)}
-          icon={FileText}
-          tone="warning"
-        />
-        <StatCard
-          label="Published"
-          value={String(counts.published)}
-          icon={Eye}
-          tone="success"
-        />
+      {/* Header */}
+      <div className="flex flex-col justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#142B50] via-[#243E65] to-[#7D0015] p-6 text-white shadow-lg md:flex-row md:items-center">
+        <div>
+          <div className="mb-3 flex items-center gap-2 text-sm text-white/70">
+            <GraduationCap size={18} />
+            EROMZA ICMS / Website Admin
+          </div>
+
+          <h1 className="text-2xl font-bold md:text-3xl">
+            Gallery & Documents
+          </h1>
+
+          <p className="mt-2 max-w-xl text-sm text-white/75">
+            Organize campus photographs, student activities, college events
+            and important academic documents.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowUpload(true)}
+          className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-[#142B50] shadow transition hover:bg-gray-100"
+        >
+          <Upload size={19} />
+          Upload Files
+        </button>
       </div>
 
-      <Card>
-        <CardHeader
-          title="Media library"
-          description="Public galleries and documents available on the college website"
-        />
+      {/* Statistics */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            title: "Total Files",
+            value: items.length,
+            icon: FolderOpen,
+            color: "bg-blue-50 text-blue-700",
+          },
+          {
+            title: "Gallery Images",
+            value: imageCount,
+            icon: Images,
+            color: "bg-purple-50 text-purple-700",
+          },
+          {
+            title: "Documents",
+            value: documentCount,
+            icon: FileText,
+            color: "bg-amber-50 text-amber-700",
+          },
+          {
+            title: "Categories",
+            value: new Set(items.map((item) => item.category)).size,
+            icon: Filter,
+            color: "bg-green-50 text-green-700",
+          },
+        ].map((stat) => {
+          const Icon = stat.icon;
 
-        <div className="flex flex-col gap-3 border-b border-eromza-border p-4 sm:flex-row sm:items-center sm:justify-between">
-          <SearchInput
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by title or category..."
-            className="w-full sm:max-w-xs"
-          />
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Select
-              value={typeFilter}
-              onChange={(event) => {
-                setTypeFilter(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter media by type"
-              className="min-w-[150px]"
+          return (
+            <div
+              key={stat.title}
+              className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
             >
-              <option value="all">All types</option>
-              {ASSET_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </Select>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">
+                    {stat.title}
+                  </p>
+                  <h2 className="mt-2 text-3xl font-bold text-[#142B50]">
+                    {stat.value}
+                  </h2>
+                </div>
 
-            <Select
-              value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter media by status"
-              className="min-w-[150px]"
-            >
-              <option value="all">All status</option>
-              <option value="published">Published</option>
-              <option value="review">In review</option>
-              <option value="draft">Draft</option>
-            </Select>
-          </div>
-        </div>
+                <div className={`rounded-xl p-3 ${stat.color}`}>
+                  <Icon size={24} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-        <DataTable
-          columns={columns}
-          rows={pageRows}
-          emptyTitle="No media found"
-          emptyDescription="Try adjusting the search or filters."
-        />
-
-        <div className="flex flex-col gap-3 border-t border-eromza-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-eromza-subtle">
-            Showing {pageRows.length} of {filteredRows.length} media assets
+      {/* Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div>
+          <h2 className="font-bold text-[#142B50]">Media Library</h2>
+          <p className="mt-1 text-xs text-gray-400">
+            Browse and manage your college files
           </p>
-          <Pagination
-            page={currentPage}
-            totalPages={totalPages}
-            onPageChange={setPage}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {["All", "Images", "Documents"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                activeTab === tab
+                  ? "bg-[#142B50] text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:flex-row">
+        <div className="relative flex-1">
+          <Search
+            size={18}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search files by name..."
+            className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#A00018]"
           />
         </div>
-      </Card>
 
-      <Modal
-        open={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        title="Add media"
-        description="Create a new gallery or document entry for the website."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="media-form">
-              Add media
-            </Button>
-          </>
-        }
-      >
-        <form id="media-form" onSubmit={handleAddAsset} className="space-y-4">
-          <Input
-            label="Title"
-            value={form.title}
-            onChange={(event) => setForm({ ...form, title: event.target.value })}
-            placeholder="e.g. Annual Day 2026"
-            required
+        <div className="relative md:w-56">
+          <Filter
+            size={17}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
           />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select
-              label="Type"
-              value={form.type}
-              onChange={(event) => setForm({ ...form, type: event.target.value })}
-            >
-              {ASSET_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              label="Category"
-              value={form.category}
-              onChange={(event) =>
-                setForm({ ...form, category: event.target.value })
-              }
-            >
-              <option value="Campus Life">Campus Life</option>
-              <option value="Events">Events</option>
-              <option value="Academics">Academics</option>
-              <option value="Admissions">Admissions</option>
-              <option value="Accreditation">Accreditation</option>
-              <option value="Compliance">Compliance</option>
-            </Select>
-          </div>
-
-          <Select
-            label="Status"
-            value={form.status}
-            onChange={(event) => setForm({ ...form, status: event.target.value })}
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm outline-none focus:border-[#A00018]"
           >
-            <option value="draft">Draft</option>
-            <option value="review">In review</option>
-            <option value="published">Published</option>
-          </Select>
-        </form>
-      </Modal>
+            {categories.map((item) => (
+              <option key={item} value={item}>
+                {item === "All" ? "All Categories" : item}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-      <Modal
-        open={Boolean(selectedAsset)}
-        onClose={() => setSelectedAsset(null)}
-        title={selectedAsset?.title ?? "Media preview"}
-        description={selectedAsset?.id}
-        size="lg"
-        footer={
-          <Button variant="secondary" onClick={() => setSelectedAsset(null)}>
-            Close
-          </Button>
-        }
-      >
-        {selectedAsset ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="neutral">{selectedAsset.type}</Badge>
-              <Badge variant="info">{selectedAsset.category}</Badge>
-              <Badge variant={getStatusVariant(selectedAsset.status)}>
-                {formatStatus(selectedAsset.status)}
-              </Badge>
-            </div>
+      {/* Gallery Images */}
+      {activeTab !== "Documents" && (
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-[#142B50]">
+              <Images size={21} className="text-[#A00018]" />
+              Gallery Images
+            </h2>
 
-            <div className="rounded-lg bg-eromza-bg p-4 text-sm leading-6 text-eromza-muted">
-              {selectedAsset.description}
-            </div>
-
-            <dl className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Files
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedAsset.files}
-                </dd>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Total size
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedAsset.size}
-                </dd>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Last updated
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedAsset.updated}
-                </dd>
-              </div>
-            </dl>
+            <span className="text-sm text-gray-500">
+              {filteredItems.filter((item) => item.type === "Image").length} files
+            </span>
           </div>
-        ) : null}
-      </Modal>
+
+          {filteredItems.filter((item) => item.type === "Image").length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white px-5 py-14 text-center">
+              <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-purple-50 text-purple-600">
+                <ImagePlus size={30} />
+              </div>
+
+              <h3 className="text-lg font-bold text-[#142B50]">
+                No Images Available
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
+                Your college gallery is currently empty. Upload campus,
+                classroom, student and event photographs to get started.
+              </p>
+
+              <button
+                onClick={() => setShowUpload(true)}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#A00018] px-5 py-3 text-sm font-semibold text-white hover:bg-[#7D0015]"
+              >
+                <Plus size={17} />
+                Add First Image
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredItems
+                .filter((item) => item.type === "Image")
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  >
+                    <div className="relative h-56 overflow-hidden bg-gray-100">
+                      <img
+                        src={item.url}
+                        alt={item.name}
+                        onError={handleImageError}
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+
+                      <div className="absolute inset-0 flex items-center justify-center gap-3 bg-[#142B50]/50 opacity-0 transition group-hover:opacity-100">
+                        <button
+                          onClick={() => setPreviewItem(item)}
+                          className="rounded-full bg-white p-3 text-[#142B50] hover:bg-gray-100"
+                          title="Preview"
+                        >
+                          <Eye size={19} />
+                        </button>
+
+                        <button
+                          onClick={() => deleteItem(item.id)}
+                          className="rounded-full bg-white p-3 text-red-600 hover:bg-red-50"
+                          title="Delete"
+                        >
+                          <Trash2 size={19} />
+                        </button>
+                      </div>
+
+                      <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-[#142B50]">
+                        {item.category}
+                      </span>
+                    </div>
+
+                    <div className="p-4">
+                      <h3 className="truncate font-semibold text-[#142B50]">
+                        {item.name}
+                      </h3>
+
+                      <p className="mt-2 flex items-center gap-1 text-xs text-gray-400">
+                        <CalendarDays size={13} />
+                        {item.uploadedAt}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Documents */}
+      {activeTab !== "Images" && (
+        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-100 p-5">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-bold text-[#142B50]">
+                <FileText size={21} className="text-[#A00018]" />
+                Documents Library
+              </h2>
+              <p className="mt-1 text-xs text-gray-400">
+                College brochures, certificates and academic files
+              </p>
+            </div>
+
+            <span className="text-sm text-gray-500">
+              {filteredItems.filter((item) => item.type === "Document").length} files
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[650px] text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-5 py-4">Document Name</th>
+                  <th className="px-5 py-4">Category</th>
+                  <th className="px-5 py-4">File Size</th>
+                  <th className="px-5 py-4">Upload Date</th>
+                  <th className="px-5 py-4 text-center">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-100">
+                {filteredItems
+                  .filter((item) => item.type === "Document")
+                  .map((item) => (
+                    <tr key={item.id} className="transition hover:bg-gray-50">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-lg bg-red-50 p-2 text-red-600">
+                            <FileText size={20} />
+                          </div>
+                          <span className="font-semibold text-[#142B50]">
+                            {item.name}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4 text-gray-600">
+                        {item.category}
+                      </td>
+
+                      <td className="px-5 py-4 text-gray-500">
+                        {formatSize(item.size)}
+                      </td>
+
+                      <td className="px-5 py-4 text-gray-500">
+                        {item.uploadedAt}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex justify-center gap-2">
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-lg bg-blue-50 p-2 text-blue-700 hover:bg-blue-100"
+                            title="Open document"
+                          >
+                            <Eye size={17} />
+                          </a>
+
+                          <a
+                            href={item.url}
+                            download={item.name}
+                            className="rounded-lg bg-green-50 p-2 text-green-700 hover:bg-green-100"
+                            title="Download"
+                          >
+                            <Download size={17} />
+                          </a>
+
+                          <button
+                            onClick={() => deleteItem(item.id)}
+                            className="rounded-lg bg-red-50 p-2 text-red-600 hover:bg-red-100"
+                            title="Delete"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                {filteredItems.filter((item) => item.type === "Document").length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="px-5 py-12 text-center">
+                      <FilePlus2 size={32} className="mx-auto text-gray-300" />
+                      <p className="mt-3 font-semibold text-gray-600">
+                        No Documents Available
+                      </p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Upload your first college document.
+                      </p>
+                      <button
+                        onClick={() => setShowUpload(true)}
+                        className="mt-4 rounded-lg bg-[#A00018] px-4 py-2 text-xs font-semibold text-white hover:bg-[#7D0015]"
+                      >
+                        Upload Document
+                      </button>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Upload Modal */}
+      {showUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-[#142B50]">
+                  Upload Files
+                </h2>
+                <p className="mt-1 text-xs text-gray-400">
+                  Add images or documents to your library
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowUpload(false)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <label className="mb-2 block text-sm font-semibold text-gray-700">
+              Image Category
+            </label>
+
+            <select
+              value={uploadCategory}
+              onChange={(event) => setUploadCategory(event.target.value)}
+              className="mb-5 w-full rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-[#A00018]"
+            >
+              {categories
+                .filter((item) => item !== "All" && item !== "Documents")
+                .map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+            </select>
+
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="cursor-pointer rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 px-5 py-10 text-center transition hover:border-[#A00018] hover:bg-red-50/30"
+            >
+              <div className="mx-auto mb-3 w-fit rounded-full bg-red-50 p-4 text-[#A00018]">
+                <Upload size={28} />
+              </div>
+
+              <h3 className="font-semibold text-[#142B50]">
+                Click to choose files
+              </h3>
+
+              <p className="mt-2 text-xs text-gray-500">
+                JPG, PNG, PDF, DOC, DOCX, XLSX and PPTX
+              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.ppt,.pptx"
+                onChange={handleUpload}
+                className="hidden"
+              />
+            </div>
+
+            <p className="mt-4 text-xs text-gray-400">
+              Files are currently stored temporarily in browser memory.
+              Backend storage is needed for permanent uploads.
+            </p>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-5 w-full rounded-xl bg-[#A00018] py-3 font-semibold text-white transition hover:bg-[#7D0015]"
+            >
+              Choose Files
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview */}
+      {previewItem && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
+          <div className="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-white">
+            <button
+              onClick={() => setPreviewItem(null)}
+              className="absolute right-3 top-3 z-10 rounded-full bg-white p-2 text-gray-700 shadow-lg"
+            >
+              <X size={22} />
+            </button>
+
+            <img
+              src={previewItem.url}
+              alt={previewItem.name}
+              onError={handleImageError}
+              className="max-h-[75vh] w-full bg-gray-100 object-contain"
+            />
+
+            <div className="p-4">
+              <h3 className="font-bold text-[#142B50]">
+                {previewItem.name}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {previewItem.category}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[70] rounded-xl bg-[#142B50] px-5 py-3 text-sm font-medium text-white shadow-xl">
+          {toast}
+        </div>
+      )}
+
     </div>
   );
 }
+
+export default GalleryAndDocuments;
