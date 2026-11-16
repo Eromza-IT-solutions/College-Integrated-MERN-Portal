@@ -48,10 +48,8 @@ describe("super admin secondary pages", () => {
     expect(
       screen.getByRole("heading", { name: "Audit Logs" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Updated institution notification settings"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Total events")).toBeInTheDocument();
+    expect(screen.getByText("Updated Settings")).toBeInTheDocument();
+    expect(screen.getByText("Total Events")).toBeInTheDocument();
   });
 
   it("renders system settings", () => {

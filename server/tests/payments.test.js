@@ -23,10 +23,10 @@ describe('FeeStructure', () => {
 });
 
 describe('Payment model', () => {
-  test('defaults: created, test mode, fake gateway', async () => {
+  test('defaults: created, test mode, Razorpay gateway', async () => {
     const p = new Payment(fresh());
     await expect(p.validate()).resolves.toBeUndefined();
-    expect(p).toMatchObject({ status: 'created', isTestMode: true, gateway: 'fake', reservedRefundPaise: 0 });
+    expect(p).toMatchObject({ status: 'created', isTestMode: true, gateway: 'razorpay', reservedRefundPaise: 0 });
   });
   test('admission payment needs an application; exam payment needs an exam form', async () => {
     await expect(new Payment(fresh({ applicationId: undefined })).validate()).rejects.toThrow(/application/);
