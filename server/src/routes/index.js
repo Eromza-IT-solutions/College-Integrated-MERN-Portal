@@ -12,6 +12,7 @@ import timetableRoutes from '../modules/academics/timetable.routes.js';
 import attendanceRoutes from '../modules/academics/attendance.routes.js';
 import marksRoutes from '../modules/academics/marks.routes.js';
 import resultsRoutes from '../modules/academics/results.routes.js';
+import reportsRoutes from '../modules/reports/reports.routes.js';
 import buildWebsiteRouter from '../modules/website/website.routes.js';
 
 const router = express.Router();
@@ -39,6 +40,7 @@ router.use('/timetable', timetableRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/marks', marksRoutes);
 router.use('/results', resultsRoutes);
+router.use('/reports', reportsRoutes);
 router.use('/website', buildWebsiteRouter());
 
 export default router;
