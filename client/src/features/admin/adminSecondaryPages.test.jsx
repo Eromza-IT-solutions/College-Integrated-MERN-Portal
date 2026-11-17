@@ -70,7 +70,7 @@ describe("secondary admin pages", () => {
       screen.getByRole("heading", { name: "Subjects & Exam Forms" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Subject and exam form register"),
+      screen.getByText("Subject & exam form register"),
     ).toBeInTheDocument();
     expect(screen.getByText("Data Structures")).toBeInTheDocument();
   });
@@ -80,7 +80,7 @@ describe("secondary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Exam Timetables" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Examination timetable")).toBeInTheDocument();
+    expect(screen.getByText("Examination Schedule")).toBeInTheDocument();
     expect(screen.getByText("Advanced Accounting")).toBeInTheDocument();
   });
 
@@ -89,7 +89,7 @@ describe("secondary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Hall Tickets" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Hall ticket register")).toBeInTheDocument();
+    expect(screen.getByText("Hall Ticket Register")).toBeInTheDocument();
     expect(screen.getByText("Fatima Khan")).toBeInTheDocument();
   });
 });
