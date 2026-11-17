@@ -2,6 +2,7 @@
 // Reads .env and stops the server early, with a clear message, if something is missing.
 import 'dotenv/config';
 import crypto from 'node:crypto';
+import dns from 'node:dns';
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 
@@ -47,6 +48,13 @@ const rateLimitHashSecret =
 function positiveNumber(value, fallback) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+// Some local resolvers (e.g. a 127.0.0.1 stub) refuse the SRV lookups needed by mongodb+srv://.
+// Use public DNS up front. This file is imported by the server and every script, so all of them benefit.
+// Set USE_SYSTEM_DNS=1 to keep the system resolver.
+if (process.env.MONGODB_URI?.startsWith('mongodb+srv://') && !process.env.USE_SYSTEM_DNS) {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
 }
 
 export default {

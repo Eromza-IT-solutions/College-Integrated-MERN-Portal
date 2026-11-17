@@ -1,60 +1,46 @@
-import { ROLES, ROLE_KEYS } from "../config/roles";
+import http from "./http";
 
-const DEMO_ACCOUNTS = Object.freeze({
-  "superadmin@eromza.test": "superAdmin",
-  "website@eromza.test": "websiteAdmin",
-  "admission@eromza.test": "admissionAdmin",
-  "exam@eromza.test": "examAdmin",
-  "hod@eromza.test": "hod",
-  "teacher@eromza.test": "teacher",
-  "student@eromza.test": "student",
-  "applicant@eromza.test": "applicant",
-});
-
-const DEMO_NAMES = Object.freeze({
-  superAdmin: "Iqra Shaikh",
-  websiteAdmin: "Ayesha Khan",
-  admissionAdmin: "Sana Patel",
-  examAdmin: "Zara Ansari",
-  hod: "Dr. Sneha Patil",
-  teacher: "Riya M",
-  student: "Fatima Khan",
-  applicant: "Rida Khan",
-});
-
-const DEMO_DEPARTMENTS = Object.freeze({
-  hod: "Computer Science & Engineering",
-  teacher: "Computer Science & Engineering",
-  student: "B.Sc. Computer Science",
-  applicant: "B.Com",
-});
-
-function buildUser(role, email) {
+// The API returns `fullName`; the UI uses `name`. Passwords/tokens are never kept in the browser:
+// the session lives in an HttpOnly cookie.
+function normalizeSession(data) {
+  const user = data.user;
   return {
-    id: `demo-${role}`,
-    name: DEMO_NAMES[role] ?? ROLES[role]?.label ?? "User",
-    email: email ?? `${role.toLowerCase()}@eromza.test`,
-    role,
-    department: DEMO_DEPARTMENTS[role] ?? null,
-    status: "active",
+    user: {
+      ...user,
+      name: user.fullName ?? user.name ?? "User",
+      department: user.department ?? null,
+      status: user.status ?? "active",
+    },
+    permissions: data.permissions ?? [],
   };
 }
 
-export async function loginWithDemoAccount({ identifier, password }) {
-  await new Promise((resolve) => setTimeout(resolve, 450));
-
-  const email = identifier?.trim().toLowerCase();
-  if (!email || !password) {
-    throw new Error("Please enter your username/email and password.");
-  }
-
-  const role = DEMO_ACCOUNTS[email] ?? "superAdmin";
-  return buildUser(role, email);
+export async function login({ identifier, password }) {
+  const { data } = await http.post("/auth/login", { identifier, password });
+  return normalizeSession(data.data);
 }
 
-export function createDemoUser(role) {
-  if (!ROLE_KEYS.includes(role)) {
-    throw new Error("Unknown demo role.");
+// Returns the current session, or null when nobody is signed in (401).
+export async function fetchCurrentSession() {
+  try {
+    const { data } = await http.get("/auth/me");
+    return normalizeSession(data.data);
+  } catch (err) {
+    if (err.cause?.response?.status === 401) return null;
+    throw err;
   }
-  return buildUser(role);
+}
+
+export async function logout() {
+  await http.post("/auth/logout");
+}
+
+export async function forgotPassword(email) {
+  const { data } = await http.post("/auth/forgot-password", { email });
+  return data.data.message;
+}
+
+export async function resetPassword({ token, password }) {
+  const { data } = await http.post("/auth/reset-password", { token, password });
+  return data.data.message;
 }

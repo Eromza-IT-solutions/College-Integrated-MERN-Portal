@@ -11,6 +11,15 @@ import ProtectedRoute from "./ProtectedRoute";
 
 const HomePage = lazy(() => import("../features/public-website/HomePage"));
 const LoginRoute = lazy(() => import("./LoginRoute"));
+const ForgotPassword = lazy(() => import("../features/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("../features/auth/ResetPassword"));
+const StudentRegistration = lazy(
+  () => import("../features/admissions/StudentRegistration"),
+);
+const TeacherLogin = lazy(() => import("../features/auth/TeacherLogin"));
+const TeacherRegistration = lazy(
+  () => import("../features/auth/TeacherRegistration"),
+);
 const SuperAdminDashboard = lazy(
   () => import("../features/admin/super/SuperAdmin_dashboard"),
 );
@@ -231,7 +240,8 @@ const ROLE_ROUTES = [
 ];
 
 function RoleRedirect() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={getRoleHome(user.role)} replace />;
 }
@@ -248,6 +258,11 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginRoute />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/student-register" element={<StudentRegistration />} />
+        <Route path="/teacher-login" element={<TeacherLogin />} />
+        <Route path="/teacher-register" element={<TeacherRegistration />} />
         <Route path="/app" element={<RoleRedirect />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
