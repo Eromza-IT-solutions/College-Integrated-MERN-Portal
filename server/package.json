@@ -14,12 +14,17 @@
     "seed": "node scripts/seed-demo-data.js",
     "seed:programs": "node scripts/seed-college-programs.js",
     "seed:fees": "node scripts/seed-college-fees.js",
-    "seed:subjects": "node scripts/seed-sample-subjects.js",
+    "seed:subjects": "node scripts/seed-college-subjects.js",
+    "seed:sample-subjects": "node scripts/seed-sample-subjects.js",
     "seed:exam": "node scripts/seed-sample-exam.js",
     "seed:timetable": "node scripts/seed-sample-timetable.js",
     "seed:permissions": "node scripts/seed-permissions.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "seed:demo-student": "node scripts/seed-demo-student.js",
+    "seed:demo-applicant": "node scripts/seed-demo-applicant.js",
+    "seed:website-content": "node scripts/seed-website-content.js",
+    "seed:audit-logs": "node scripts/seed-sample-audit-logs.js",
     "create-super-admin": "node scripts/create-super-admin.js"
   },
   "dependencies": {

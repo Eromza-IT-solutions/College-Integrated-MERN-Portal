@@ -52,12 +52,12 @@ describe('college data files', () => {
     for (const g of feeData.groups) expect(g.divisionType).toBe(g.code.startsWith('UG-GRANT') ? 'Grantable' : 'P.N.G.');
   });
 
-  test('the program catalog has the 59 programs of the college summary table', () => {
+  test('the program catalog has the 60 programs of the college summary table', () => {
     const by = (level) => catalog.programs.filter((p) => p.level === level).length;
-    expect(catalog.programs).toHaveLength(59);
-    expect([by('Undergraduate'), by('Post Graduate'), by('UG Diploma'), by('PG Diploma'), by('Certificate Course'), by('Ph.D.'), by('Post-Doctoral')]).toEqual([22, 13, 3, 6, 7, 7, 1]);
-    expect(new Set(catalog.programs.map((p) => p.code)).size).toBe(59);
-    expect(new Set(catalog.programs.map((p) => p.name)).size).toBe(59);
+    expect(catalog.programs).toHaveLength(60);
+    expect([by('Undergraduate'), by('Post Graduate'), by('UG Diploma'), by('PG Diploma'), by('Certificate Course'), by('Ph.D.'), by('Post-Doctoral')]).toEqual([22, 14, 3, 6, 7, 7, 1]);
+    expect(new Set(catalog.programs.map((p) => p.code)).size).toBe(60);
+    expect(new Set(catalog.programs.map((p) => p.name)).size).toBe(60);
   });
   test('every program has a known faculty, level and department code', () => {
     for (const p of catalog.programs) {
@@ -92,7 +92,7 @@ describe('college data files', () => {
     const year = id();
     const { rows, skipped } = buildRows(ids, year);
     expect(skipped).toEqual([]);
-    expect(rows).toHaveLength(134);
+    expect(rows).toHaveLength(148);
     const ba = rows.filter((r) => r.programId === ids.BDPAEN && r.divisionType === 'P.N.G.');
     expect(ba.map((r) => [r.yearOfStudy, r.amountPaise])).toEqual([[1, 1308000], [2, 1148000], [3, 1148000]]);
     for (const r of rows) {

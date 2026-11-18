@@ -7,11 +7,11 @@ import { orderPayload, isTestKeyId } from '../utils/razorpay.js';
  * Starts a Razorpay checkout for one of our payments.
  * Creates the Razorpay order the first time and saves its id. Asking again returns the same order, so a student who
  * closes the window and comes back does not get a second order.
- * keyId and keySecret come from .env (RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET). fetchImpl is only replaced in tests.
+ * keyId and keySecret come from .env (PAYMENT_KEY_ID, PAYMENT_KEY_SECRET). fetchImpl is only replaced in tests.
  * Returns what the browser needs to open Razorpay Checkout. The secret never leaves the server.
  */
 async function startCheckout(paymentId, { keyId, keySecret, fetchImpl = globalThis.fetch } = {}) {
-  if (!keyId || !keySecret) throw new AppError('Razorpay keys are not set (RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET)', 500);
+  if (!keyId || !keySecret) throw new AppError('Razorpay keys are not set (PAYMENT_KEY_ID and PAYMENT_KEY_SECRET)', 500);
   const payment = await Payment.findById(paymentId);
   if (!payment) throw new AppError('Payment not found', 404);
   if (payment.gateway !== PAYMENT_GATEWAY.RAZORPAY) throw new AppError('This payment does not use Razorpay', 409);

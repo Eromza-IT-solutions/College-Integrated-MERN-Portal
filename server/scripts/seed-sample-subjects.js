@@ -5,10 +5,10 @@ import Program from '../src/models/Program.js';
 import Subject from '../src/models/Subject.js';
 
 // Adds SAMPLE subjects (semesters 1 and 2) for the three sample classes, so the exam flow can be tried.
-// All names are made up for the demo; codes start with SMP-. Replace them with the college's real subject list.
+// All names are made up for the demo; codes start with SMP-. Use the real catalog instead: npm run seed:subjects.
 // Run the demo seed and the sample fees first:  npm run seed   then   npm run seed:programs   then   npm run seed:fees
-// Run:  npm run seed:subjects      (or: node scripts/seed-sample-subjects.js)
-// Safe to run again: it only adds what is missing.
+// Run:  npm run seed:sample-subjects      (or: node scripts/seed-sample-subjects.js)
+// Safe to run again: it only adds what is missing. It is not part of the real college data check.
 const SUBJECTS = {
   BDPCCA: {
     1: [['major', 'Financial Accounting'], ['major', 'Business Economics'], ['minor', 'Business Mathematics'], ['aec', 'English Communication'], ['vec', 'Environmental Studies']],

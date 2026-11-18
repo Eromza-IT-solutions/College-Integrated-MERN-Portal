@@ -7,7 +7,7 @@ import Department from '../src/models/Department.js';
 const catalog = JSON.parse(readFileSync(new URL('./data/college-programs.json', import.meta.url), 'utf8'));
 import { PROGRAM_YEARS } from '../src/utils/constants.js';
 
-// Adds the college's 59 programs (from "Programs offered under autonomy (NEP)" and the diploma/certificate list).
+// Adds the college's 60 programs (from "Programs offered under autonomy (NEP)" and the diploma/certificate list).
 // The department of each program is PROPOSED: Arts -> ART, Science -> SCI, Commerce -> COM, computer and multimedia -> CSC.
 // Run the demo seed first:  npm run seed
 // Run:  npm run seed:programs      (or: node scripts/seed-college-programs.js)

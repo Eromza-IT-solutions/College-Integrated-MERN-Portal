@@ -38,4 +38,31 @@ function buildRows(programIdByCode, academicYearId, d = data) {
   return { rows, skipped };
 }
 
-export { checkData, buildRows, toPaise };
+/**
+ * Fee rows for the non-PAYING categories (OTHER STATE, SAARC, N.R.I.) from the summary sheet.
+ * These have no line-item breakdown — only the total is on the sheet — so heads is empty and
+ * label carries the fee category name for reference.
+ */
+function buildSummaryRows(programIdByCode, academicYearId, d = data) {
+  const rows = [];
+  const skipped = [];
+  if (!d.summaryTotals) return { rows, skipped };
+  for (const g of d.summaryTotals.groups) {
+    for (const c of g.classes) {
+      const programs = c.programCodes.filter((code) => programIdByCode[code]);
+      for (const code of c.programCodes) if (!programIdByCode[code]) skipped.push(`summary ${g.feesCategory} ${c.label}: program ${code} not found`);
+      for (const code of programs) {
+        for (const yearOfStudy of c.years) {
+          rows.push({
+            purpose: 'admission', academicYearId, programId: programIdByCode[code], yearOfStudy,
+            divisionType: g.divisionType, feesCategory: g.feesCategory,
+            heads: [], amountPaise: toPaise(c.totalRupees), classLabel: c.label, feeGroup: `summary-${g.feesCategory}`, label: g.feesCategory, isActive: true,
+          });
+        }
+      }
+    }
+  }
+  return { rows, skipped };
+}
+
+export { checkData, buildRows, buildSummaryRows, toPaise };

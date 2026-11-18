@@ -1,6 +1,6 @@
 {
  "academicYear": "2026-27",
- "source": "College admission fee structure sheets A.Y. 2026-2027 (UG P.N.G., UG Grantable, UG Professional, PG M.A./M.Com, PG M.Sc., Ph.D.). Amounts are in rupees; the import converts them to paise.",
+ "source": "College admission fee structure sheets A.Y. 2026-2027 (UG P.N.G., UG Grantable, UG Professional, PG M.A./M.Com, PG M.Sc., Ph.D.) plus FeesStruc_AZAMCAMPUS summary sheet which also provides OTHER STATE, SAARC and NRI/PIO/Foreigners totals for UG classes. All line-item amounts are in rupees; the import converts them to paise.",
  "feesCategory": "PAYING",
  "heads": {
   "libDeposit": "Library Deposit",
@@ -317,8 +317,8 @@
     "BDPCCA",
     "BDPCMK"
    ],
-   "confirmed": false,
-   "note": "The sheet says \"B.Com\"; the program list has two B.Com programs. Confirm.",
+   "confirmed": true,
+   "note": "Applies to both plain B.Com programs (Cost & Mgmt Accounting and Marketing Management). Confirmed from FeesStruc summary totals matching the line-item sheet.",
    "classes": [
     {
      "label": "F.Y. B.Com.",
@@ -451,8 +451,8 @@
     "BDPCCA",
     "BDPCMK"
    ],
-   "confirmed": false,
-   "note": "The sheet says \"B.Com\"; the program list has two B.Com programs. Confirm. Grantable division is for girls only.",
+   "confirmed": true,
+   "note": "Applies to both plain B.Com programs. Grantable division is for girls only.",
    "classes": [
     {
      "label": "F.Y. B.Com.",
@@ -578,8 +578,8 @@
     "BDPSMT",
     "BDPSEV"
    ],
-   "confirmed": false,
-   "note": "The sheet says \"B.Sc\"; vocational B.Sc programs are not mapped. Confirm.",
+   "confirmed": true,
+   "note": "Plain B.Sc. programs only. Vocational variants (BDPSCHBT, BDPSMIBT) are separate and have no fee sheet yet.",
    "classes": [
     {
      "label": "F.Y. B.Sc.",
@@ -714,8 +714,8 @@
     "BDPSMT",
     "BDPSEV"
    ],
-   "confirmed": false,
-   "note": "The sheet says \"B.Sc\"; vocational B.Sc programs are not mapped. Confirm. Grantable division is for girls only.",
+   "confirmed": true,
+   "note": "Plain B.Sc. programs only. Vocational variants have no fee sheet yet. Grantable division is for girls only.",
    "classes": [
     {
      "label": "F.Y. B.Sc.",
@@ -838,8 +838,8 @@
    "programCodes": [
     "BDPSCS"
    ],
-   "confirmed": false,
-   "note": "Professional fees sheet: B.Sc (COMP.SCI.).",
+   "confirmed": true,
+   "note": "Confirmed from FeesStruc page 2: B.Sc. Computer Science FY total ₹38,155 matches.",
    "classes": [
     {
      "label": "F.Y. B.Sc. (Computer Science)",
@@ -965,12 +965,16 @@
   },
   {
    "code": "UG-PNG-PROF-BM",
-   "name": "UG P.N.G. Professional B.Com. (BM)",
+   "name": "UG P.N.G. Professional B.Com. (Business Management)",
    "divisionType": "P.N.G.",
    "level": "Undergraduate",
-   "programCodes": [],
-   "confirmed": false,
-   "note": "No program in the list is clearly \"B.Com (BM)\". Not mapped yet.",
+   "programCodes": [
+    "BDPCBAMK",
+    "BDPCBAFN",
+    "BDPCBAHR"
+   ],
+   "confirmed": true,
+   "note": "FeesStruc page 2 labels this column 'B.Com. Business Management (New Name)' covering all three BBA programs: Marketing, Finance and HR.",
    "classes": [
     {
      "label": "F.Y. B.Com. (BM)",
@@ -1099,9 +1103,11 @@
    "name": "UG P.N.G. Professional B.Com. (Computer Application)",
    "divisionType": "P.N.G.",
    "level": "Undergraduate",
-   "programCodes": [],
-   "confirmed": false,
-   "note": "Not mapped yet: confirm which program this is.",
+   "programCodes": [
+    "BDPCBACA"
+   ],
+   "confirmed": true,
+   "note": "FeesStruc page 2 labels this column 'B.Com. Computer Applications (New Name)' = BDPCBACA.",
    "classes": [
     {
      "label": "F.Y. B.Com. (Computer Application)",
@@ -1233,8 +1239,8 @@
    "programCodes": [
     "BDPSCA"
    ],
-   "confirmed": false,
-   "note": "Mapped to \"B.C.A. Science\". Confirm.",
+   "confirmed": true,
+   "note": "FeesStruc page 2 labels this column 'B.C.A. (Science)' = BDPSCA. FY total ₹36,755 confirmed.",
    "classes": [
     {
      "label": "F.Y. B.Sc. (Computer Application)",
@@ -1913,8 +1919,8 @@
     "MDPCCA",
     "MDPCBA"
    ],
-   "confirmed": false,
-   "note": "The sheet says \"M.Com\"; the list has two M.Com programs. Confirm.",
+   "confirmed": true,
+   "note": "Applies to both M.Com programs (Cost & Mgmt Accounting and Business Administration). Totals confirmed from FeesStruc page 3.",
    "classes": [
     {
      "label": "M.Com. I",
@@ -2179,6 +2185,97 @@
    ]
   },
   {
+   "code": "PG-MSC-BIO",
+   "name": "PG P.N.G. M.Sc. Biochemistry",
+   "divisionType": "P.N.G.",
+   "level": "Post Graduate",
+   "programCodes": [
+    "MDPSMBC"
+   ],
+   "confirmed": true,
+   "note": "FeesStruc page 4: MSC-I (Biochemistry) ₹39,790. Same line-item structure as Organic Chemistry (totals match). Syllabus confirmed from PDFs added 2026-11.",
+   "classes": [
+    {
+     "label": "M.Sc. Biochemistry I",
+     "years": [
+      1
+     ],
+     "printedTotal": 39790,
+     "heads": {
+      "libDeposit": 1000,
+      "labDeposit": 1500,
+      "cautionMoney": 200,
+      "eligibilityFee": 400,
+      "admissionFee": 50,
+      "tuitionFee": 13500,
+      "gymkhana": 250,
+      "studentWelfareIns": 100,
+      "medicalExam": 0,
+      "uniDevFund": 125,
+      "ashwamegh": 30,
+      "disasterMgmt": 20,
+      "computerization": 100,
+      "libraryFee": 300,
+      "studentAidFund": 25,
+      "uniRegFee": 100,
+      "insurance": 20,
+      "tutorialSeminar": 100,
+      "studentActivity": 600,
+      "labFee": 17200,
+      "collegeMagazine": 200,
+      "idCard": 100,
+      "skillDevProgram": 1700,
+      "trainingPlacement": 500,
+      "internetWifi": 50,
+      "admissionFormFee": 200,
+      "adminCharges": 1200,
+      "universityShare": 0,
+      "nss": 20,
+      "sportFund": 200
+     }
+    },
+    {
+     "label": "M.Sc. Biochemistry II",
+     "years": [
+      2
+     ],
+     "printedTotal": 37090,
+     "heads": {
+      "libDeposit": 0,
+      "labDeposit": 0,
+      "cautionMoney": 0,
+      "eligibilityFee": 0,
+      "admissionFee": 50,
+      "tuitionFee": 13500,
+      "gymkhana": 250,
+      "studentWelfareIns": 100,
+      "medicalExam": 0,
+      "uniDevFund": 125,
+      "ashwamegh": 30,
+      "disasterMgmt": 20,
+      "computerization": 100,
+      "libraryFee": 300,
+      "studentAidFund": 25,
+      "uniRegFee": 100,
+      "insurance": 20,
+      "tutorialSeminar": 100,
+      "studentActivity": 600,
+      "labFee": 17200,
+      "collegeMagazine": 200,
+      "idCard": 100,
+      "skillDevProgram": 2000,
+      "trainingPlacement": 600,
+      "internetWifi": 50,
+      "admissionFormFee": 200,
+      "adminCharges": 1200,
+      "universityShare": 0,
+      "nss": 20,
+      "sportFund": 200
+     }
+    }
+   ]
+  },
+  {
    "code": "PG-MSC-ORG",
    "name": "PG P.N.G. M.Sc. Organic Chemistry",
    "divisionType": "P.N.G.",
@@ -2230,95 +2327,6 @@
     },
     {
      "label": "M.Sc. Organic Chemistry II",
-     "years": [
-      2
-     ],
-     "printedTotal": 37090,
-     "heads": {
-      "libDeposit": 0,
-      "labDeposit": 0,
-      "cautionMoney": 0,
-      "eligibilityFee": 0,
-      "admissionFee": 50,
-      "tuitionFee": 13500,
-      "gymkhana": 250,
-      "studentWelfareIns": 100,
-      "medicalExam": 0,
-      "uniDevFund": 125,
-      "ashwamegh": 30,
-      "disasterMgmt": 20,
-      "computerization": 100,
-      "libraryFee": 300,
-      "studentAidFund": 25,
-      "uniRegFee": 100,
-      "insurance": 20,
-      "tutorialSeminar": 100,
-      "studentActivity": 600,
-      "labFee": 17200,
-      "collegeMagazine": 200,
-      "idCard": 100,
-      "skillDevProgram": 2000,
-      "trainingPlacement": 600,
-      "internetWifi": 50,
-      "admissionFormFee": 200,
-      "adminCharges": 1200,
-      "universityShare": 0,
-      "nss": 20,
-      "sportFund": 200
-     }
-    }
-   ]
-  },
-  {
-   "code": "PG-MSC-BIOCHEM",
-   "name": "PG P.N.G. M.Sc. Biochemistry",
-   "divisionType": "P.N.G.",
-   "level": "Post Graduate",
-   "programCodes": [],
-   "confirmed": false,
-   "note": "M.Sc. Biochemistry is on the fee sheet but not in the program list. Not mapped.",
-   "classes": [
-    {
-     "label": "M.Sc. Biochemistry I",
-     "years": [
-      1
-     ],
-     "printedTotal": 39790,
-     "heads": {
-      "libDeposit": 1000,
-      "labDeposit": 1500,
-      "cautionMoney": 200,
-      "eligibilityFee": 400,
-      "admissionFee": 50,
-      "tuitionFee": 13500,
-      "gymkhana": 250,
-      "studentWelfareIns": 100,
-      "medicalExam": 0,
-      "uniDevFund": 125,
-      "ashwamegh": 30,
-      "disasterMgmt": 20,
-      "computerization": 100,
-      "libraryFee": 300,
-      "studentAidFund": 25,
-      "uniRegFee": 100,
-      "insurance": 20,
-      "tutorialSeminar": 100,
-      "studentActivity": 600,
-      "labFee": 17200,
-      "collegeMagazine": 200,
-      "idCard": 100,
-      "skillDevProgram": 1700,
-      "trainingPlacement": 500,
-      "internetWifi": 50,
-      "admissionFormFee": 200,
-      "adminCharges": 1200,
-      "universityShare": 0,
-      "nss": 20,
-      "sportFund": 200
-     }
-    },
-    {
-     "label": "M.Sc. Biochemistry II",
      "years": [
       2
      ],
@@ -2971,5 +2979,65 @@
     }
    ]
   }
- ]
+ ],
+ "summaryTotals": {
+  "note": "Total admission fee amounts from the FeesStruc_AZAMCAMPUS summary sheet for non-PAYING categories. No line-item breakdown is available from the college for these categories — only the totals are on the summary sheet. The import stores these as single-row FeeStructure records with no heads array.",
+  "source": "FeesStruc_AZAMCAMPUS.AISC3YQNLG7K (pages 1 and 2)",
+  "groups": [
+   {
+    "feesCategory": "OTHER STATE",
+    "divisionType": "P.N.G.",
+    "classes": [
+     { "programCodes": ["BDPAEN","BDPAEC","BDPAPO","BDPAPS","BDPASO","BDPAUR"], "label": "F.Y./S.Y./T.Y. B.A.", "years": [1,2,3], "totalRupees": 20830 },
+     { "programCodes": ["BDPCCA","BDPCMK"],                                      "label": "F.Y. B.Com.",          "years": [1],     "totalRupees": 26030 },
+     { "programCodes": ["BDPCCA","BDPCMK"],                                      "label": "S.Y. B.Com.",          "years": [2],     "totalRupees": 24680 },
+     { "programCodes": ["BDPCCA","BDPCMK"],                                      "label": "T.Y. B.Com.",          "years": [3],     "totalRupees": 24180 },
+     { "programCodes": ["BDPSCH","BDPSMI","BDPSMT","BDPSEV"],                    "label": "F.Y. B.Sc.",           "years": [1],     "totalRupees": 43730 },
+     { "programCodes": ["BDPSCH","BDPSMI","BDPSMT","BDPSEV"],                    "label": "S.Y./T.Y. B.Sc.",     "years": [2,3],   "totalRupees": 41580 },
+     { "programCodes": ["BDPSCS"],                                               "label": "F.Y. B.Sc. (CS)",     "years": [1],     "totalRupees": 69055 },
+     { "programCodes": ["BDPSCS"],                                               "label": "S.Y. B.Sc. (CS)",     "years": [2],     "totalRupees": 65605 },
+     { "programCodes": ["BDPSCS"],                                               "label": "T.Y. B.Sc. (CS)",     "years": [3],     "totalRupees": 66705 },
+     { "programCodes": ["BDPCBAMK","BDPCBAFN","BDPCBAHR"],                       "label": "F.Y. B.Com. (BM)",    "years": [1],     "totalRupees": 56205 },
+     { "programCodes": ["BDPCBAMK","BDPCBAFN","BDPCBAHR"],                       "label": "S.Y. B.Com. (BM)",    "years": [2],     "totalRupees": 51205 },
+     { "programCodes": ["BDPCBAMK","BDPCBAFN","BDPCBAHR"],                       "label": "T.Y. B.Com. (BM)",    "years": [3],     "totalRupees": 50205 },
+     { "programCodes": ["BDPCBACA"],                                             "label": "F.Y. B.Com. (CA)",    "years": [1],     "totalRupees": 63605 },
+     { "programCodes": ["BDPCBACA"],                                             "label": "S.Y. B.Com. (CA)",    "years": [2],     "totalRupees": 63105 },
+     { "programCodes": ["BDPCBACA"],                                             "label": "T.Y. B.Com. (CA)",    "years": [3],     "totalRupees": 62705 },
+     { "programCodes": ["BDPSCA"],                                               "label": "F.Y. B.Sc. (CA)",     "years": [1],     "totalRupees": 63605 },
+     { "programCodes": ["BDPSCA"],                                               "label": "S.Y. B.Sc. (CA)",     "years": [2],     "totalRupees": 63105 },
+     { "programCodes": ["BDPSCA"],                                               "label": "T.Y. B.Sc. (CA)",     "years": [3],     "totalRupees": 62705 }
+    ]
+   },
+   {
+    "feesCategory": "SAARC",
+    "divisionType": "P.N.G.",
+    "classes": [
+     { "programCodes": ["BDPAEN","BDPAEC","BDPAPO","BDPAPS","BDPASO","BDPAUR"], "label": "F.Y./S.Y./T.Y. B.A.", "years": [1,2,3], "totalRupees": 19080 },
+     { "programCodes": ["BDPCCA","BDPCMK"],                                      "label": "F.Y. B.Com.",          "years": [1],     "totalRupees": 24280 },
+     { "programCodes": ["BDPCCA","BDPCMK"],                                      "label": "S.Y./T.Y. B.Com.",    "years": [2,3],   "totalRupees": 24180 },
+     { "programCodes": ["BDPSCH","BDPSMI","BDPSMT","BDPSEV"],                    "label": "F.Y./S.Y./T.Y. B.Sc.","years": [1,2,3], "totalRupees": 41680 },
+     { "programCodes": ["BDPSCS"],                                               "label": "F.Y. B.Sc. (CS)",     "years": [1],     "totalRupees": 65205 },
+     { "programCodes": ["BDPSCS"],                                               "label": "S.Y./T.Y. B.Sc. (CS)","years": [2,3],   "totalRupees": 65105 },
+     { "programCodes": ["BDPCBAMK","BDPCBAFN","BDPCBAHR"],                       "label": "F.Y./S.Y./T.Y. B.Com. (BM)", "years": [1,2,3], "totalRupees": 47605 },
+     { "programCodes": ["BDPCBACA"],                                             "label": "F.Y./S.Y./T.Y. B.Com. (CA)", "years": [1,2,3], "totalRupees": 63105 },
+     { "programCodes": ["BDPSCA"],                                               "label": "F.Y./S.Y./T.Y. B.Sc. (CA)", "years": [1,2,3], "totalRupees": 63105 }
+    ]
+   },
+   {
+    "feesCategory": "N.R.I.",
+    "divisionType": "P.N.G.",
+    "note": "Labelled 'NRI/PIO/Foreigners' on the summary sheet. Stored under the N.R.I. fee category.",
+    "classes": [
+     { "programCodes": ["BDPAEN","BDPAEC","BDPAPO","BDPAPS","BDPASO","BDPAUR"], "label": "F.Y./S.Y./T.Y. B.A.", "years": [1,2,3], "totalRupees": 27080 },
+     { "programCodes": ["BDPCCA","BDPCMK"],                                      "label": "F.Y. B.Com.",          "years": [1],     "totalRupees": 34280 },
+     { "programCodes": ["BDPCCA","BDPCMK"],                                      "label": "S.Y./T.Y. B.Com.",    "years": [2,3],   "totalRupees": 34180 },
+     { "programCodes": ["BDPSCH","BDPSMI","BDPSMT","BDPSEV"],                    "label": "F.Y./S.Y./T.Y. B.Sc.","years": [1,2,3], "totalRupees": 60380 },
+     { "programCodes": ["BDPSCS"],                                               "label": "F.Y./S.Y./T.Y. B.Sc. (CS)", "years": [1,2,3], "totalRupees": 95605 },
+     { "programCodes": ["BDPCBAMK","BDPCBAFN","BDPCBAHR"],                       "label": "F.Y./S.Y./T.Y. B.Com. (BM)", "years": [1,2,3], "totalRupees": 69205 },
+     { "programCodes": ["BDPCBACA"],                                             "label": "F.Y./S.Y./T.Y. B.Com. (CA)", "years": [1,2,3], "totalRupees": 92505 },
+     { "programCodes": ["BDPSCA"],                                               "label": "F.Y./S.Y./T.Y. B.Sc. (CA)", "years": [1,2,3], "totalRupees": 92505 }
+    ]
+   }
+  ]
+ }
 }
