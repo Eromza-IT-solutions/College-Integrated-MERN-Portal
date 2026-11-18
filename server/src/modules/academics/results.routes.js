@@ -8,6 +8,8 @@ import {
   openSheet, listResults, getResult, enterResultMarks, publishOne, publishAll, unpublishOne,
 } from './results.service.js';
 import { ok, paged } from './academics.helpers.js';
+import { sendPdf, pdfFilename } from '../../utils/pdf.js';
+import { resultPdf } from '../../utils/pdfDocuments.js';
 
 const router = express.Router();
 
@@ -28,6 +30,11 @@ router.post('/publish-exam', requirePermission('results', 'update'), asyncHandle
 router.get('/', requirePermission('results', 'view'), asyncHandler(async (req, res) => {
   const result = await listResults(req, parse(resultQuery, req.query));
   ok(req, res, result.rows, 200, paged(result));
+}));
+
+router.get('/:id/pdf', requirePermission('results', 'view'), asyncHandler(async (req, res) => {
+  const result = await getResult(req, parse(idParam, req.params.id));
+  sendPdf(res, resultPdf(result), pdfFilename(`result-${result.enrollmentNumber || result._id}`));
 }));
 
 router.get('/:id', requirePermission('results', 'view'), asyncHandler(async (req, res) => {

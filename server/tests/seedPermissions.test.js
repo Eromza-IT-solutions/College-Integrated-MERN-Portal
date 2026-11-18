@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+﻿import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
 import { readFileSync } from 'fs';
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -33,16 +33,16 @@ async function duplicateGroups() {
 }
 
 describe('seedPermissions (insert-only)', () => {
-  test('the signed-off matrix still has 178 unique rules', () => {
-    expect(matrix).toHaveLength(178);
-    expect(new Set(matrix.map(keyOf)).size).toBe(178);
+  test('the signed-off matrix still has 196 unique rules', () => {
+    expect(matrix).toHaveLength(196);
+    expect(new Set(matrix.map(keyOf)).size).toBe(196);
   });
 
-  test('initial seeding creates all 178 rules, equal to the matrix, with timestamps', async () => {
+  test('initial seeding creates all 196 rules, equal to the matrix, with timestamps', async () => {
     const s = await seedPermissions();
-    expect(s).toMatchObject({ total: 178, added: 178, preserved: 0, customised: 0, removed: 0, extra: 0 });
+    expect(s).toMatchObject({ total: 196, added: 196, preserved: 0, customised: 0, removed: 0, extra: 0 });
     const stored = await Permission.find().lean();
-    expect(stored).toHaveLength(178);
+    expect(stored).toHaveLength(196);
     expect(new Map(stored.map((p) => [keyOf(p), p.scope]))).toEqual(new Map(matrix.map((r) => [keyOf(r), r.scope])));
     for (const p of stored) {
       expect(p.createdAt).toBeInstanceOf(Date);
@@ -54,9 +54,9 @@ describe('seedPermissions (insert-only)', () => {
     await seedPermissions();
     for (let i = 0; i < 3; i += 1) {
       const s = await seedPermissions();
-      expect(s).toMatchObject({ added: 0, preserved: 178, customised: 0 });
+      expect(s).toMatchObject({ added: 0, preserved: 196, customised: 0 });
     }
-    expect(await Permission.countDocuments()).toBe(178);
+    expect(await Permission.countDocuments()).toBe(196);
     expect(await duplicateGroups()).toEqual([]);
   });
 
@@ -67,7 +67,7 @@ describe('seedPermissions (insert-only)', () => {
     await changeScope(rule.id, 'all');
 
     const s = await seedPermissions();
-    expect(s).toMatchObject({ added: 0, preserved: 178, customised: 1 });
+    expect(s).toMatchObject({ added: 0, preserved: 196, customised: 1 });
     expect((await find('hod', 'notices', 'update')).scope).toBe('all');
   });
 
@@ -77,7 +77,7 @@ describe('seedPermissions (insert-only)', () => {
     await Permission.collection.updateMany({}, { $set: { createdAt: old, updatedAt: old } }); // raw write: no auto timestamps
     await seedPermissions();
     const stored = await Permission.find().lean();
-    expect(stored).toHaveLength(178);
+    expect(stored).toHaveLength(196);
     for (const p of stored) {
       expect(p.updatedAt.getTime()).toBe(old.getTime());
       expect(p.createdAt.getTime()).toBe(old.getTime());
@@ -91,16 +91,16 @@ describe('seedPermissions (insert-only)', () => {
     await Permission.deleteMany({ roleKey: 'hod', resource: 'reports', action: 'export' });
 
     const s = await seedPermissions();
-    expect(s).toMatchObject({ added: 2, preserved: 176, extra: 1, removed: 0 });
+    expect(s).toMatchObject({ added: 2, preserved: 194, extra: 1, removed: 0 });
     expect((await find('teacher', 'notices', 'create')).scope).toBe('department');
-    expect(await Permission.countDocuments()).toBe(179);
+    expect(await Permission.countDocuments()).toBe(197);
   });
 
   test('a partly filled database only gets the missing rules', async () => {
     await Permission.insertMany(matrix.slice(0, 90));
     const s = await seedPermissions();
-    expect(s).toMatchObject({ added: 88, preserved: 90 });
-    expect(await Permission.countDocuments()).toBe(178);
+    expect(s).toMatchObject({ added: 106, preserved: 90 });
+    expect(await Permission.countDocuments()).toBe(196);
   });
 
   test('a deleted rule is restored with the matrix scope, and nothing else changes', async () => {
@@ -130,7 +130,7 @@ describe('seedPermissions (insert-only)', () => {
     expect(pruned).toMatchObject({ removed: 1, extra: 0 });
     expect(await find('teacher', 'oldThing', 'view')).toBeNull();
     expect((await find('hod', 'notices', 'update')).scope).toBe('all');
-    expect(await Permission.countDocuments()).toBe(178);
+    expect(await Permission.countDocuments()).toBe(196);
   });
 
   test('invalid matrices throw and write nothing', async () => {
@@ -152,9 +152,9 @@ describe('seedPermissions (insert-only)', () => {
 
   test('seeders running at the same time create no duplicates and no error', async () => {
     const runs = await Promise.all([seedPermissions(), seedPermissions(), seedPermissions(), seedPermissions()]);
-    expect(await Permission.countDocuments()).toBe(178);
+    expect(await Permission.countDocuments()).toBe(196);
     expect(await duplicateGroups()).toEqual([]);
-    for (const s of runs) expect(s.total).toBe(178);
+    for (const s of runs) expect(s.total).toBe(196);
   });
 
   test('only duplicate-key errors are ignored; any other database error is thrown', async () => {

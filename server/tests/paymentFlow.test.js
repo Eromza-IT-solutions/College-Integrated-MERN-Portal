@@ -66,7 +66,7 @@ function wireFakes() {
     if (filter.receiptNumber && filter.receiptNumber.$exists === false && p.receiptNumber) return null;
     if (filter.$expr && !(p.reservedRefundPaise + update.$inc.reservedRefundPaise <= p.amountPaise)) return null;
     if (update.$set) Object.assign(p, update.$set);
-    if (update.$inc) Object.entries(update.$inc).forEach(([k, v]) => { p[k] += v; });
+    if (update.$inc) Object.entries(update.$inc).forEach(([k, v]) => { p[k] = (p[k] || 0) + v; });
     return copy(p);
   };
   Payment.updateOne = async (filter, update) => { Object.entries(update.$inc).forEach(([k, v]) => { payments[String(filter._id)][k] += v; }); };
@@ -85,7 +85,16 @@ function wireFakes() {
     return copy(r);
   };
 
-  Application.findById = (aid) => q(copy(apps[aid]));
+  Application.findById = (aid) => q(apps[aid] ? Application.hydrate(copy(apps[aid])) : null);
+  Application.findOneAndUpdate = async (filter, update) => {
+    const a = apps[String(filter._id)];
+    if (!a) return null;
+    const allowed = filter.status && (filter.status.$in || [filter.status]);
+    if (allowed && !allowed.includes(a.status)) return null;
+    if (update.$set) Object.assign(a, update.$set);
+    if (update.$unset) Object.keys(update.$unset).forEach((k) => { delete a[k]; });
+    return Application.hydrate(copy(a));
+  };
   Student.findById = (sid) => q(copy(students[sid]));
   Exam.findById = (eid) => q(exams[eid] ? { ...exams[eid], isOpen: () => exams[eid].open } : null);
   FeeStructure.findOne = (filter) => q(copy(fees.find((f) => matches(f, filter))));
@@ -104,7 +113,15 @@ const applicantA = id(); const applicantB = id(); const studentUser = id(); cons
 const adminUser = id(); const examAdminUser = id(); const superUser = id();
 
 const addFee = (over = {}) => { const f = { _id: id(), purpose: 'admission', academicYearId: YEAR, programId: PROGRAM, feesCategory: 'PAYING', amountPaise: 1200000, isActive: true, ...over }; fees.push(f); return f; };
-const addApp = (over = {}) => { const a = { _id: id(), applicantUserId: applicantA, academicYearId: YEAR, programId: PROGRAM, feesCategory: 'PAYING', status: 'submitted', ...over }; apps[a._id] = a; return a; };
+const addApp = (over = {}) => {
+  const fee = fees[fees.length - 1];
+  const a = {
+    _id: id(), applicantUserId: applicantA, academicYearId: YEAR, programId: PROGRAM, feesCategory: 'PAYING', status: 'approved',
+    ...(fee ? { feeStructureId: fee._id, feeAmountPaise: fee.amountPaise } : {}), ...over,
+  };
+  apps[a._id] = a;
+  return a;
+};
 const addExamSetup = ({ userId = studentUser, formStatus = 'pendingPayment', open = true, feeAmountPaise = 80000 } = {}) => {
   const exam = { _id: id(), academicYearId: YEAR, programId: PROGRAM, semester: 1, open }; exams[exam._id] = exam;
   const student = { _id: id(), userId }; students[student._id] = student;
@@ -114,8 +131,14 @@ const addExamSetup = ({ userId = studentUser, formStatus = 'pendingPayment', ope
   return { exam, student, form };
 };
 const addPayment = (over = {}) => {
-  const p = { _id: id(), purpose: 'admission', payerUserId: applicantA, academicYearId: YEAR, feeStructureId: id(), applicationId: id(), amountPaise: 1200000, reservedRefundPaise: 0, status: 'created', gateway: 'fake', gatewayOrderId: `order_fake_${id()}`, isTestMode: true, createdAt: new Date(), ...over };
+  const p = { _id: id(), purpose: 'admission', payerUserId: applicantA, academicYearId: YEAR, feeStructureId: id(), applicationId: id(), amountPaise: 1200000, reservedRefundPaise: 0, failedAttempts: 0, status: 'created', gateway: 'fake', gatewayOrderId: `order_fake_${id()}`, isTestMode: true, createdAt: new Date(), ...over };
   payments[String(p._id)] = p;
+  if (p.purpose === 'admission' && p.applicationId && !apps[String(p.applicationId)]) {
+    apps[String(p.applicationId)] = {
+      _id: p.applicationId, applicantUserId: p.payerUserId, academicYearId: YEAR, programId: PROGRAM,
+      feesCategory: 'PAYING', status: 'approved', feeStructureId: p.feeStructureId, feeAmountPaise: p.amountPaise,
+    };
+  }
   return p;
 };
 const paidPayment = (over = {}) => addPayment({ status: 'paid', gatewayPaymentId: `pay_fake_${id()}`, receiptNumber: 'RCT-2026-27-000099', paidAt: new Date(), ...over });
@@ -239,7 +262,7 @@ describe('POST /payments/orders: admission fee', () => {
   });
 
   test('a student (after admission) may pay too, and an approved application is payable', async () => {
-    addFee(); const a = addApp({ status: 'approved' });
+    addFee(); const a = addApp();
     expect((await order(as('student', applicantA), a._id)).status).toBe(201);
   });
 
@@ -249,7 +272,7 @@ describe('POST /payments/orders: admission fee', () => {
     expect((await order(as('applicant', applicantA), id())).status).toBe(404);
   });
 
-  test.each(['draft', 'returned', 'rejected'])('409 while the application is %s', async (status) => {
+  test.each(['draft', 'submitted', 'returned', 'waitlisted', 'rejected', 'feePaid', 'admitted', 'cancelled'])('409 while the application is %s', async (status) => {
     addFee(); const a = addApp({ status });
     const res = await order(as('applicant', applicantA), a._id);
     expect(res.status).toBe(409);
@@ -260,7 +283,8 @@ describe('POST /payments/orders: admission fee', () => {
     const a = addApp();
     expect((await order(as('applicant', applicantA), a._id)).status).toBe(409);
     addFee({ amountPaise: 0 });
-    const res = await order(as('applicant', applicantA), a._id);
+    const free = addApp();
+    const res = await order(as('applicant', applicantA), free._id);
     expect(res.status).toBe(409);
     expect(res.body.error.message).toMatch(/zero/);
   });
@@ -275,10 +299,10 @@ describe('POST /payments/orders: admission fee', () => {
     expect(Object.keys(payments)).toHaveLength(1);
   });
 
-  test('if the fee changed, the old waiting order is closed and a new one is made', async () => {
-    const fee = addFee({ amountPaise: 1000000 }); const a = addApp(); const app = as('applicant', applicantA);
+  test('if the fixed fee changed, the old waiting order is closed and a new one is made', async () => {
+    addFee({ amountPaise: 1000000 }); const a = addApp(); const app = as('applicant', applicantA);
     const first = await order(app, a._id);
-    fee.amountPaise = 1500000;
+    a.feeAmountPaise = 1500000;
     const second = await order(app, a._id);
     expect(second.status).toBe(201);
     expect(second.body.data.amountPaise).toBe(1500000);
@@ -354,7 +378,8 @@ describe('POST /payments/:id/verify (browser says "I paid")', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({ status: 'paid', receiptNumber: 'RCT-2026-27-000001' });
     expect(res.body.meta.alreadyPaid).toBe(false);
-    expect(payments[o.paymentId]).toMatchObject({ status: 'paid', gatewayPaymentId: 'pay_fake_1' });
+    expect(payments[o.paymentId]).toMatchObject({ status: 'paid', gatewayPaymentId: 'pay_fake_1', confirmedVia: 'checkout' });
+    expect(payments[o.paymentId].signatureVerifiedAt).toBeInstanceOf(Date);
     expect(lastAudit('paymentVerified')).toMatchObject({ outcome: 'success', details: { source: 'browser', amountPaise: 1200000 } });
   });
 
@@ -417,6 +442,38 @@ describe('POST /payments/:id/verify (browser says "I paid")', () => {
     expect((await verify(app, o.paymentId, goodBody(o, 'pay_fake_2'))).status).toBe(409);
   });
 
+  test('admission payment: the application becomes "feePaid" and starts the hard copy window', async () => {
+    addFee(); const a = addApp();
+    const app = as('applicant', applicantA);
+    const o = (await request(app).post('/payments/orders').send({ purpose: 'admission', applicationId: String(a._id) })).body.data;
+    const res = await verify(app, o.paymentId, goodBody(o));
+    expect(res.status).toBe(200);
+    expect(apps[a._id]).toMatchObject({ status: 'feePaid', paymentId: expect.anything() });
+    expect(String(apps[a._id].paymentId)).toBe(String(o.paymentId));
+    expect(apps[a._id].feePaidAt).toBeInstanceOf(Date);
+    expect(apps[a._id].hardCopyDueAt).toBeInstanceOf(Date);
+  });
+
+  test('admission payment: verifying twice does not move the application twice', async () => {
+    addFee(); const a = addApp();
+    const app = as('applicant', applicantA);
+    const o = (await request(app).post('/payments/orders').send({ purpose: 'admission', applicationId: String(a._id) })).body.data;
+    expect((await verify(app, o.paymentId, goodBody(o))).status).toBe(200);
+    expect((await verify(app, o.paymentId, goodBody(o))).status).toBe(200);
+    expect(apps[a._id].status).toBe('feePaid');
+  });
+
+  test('admission payment: if the application cannot be updated, the money stays recorded and the problem is logged', async () => {
+    addFee(); const a = addApp();
+    const app = as('applicant', applicantA);
+    const o = (await request(app).post('/payments/orders').send({ purpose: 'admission', applicationId: String(a._id) })).body.data;
+    a.status = 'cancelled';
+    const res = await verify(app, o.paymentId, goodBody(o));
+    expect(res.status).toBe(409);
+    expect(payments[o.paymentId].status).toBe('paid');
+    expect(lastAudit('paymentVerified')).toMatchObject({ outcome: 'failed' });
+  });
+
   test('exam payment: the exam form becomes "submitted" and remembers the payment', async () => {
     const { form } = addExamSetup({ feeAmountPaise: 80000 });
     const app = as('student', studentUser);
@@ -462,6 +519,15 @@ describe('viewing payments and receipts', () => {
     const res = await request(as('applicant', applicantA)).get(`/payments/${paid._id}/receipt`);
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({ receiptNumber: 'RCT-2026-27-000007', amountPaise: 1200000, currency: 'INR', academicYear: '2026-27', payerName: 'Riya Patil', purpose: 'admission' });
+  });
+
+  test('receipt: format=pdf returns a downloadable sample receipt', async () => {
+    const paid = paidPayment({ receiptNumber: 'RCT-2026-27-000008' });
+    const res = await request(as('applicant', applicantA)).get(`/payments/${paid._id}/receipt?format=pdf`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/pdf/);
+    expect(res.headers['content-disposition']).toMatch(/receipt-RCT-2026-27-000008-\d{4}-\d{2}-\d{2}\.pdf/);
+    expect(res.body.toString('latin1')).toContain('RCT-2026-27-000008');
   });
 
   test('receipt: a paid payment that has no number yet gets one (repair)', async () => {
@@ -513,7 +579,7 @@ describe('POST /payments/webhook (the gateway calls us)', () => {
     const res = await hook(eventFor(p));
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({ received: true, handled: true, duplicate: false });
-    expect(payments[String(p._id)]).toMatchObject({ status: 'paid', gatewayPaymentId: 'pay_fake_77', receiptNumber: 'RCT-2026-27-000001' });
+    expect(payments[String(p._id)]).toMatchObject({ status: 'paid', gatewayPaymentId: 'pay_fake_77', confirmedVia: 'webhook', receiptNumber: 'RCT-2026-27-000001' });
     expect(lastAudit('paymentVerified')).toMatchObject({ actorUserId: null, details: { source: 'webhook' } });
     expect(lastAudit('paymentWebhookReceived')).toMatchObject({ details: { event: 'payment.captured', gatewayEventId: 'evt_1', handled: true } });
   });
@@ -539,6 +605,7 @@ describe('POST /payments/webhook (the gateway calls us)', () => {
     expect([h.status, v.status]).toEqual([200, 200]);
     expect(payments[o.paymentId]).toMatchObject({ status: 'paid', receiptNumber: expect.stringMatching(/^RCT-2026-27-/) });
     expect(v.body.data.receiptNumber).toBe(payments[o.paymentId].receiptNumber);
+    expect(apps[a._id].status).toBe('feePaid');
   });
 
   test('the "order.paid" event works too, and an exam payment submits the exam form', async () => {
@@ -567,9 +634,9 @@ describe('POST /payments/webhook (the gateway calls us)', () => {
 
   test('a failed ATTEMPT is only recorded: the order stays open so the payer can try again', async () => {
     const p = addPayment();
-    const res = await hook(eventFor(p, { error_description: 'Card declined' }, 'payment.failed'));
+    const res = await hook(eventFor(p, { error_description: 'Card declined', error_code: 'BAD_REQUEST_ERROR', method: 'upi' }, 'payment.failed'));
     expect(res.status).toBe(200);
-    expect(payments[String(p._id)].status).toBe('created');
+    expect(payments[String(p._id)]).toMatchObject({ status: 'created', failedAttempts: 1, gatewayErrorCode: 'BAD_REQUEST_ERROR', gatewayMethod: 'upi' });
     expect(lastAudit('paymentWebhookReceived')).toMatchObject({ details: { attemptFailed: true, reason: 'Card declined' } });
   });
 

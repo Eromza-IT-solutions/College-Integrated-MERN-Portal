@@ -599,7 +599,7 @@
     {
       "programCode": "BDPAEC",
       "code": "23ABMR31AE",
-      "name": "मराठी व्याकरण (Marathi Grammar )",
+      "name": "मराठी व्याकरण (Marathi Grammar)",
       "credits": 2,
       "category": "aec",
       "semester": 3,
@@ -1139,7 +1139,7 @@
     {
       "programCode": "BDPAEN",
       "code": "23ABMR31AE",
-      "name": "मराठी व्याकरण (Marathi Grammar )",
+      "name": "मराठी व्याकरण (Marathi Grammar)",
       "credits": 2,
       "category": "aec",
       "semester": 3,
@@ -1472,7 +1472,7 @@
     {
       "programCode": "BDPAPO",
       "code": "23ABMR31AE",
-      "name": "मराठी व्याकरण (Marathi Grammar )",
+      "name": "मराठी व्याकरण (Marathi Grammar)",
       "credits": 2,
       "category": "aec",
       "semester": 3,
@@ -1940,7 +1940,7 @@
     {
       "programCode": "BDPAPS",
       "code": "23ABMR31AE",
-      "name": "मराठी व्याकरण (Marathi Grammar )",
+      "name": "मराठी व्याकरण (Marathi Grammar)",
       "credits": 2,
       "category": "aec",
       "semester": 3,
@@ -2345,7 +2345,7 @@
     {
       "programCode": "BDPASO",
       "code": "23ABMR31AE",
-      "name": "मराठी व्याकरण (Marathi Grammar )",
+      "name": "मराठी व्याकरण (Marathi Grammar)",
       "credits": 2,
       "category": "aec",
       "semester": 3,
@@ -2687,7 +2687,7 @@
     {
       "programCode": "BDPAUR",
       "code": "23ABMR31AE",
-      "name": "मराठी व्याकरण (Marathi Grammar )",
+      "name": "मराठी व्याकरण (Marathi Grammar)",
       "credits": 2,
       "category": "aec",
       "semester": 3,
@@ -11875,15 +11875,6 @@
     },
     {
       "programCode": "MDPSCHA",
-      "code": "23SMCH11ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 1,
-      "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
-    },
-    {
-      "programCode": "MDPSCHA",
       "code": "23SMCH11MEA",
       "name": "Chemical Thermodynamics",
       "credits": 2,
@@ -11923,15 +11914,6 @@
       "code": "23SMCH12FP",
       "name": "Field Project",
       "credits": 4,
-      "category": "major",
-      "semester": 1,
-      "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
-    },
-    {
-      "programCode": "MDPSCHA",
-      "code": "23SMCH12ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
       "category": "major",
       "semester": 1,
       "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
@@ -12010,15 +11992,6 @@
     },
     {
       "programCode": "MDPSCHA",
-      "code": "26SMCH11ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 1,
-      "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
-    },
-    {
-      "programCode": "MDPSCHA",
       "code": "26SMCH11MEA",
       "name": "Chemical thermodynamics",
       "credits": 2,
@@ -12049,15 +12022,6 @@
       "code": "26SMCH11RM",
       "name": "Research methodology in Chemistry",
       "credits": 4,
-      "category": "major",
-      "semester": 1,
-      "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
-    },
-    {
-      "programCode": "MDPSCHA",
-      "code": "26SMCH12ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
       "category": "major",
       "semester": 1,
       "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
@@ -12154,15 +12118,6 @@
     },
     {
       "programCode": "MDPSCHA",
-      "code": "23SMCH21ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 2,
-      "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
-    },
-    {
-      "programCode": "MDPSCHA",
       "code": "23SMCH21MEA",
       "name": "Organic Reaction Mechanism I",
       "credits": 2,
@@ -12183,15 +12138,6 @@
       "programCode": "MDPSCHA",
       "code": "23SMCH21MM",
       "name": "Molecular Spectroscopy",
-      "credits": 2,
-      "category": "major",
-      "semester": 2,
-      "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
-    },
-    {
-      "programCode": "MDPSCHA",
-      "code": "23SMCH22ME",
-      "name": "(Elective Anyone from following )",
       "credits": 2,
       "category": "major",
       "semester": 2,
@@ -12271,15 +12217,6 @@
     },
     {
       "programCode": "MDPSCHA",
-      "code": "26SMCH21ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 2,
-      "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
-    },
-    {
-      "programCode": "MDPSCHA",
       "code": "26SMCH21MEA",
       "name": "Organic Reaction Mechanism I",
       "credits": 2,
@@ -12310,15 +12247,6 @@
       "code": "26SMCH21OJT",
       "name": "On Job Training (OJT)",
       "credits": 4,
-      "category": "major",
-      "semester": 2,
-      "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
-    },
-    {
-      "programCode": "MDPSCHA",
-      "code": "26SMCH22ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
       "category": "major",
       "semester": 2,
       "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
@@ -12685,15 +12613,6 @@
     },
     {
       "programCode": "MDPSCHO",
-      "code": "23SMCH11ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 1,
-      "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
-    },
-    {
-      "programCode": "MDPSCHO",
       "code": "23SMCH11MEA",
       "name": "Chemical Thermodynamics",
       "credits": 2,
@@ -12733,15 +12652,6 @@
       "code": "23SMCH12FP",
       "name": "Field Project",
       "credits": 4,
-      "category": "major",
-      "semester": 1,
-      "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
-    },
-    {
-      "programCode": "MDPSCHO",
-      "code": "23SMCH12ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
       "category": "major",
       "semester": 1,
       "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
@@ -12820,15 +12730,6 @@
     },
     {
       "programCode": "MDPSCHO",
-      "code": "26SMCH11ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 1,
-      "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
-    },
-    {
-      "programCode": "MDPSCHO",
       "code": "26SMCH11MEA",
       "name": "Chemical thermodynamics",
       "credits": 2,
@@ -12859,15 +12760,6 @@
       "code": "26SMCH11RM",
       "name": "Research methodology in Chemistry",
       "credits": 4,
-      "category": "major",
-      "semester": 1,
-      "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
-    },
-    {
-      "programCode": "MDPSCHO",
-      "code": "26SMCH12ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
       "category": "major",
       "semester": 1,
       "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
@@ -12964,15 +12856,6 @@
     },
     {
       "programCode": "MDPSCHO",
-      "code": "23SMCH21ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 2,
-      "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
-    },
-    {
-      "programCode": "MDPSCHO",
       "code": "23SMCH21MEA",
       "name": "Organic Reaction Mechanism I",
       "credits": 2,
@@ -12993,15 +12876,6 @@
       "programCode": "MDPSCHO",
       "code": "23SMCH21MM",
       "name": "Molecular Spectroscopy",
-      "credits": 2,
-      "category": "major",
-      "semester": 2,
-      "source": "56_M.Sc.-I_Chemistry_NEP_2023-24_1.md"
-    },
-    {
-      "programCode": "MDPSCHO",
-      "code": "23SMCH22ME",
-      "name": "(Elective Anyone from following )",
       "credits": 2,
       "category": "major",
       "semester": 2,
@@ -13081,15 +12955,6 @@
     },
     {
       "programCode": "MDPSCHO",
-      "code": "26SMCH21ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 2,
-      "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
-    },
-    {
-      "programCode": "MDPSCHO",
       "code": "26SMCH21MEA",
       "name": "Organic Reaction Mechanism I",
       "credits": 2,
@@ -13120,15 +12985,6 @@
       "code": "26SMCH21OJT",
       "name": "On Job Training (OJT)",
       "credits": 4,
-      "category": "major",
-      "semester": 2,
-      "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
-    },
-    {
-      "programCode": "MDPSCHO",
-      "code": "26SMCH22ME",
-      "name": "(Elective Anyone from following )",
-      "credits": 2,
       "category": "major",
       "semester": 2,
       "source": "69_MSc_I_Chemistry_NEP_syllabus_2026_1.md"
@@ -13279,15 +13135,6 @@
     },
     {
       "programCode": "MDPSCHO",
-      "code": "23SMOC38ME",
-      "name": "(Any One from Following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 3,
-      "source": "48_M_Sc_II_Organic_Chemistry_NEP_syllabus_2024_25.md"
-    },
-    {
-      "programCode": "MDPSCHO",
       "code": "23SMOC38MEA",
       "name": "Practical: Preparation of Heterocyclic Compounds",
       "credits": 2,
@@ -13299,15 +13146,6 @@
       "programCode": "MDPSCHO",
       "code": "23SMOC38MEB",
       "name": "Practical: Convergent and Multi stage Synthesis",
-      "credits": 2,
-      "category": "major",
-      "semester": 3,
-      "source": "48_M_Sc_II_Organic_Chemistry_NEP_syllabus_2024_25.md"
-    },
-    {
-      "programCode": "MDPSCHO",
-      "code": "23SMOC39ME",
-      "name": "(Any One from Following )",
       "credits": 2,
       "category": "major",
       "semester": 3,
@@ -13405,15 +13243,6 @@
     },
     {
       "programCode": "MDPSCHO",
-      "code": "23SMOC47ME",
-      "name": "(Any One from Following )",
-      "credits": 2,
-      "category": "major",
-      "semester": 4,
-      "source": "48_M_Sc_II_Organic_Chemistry_NEP_syllabus_2024_25.md"
-    },
-    {
-      "programCode": "MDPSCHO",
       "code": "23SMOC47MEA",
       "name": "Advanced Organic Synthesis",
       "credits": 2,
@@ -13425,15 +13254,6 @@
       "programCode": "MDPSCHO",
       "code": "23SMOC47MEB",
       "name": "Applied Organic Chemistry",
-      "credits": 2,
-      "category": "major",
-      "semester": 4,
-      "source": "48_M_Sc_II_Organic_Chemistry_NEP_syllabus_2024_25.md"
-    },
-    {
-      "programCode": "MDPSCHO",
-      "code": "23SMOC48ME",
-      "name": "(Any One from Following )",
       "credits": 2,
       "category": "major",
       "semester": 4,

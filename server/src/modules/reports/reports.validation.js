@@ -11,7 +11,7 @@ const reportQuery = z.object({
   examId: objectId('examId').optional(),
   from: dateText.optional(),
   to: dateText.optional(),
-  format: z.enum(['json', 'csv']).default('json'),
+  format: z.enum(['json', 'csv', 'pdf']).default('json'),
 }).refine((q) => !q.from || !q.to || q.from <= q.to, { path: ['to'], message: '"to" must be on or after "from"' });
 
 function parse(schema, input) {

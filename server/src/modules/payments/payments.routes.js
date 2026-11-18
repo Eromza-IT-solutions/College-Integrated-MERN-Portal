@@ -1,4 +1,6 @@
 import express from 'express';
+import { ensureAuthenticated } from '../../middleware/authenticate.js';
+import { requirePasswordChange } from '../../middleware/requirePasswordChange.js';
 import { byPurpose, paymentAccess, PAYMENT_RESOURCE } from './payments.guards.js';
 import {
   postOrder, postVerify, getPayments, getPayment, getPaymentReceipt, postWebhook,
@@ -8,6 +10,9 @@ const router = express.Router();
 
 // Called by the gateway, not by a person: no sign-in, the signature is the proof. Must stay above "/:id".
 router.post('/webhook', postWebhook);
+
+router.use(ensureAuthenticated);
+router.use(requirePasswordChange);
 
 router.post('/orders', byPurpose(PAYMENT_RESOURCE, 'create'), postOrder);
 router.get('/', byPurpose(PAYMENT_RESOURCE, 'view', 'query'), getPayments);

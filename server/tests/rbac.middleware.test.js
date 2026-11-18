@@ -268,7 +268,7 @@ describe('the permission matrix, exhaustively', () => {
         }
       }
     }
-    expect(allowed).toBe(matrix.length); // 178
+    expect(allowed).toBe(matrix.length);
     expect(denied).toBeGreaterThan(allowed); // far more is refused than allowed
   });
 

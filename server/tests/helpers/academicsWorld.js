@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 import express from 'express';
 import { readFileSync } from 'fs';
 import Department from '../../src/models/Department.js';
@@ -14,6 +14,9 @@ import Marks from '../../src/models/Marks.js';
 import Result from '../../src/models/Result.js';
 import Exam from '../../src/models/Exam.js';
 import ExamForm from '../../src/models/ExamForm.js';
+import FeeStructure from '../../src/models/FeeStructure.js';
+import TeachingPlan from '../../src/models/TeachingPlan.js';
+import Teacher from '../../src/models/Teacher.js';
 import AuditLog from '../../src/models/AuditLog.js';
 import Permission from '../../src/models/Permission.js';
 import { clearPermissionCache } from '../../src/services/permissionService.js';
@@ -23,12 +26,17 @@ import timetableRoutes from '../../src/modules/academics/timetable.routes.js';
 import attendanceRoutes from '../../src/modules/academics/attendance.routes.js';
 import marksRoutes from '../../src/modules/academics/marks.routes.js';
 import resultsRoutes from '../../src/modules/academics/results.routes.js';
+import examRoutes from '../../src/modules/examinations/exam.routes.js';
+import examFormRoutes from '../../src/modules/examinations/examForm.routes.js';
+import managementRoutes from '../../src/modules/admin/super/management.routes.js';
+import teachingRoutes from '../../src/modules/academics/teaching.routes.js';
+import studentsRoutes from '../../src/modules/students/students.routes.js';
 
 // Test ke liye chhota sa "college": 2 department, 1 class, 2 students, 2 teachers, 2 HOD, exam admin, super admin.
 // Login abhi bana nahi hai, isliye appFor() har request par req.user khud laga deta hai (jaise login middleware lagayega).
 
 const matrix = JSON.parse(readFileSync(new URL('../../scripts/data/permission-matrix.json', import.meta.url), 'utf8'));
-const MODELS = [Department, Program, AcademicYear, User, Subject, Student, Enrollment, Timetable, Attendance, Marks, Result, Exam, ExamForm, AuditLog, Permission];
+const MODELS = [Department, Program, AcademicYear, User, Subject, Student, Enrollment, Timetable, Attendance, Marks, Result, Exam, ExamForm, FeeStructure, Teacher, TeachingPlan, AuditLog, Permission];
 
 /** Indexes (jaise unique slot) database me ban jaane do, phir permission matrix daalo. */
 async function prepareDatabase() {
@@ -49,6 +57,11 @@ function appFor(user) {
   app.use('/attendance', attendanceRoutes);
   app.use('/marks', marksRoutes);
   app.use('/results', resultsRoutes);
+  app.use('/exams', examRoutes);
+  app.use('/exam-forms', examFormRoutes);
+  app.use('/admin', managementRoutes);
+  app.use('/teaching-plans', teachingRoutes);
+  app.use('/students', studentsRoutes);
   app.use(errorHandler);
   return app;
 }

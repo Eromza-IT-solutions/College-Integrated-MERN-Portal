@@ -91,3 +91,32 @@ export const resetPasswordLimiter = createLimiter({
   windowMs: security.resetWindowMs,
   limit: security.resetIpMax,
 });
+
+export const changePasswordLimiter = createLimiter({
+  name: 'change-password-ip',
+  windowMs: security.resetWindowMs,
+  limit: 10,
+});
+
+// Applicant registration and email verification.
+export const registerLimiter = createLimiter({
+  name: 'register-ip',
+  windowMs: security.forgotWindowMs,
+  limit: 10,
+});
+export const verifyEmailLimiter = createLimiter({
+  name: 'verify-email-ip',
+  windowMs: security.resetWindowMs,
+  limit: security.resetIpMax,
+});
+export const resendVerificationIpLimiter = createLimiter({
+  name: 'resend-verification-ip',
+  windowMs: security.forgotWindowMs,
+  limit: security.forgotIpMax,
+});
+export const resendVerificationEmailLimiter = createLimiter({
+  name: 'resend-verification-email',
+  windowMs: security.forgotWindowMs,
+  limit: security.forgotEmailMax,
+  keyGenerator: (req) => (typeof req.body?.email === 'string' && req.body.email.trim() ? `e:${fingerprintIdentifier(req.body.email)}` : `ip:${req.ip}`),
+});

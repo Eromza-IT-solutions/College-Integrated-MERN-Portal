@@ -70,7 +70,7 @@ async function handleWebhook(req, { rawBody, signature, eventId }) {
       });
       return { handled: false };
     }
-    const { alreadyPaid } = await settlePaid(req, payment, entity.id, { source: 'webhook' });
+    const { alreadyPaid } = await settlePaid(req, payment, entity.id, { source: 'webhook', method: entity.method });
     await auditSafe(req, {
       action: 'paymentWebhookReceived', entityType: 'payment', entityId: payment._id,
       details: { ...received, handled: !alreadyPaid, duplicate: alreadyPaid },
@@ -80,6 +80,11 @@ async function handleWebhook(req, { rawBody, signature, eventId }) {
 
   if (FAILED_EVENTS.includes(name)) {
     // One order can be tried again with another card, so a failed attempt does NOT close the order. We only record it.
+    await Payment.recordFailedAttempt(payment._id, {
+      reason: entity.error_description || 'Payment attempt failed',
+      errorCode: entity.error_code,
+      method: entity.method,
+    });
     await auditSafe(req, {
       action: 'paymentWebhookReceived', entityType: 'payment', entityId: payment._id,
       details: { ...received, handled: false, attemptFailed: true, reason: entity.error_description || 'payment attempt failed' },

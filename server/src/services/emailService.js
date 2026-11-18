@@ -70,6 +70,24 @@ export async function sendEmail({ to, subject, text, html }) {
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+export function sendEmailVerificationEmail({ to, fullName, link, validHours }) {
+  const text =
+`Hello ${fullName},
+
+Welcome to the EROMZA College Portal. Please confirm your email address to activate your applicant account.
+Open this link (it works once and expires in ${validHours} hours):
+
+${link}
+
+If you did not create this account, ignore this email.`;
+  const html =
+`<p>Hello ${escapeHtml(fullName)},</p>
+<p>Welcome to the EROMZA College Portal. Please confirm your email address to activate your applicant account.</p>
+<p><a href="${escapeHtml(link)}">Verify my email address</a><br>This link works once and expires in ${validHours} hours.</p>
+<p>If you did not create this account, ignore this email.</p>`;
+  return sendEmail({ to, subject: 'Verify your EROMZA College Portal email', text, html });
+}
+
 export function sendPasswordResetEmail({ to, fullName, link, validMinutes }) {
   const text =
 `Hello ${fullName},
