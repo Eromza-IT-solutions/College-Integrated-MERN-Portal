@@ -379,9 +379,18 @@ applicationSchema.methods.markFeePaid = async function markFeePaid({ paymentId }
   if (payment.status !== 'paid') throw new AppError('The payment is not paid', 409);
   if (payment.amountPaise !== this.feeAmountPaise) throw new AppError('The payment does not match the admission fee', 409);
   const paidAt = payment.paidAt || new Date();
-  return move(this, [S.APPROVED], {
-    status: S.FEE_PAID, feePaidAt: paidAt, paymentId: payment._id, hardCopyDueAt: new Date(paidAt.getTime() + C.ADMISSION_RULES.hardCopyDueDays * DAY_MS),
-  }, { session });
+  try {
+    return await move(this, [S.APPROVED], {
+      status: S.FEE_PAID, feePaidAt: paidAt, paymentId: payment._id, hardCopyDueAt: new Date(paidAt.getTime() + C.ADMISSION_RULES.hardCopyDueDays * DAY_MS),
+    }, { session });
+  } catch (err) {
+    // The browser and the webhook can settle the same payment at the same time. If the other call already
+    // recorded this exact payment, that is success, not a conflict.
+    if (err.statusCode !== 409) throw err;
+    const now = await this.constructor.findById(this._id).session(session || null);
+    if (now && (now.status === S.FEE_PAID || now.status === S.ADMITTED) && String(now.paymentId) === String(payment._id)) return now;
+    throw err;
+  }
 };
 
 /** The hard copy of the form and documents reached the office: the admission is complete and a student record can be made. */

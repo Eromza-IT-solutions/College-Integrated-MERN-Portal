@@ -39,4 +39,8 @@ export const authenticate = asyncHandler(async (req, res, next) => {
   next(); // hand over to the next middleware or the route handler
 });
 
+// Production routes use this in front of a whole router. Tests often set req.user directly, so an
+// already-authenticated request is left alone.
+export const ensureAuthenticated = (req, res, next) => (req.user ? next() : authenticate(req, res, next));
+
 export default authenticate;

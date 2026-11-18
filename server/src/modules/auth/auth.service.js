@@ -4,8 +4,8 @@ import User from '../../models/User.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
 import AuthToken from '../../models/AuthToken.js';
 import env from '../../config/env.js';
-import { USER_STATUS, ROLE_VALUES, AUTH_TOKEN_PURPOSE, AUTH_TOKEN_TTL_MS } from '../../utils/constants.js';
-import { sendPasswordResetEmail, sendPasswordChangedEmail } from '../../services/emailService.js';
+import { USER_STATUS, ROLE_VALUES, ROLES, AUTH_TOKEN_PURPOSE, AUTH_TOKEN_TTL_MS } from '../../utils/constants.js';
+import { sendPasswordResetEmail, sendPasswordChangedEmail, sendEmailVerificationEmail } from '../../services/emailService.js';
 import * as attempts from '../../services/attemptCounter.js';
 import { fingerprintIdentifier } from '../../utils/identifierFingerprint.js';
 
@@ -116,6 +116,87 @@ export function recordLoginTime(userId) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Applicant registration and email verification
+// ---------------------------------------------------------------------------------------------
+const isDuplicateKey = (err) => err?.code === 11000;
+
+/**
+ * Create a pending applicant account. The account can sign in only after the emailed link is used.
+ * Returns { ok: true, user } or { ok: false, field: 'email' | 'mobile' }.
+ */
+export async function registerApplicant({ fullName, email, mobile, password }) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedMobile = mobile ? String(mobile).trim() : undefined;
+
+  const filter = normalizedMobile
+    ? { $or: [{ email: normalizedEmail }, { mobile: normalizedMobile }] }
+    : { email: normalizedEmail };
+  const existing = await User.findOne(filter).select('email mobile').lean();
+  if (existing) return { ok: false, field: existing.email === normalizedEmail ? 'email' : 'mobile' };
+
+  let user;
+  try {
+    user = await User.create({
+      fullName: fullName.trim(),
+      email: normalizedEmail,
+      mobile: normalizedMobile,
+      passwordHash: await hashPassword(password),
+      role: ROLES.APPLICANT,
+      status: USER_STATUS.PENDING,
+    });
+  } catch (err) {
+    if (isDuplicateKey(err)) return { ok: false, field: err.keyPattern?.mobile ? 'mobile' : 'email' };
+    throw err;
+  }
+
+  const rawToken = await AuthToken.issue(user._id, AUTH_TOKEN_PURPOSE.EMAIL_VERIFICATION);
+  const link = `${env.clientOrigin}/verify-email?token=${rawToken}`;
+  sendEmailVerificationEmail({
+    to: user.email,
+    fullName: user.fullName,
+    link,
+    validHours: AUTH_TOKEN_TTL_MS[AUTH_TOKEN_PURPOSE.EMAIL_VERIFICATION] / 3600000,
+  }); // intentionally not awaited; sendEmail never throws
+  return { ok: true, user };
+}
+
+/** Use the link from the verification email. Returns { ok: true, userId, alreadyVerified } or { ok: false }. */
+export async function verifyApplicantEmail(rawToken) {
+  const token = await AuthToken.consume(rawToken, AUTH_TOKEN_PURPOSE.EMAIL_VERIFICATION);
+  if (!token) return { ok: false };
+
+  const user = await User.findById(token.userId);
+  if (!user || [USER_STATUS.DEACTIVATED, USER_STATUS.LOCKED].includes(user.status)) return { ok: false };
+
+  const alreadyVerified = !!user.emailVerifiedAt;
+  await User.updateOne(
+    { _id: user._id },
+    { $set: { status: USER_STATUS.ACTIVE, emailVerifiedAt: user.emailVerifiedAt || new Date() } }
+  );
+  await AuthToken.updateMany(
+    { userId: user._id, purpose: AUTH_TOKEN_PURPOSE.EMAIL_VERIFICATION, usedAt: null },
+    { $set: { usedAt: new Date() } }
+  );
+  return { ok: true, userId: user._id, alreadyVerified };
+}
+
+/** Send a fresh verification link. The answer is the same whether or not a pending account exists. */
+export async function resendApplicantVerification(email) {
+  const user = await User.findOne({ email: email.trim().toLowerCase(), status: USER_STATUS.PENDING });
+  if (!user) return { found: false };
+
+  const rawToken = await AuthToken.issue(user._id, AUTH_TOKEN_PURPOSE.EMAIL_VERIFICATION);
+  const link = `${env.clientOrigin}/verify-email?token=${rawToken}`;
+  sendEmailVerificationEmail({
+    to: user.email,
+    fullName: user.fullName,
+    link,
+    validHours: AUTH_TOKEN_TTL_MS[AUTH_TOKEN_PURPOSE.EMAIL_VERIFICATION] / 3600000,
+  });
+  return { found: true, userId: user._id };
+}
+
+// ---------------------------------------------------------------------------------------------
 // Password reset
 // ---------------------------------------------------------------------------------------------
 /**
@@ -169,3 +250,30 @@ export async function resetPasswordWithToken(rawToken, newPassword) {
   sendPasswordChangedEmail({ to: user.email, fullName: user.fullName }); // heads-up in case it was not them
   return { ok: true, userId: user._id };
 }
+/**
+ * Change the password of the signed-in user after checking the current one.
+ * Returns { ok: true } or { ok: false, reason: 'notFound' | 'wrongPassword' | 'samePassword' }.
+ */
+export async function changeOwnPassword(userId, currentPassword, newPassword) {
+  const user = await User.findById(userId).select('+passwordHash');
+  if (!user || user.status !== USER_STATUS.ACTIVE) return { ok: false, reason: 'notFound' };
+
+  if (!(await verifyPassword(currentPassword, user.passwordHash))) return { ok: false, reason: 'wrongPassword' };
+  if (await verifyPassword(newPassword, user.passwordHash)) return { ok: false, reason: 'samePassword' };
+
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        passwordHash: await hashPassword(newPassword),
+        passwordChangedAt: new Date(),
+        mustChangePassword: false,
+        failedLoginCount: 0,
+        lockedUntil: null,
+      },
+    }
+  );
+  sendPasswordChangedEmail({ to: user.email, fullName: user.fullName });
+  return { ok: true };
+}
+

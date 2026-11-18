@@ -4,6 +4,8 @@ import AppError from '../../utils/AppError.js';
 import asyncHandler from '../../utils/asyncHandler.js';
 import WebsiteContent from '../../models/WebsiteContent.js';
 import { requirePermission, getActor } from '../../middleware/requirePermission.js';
+import { ensureAuthenticated } from '../../middleware/authenticate.js';
+import { requirePasswordChange } from '../../middleware/requirePasswordChange.js';
 import { scopeFilter, isInScope } from '../../utils/scope.js';
 import { adminView, audit, createContent, getVisible, isType, listForEditor, listVisible, removeContent, resourceFor, updateContent } from './website.service.js';
 
@@ -53,6 +55,9 @@ function buildRouter() {
   router.get('/public/:type/:slug', asyncHandler(async (req, res) => ok(res, await getVisible({ type: req.params.type, slug: req.params.slug }))));
 
   // ---- signed in ----
+  router.use('/members', ensureAuthenticated, requirePasswordChange);
+  router.use('/content', ensureAuthenticated, requirePasswordChange);
+
   router.get('/members/notices', requirePermission('notices', 'view'), asyncHandler(async (req, res) => {
     ok(res, await listVisible({ type: 'notice', includeMembersOnly: true, query: req.query }));
   }));

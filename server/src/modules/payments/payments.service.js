@@ -9,16 +9,14 @@ import Application from '../../models/Application.js';
 import ExamForm from '../../models/ExamForm.js';
 import Exam from '../../models/Exam.js';
 import Student from '../../models/Student.js';
-import FeeStructure from '../../models/FeeStructure.js';
 import AcademicYear from '../../models/AcademicYear.js';
 import User from '../../models/User.js';
 import {
-  PAYMENT_PURPOSE, PAYMENT_STATUS, APPLICATION_STATUS, EXAM_FORM_STATUS, AUDIT_OUTCOME,
+  PAYMENT_PURPOSE, PAYMENT_STATUS, APPLICATION_STATUS, EXAM_FORM_STATUS, AUDIT_OUTCOME, PAYMENT_CONFIRMED_VIA, PAYMENT_METHODS,
 } from '../../utils/constants.js';
 
-// PROPOSED (team to confirm): the admission fee can be paid once the application is sent in or approved.
-// A draft is not paid for yet, a returned or rejected application should not collect money.
-const ADMISSION_PAYABLE = [APPLICATION_STATUS.SUBMITTED, APPLICATION_STATUS.APPROVED];
+// The admission fee is fixed when the form is approved. Nothing is collected before that.
+const ADMISSION_PAYABLE = [APPLICATION_STATUS.APPROVED];
 
 const OWNER = { ownerField: 'payerUserId' };
 
@@ -26,7 +24,7 @@ const OWNER = { ownerField: 'payerUserId' };
 // 1. Order creation
 // ---------------------------------------------------------------------------------------------
 
-/** Admission: find the application, check it is the payer's own, and work out the fee on the server. */
+/** Admission: find the application, check it is the payer's own, and use the fee fixed at approval. */
 async function admissionTarget(req, applicationId) {
   const application = await Application.findById(applicationId);
   // "Not yours" and "does not exist" look the same on purpose.
@@ -34,14 +32,12 @@ async function admissionTarget(req, applicationId) {
   if (!ADMISSION_PAYABLE.includes(application.status)) {
     throw new AppError(`The admission fee cannot be paid while the application is ${application.status}`, 409);
   }
-  const fee = await FeeStructure.findOne({
-    purpose: PAYMENT_PURPOSE.ADMISSION, academicYearId: application.academicYearId,
-    programId: application.programId, feesCategory: application.feesCategory, isActive: true,
-  });
-  if (!fee) throw new AppError('No admission fee is set for this class and fees category', 409);
+  if (!application.feeStructureId || !Number.isInteger(application.feeAmountPaise) || application.feeAmountPaise < 0) {
+    throw new AppError('This application has no admission fee to pay', 409);
+  }
   return {
-    fee,
-    amountPaise: fee.amountPaise,
+    fee: { _id: application.feeStructureId },
+    amountPaise: application.feeAmountPaise,
     academicYearId: application.academicYearId,
     link: { applicationId: application._id },
     existingFilter: { applicationId: application._id, purpose: PAYMENT_PURPOSE.ADMISSION },
@@ -150,11 +146,17 @@ async function createOrder(req, { purpose, applicationId, examFormId }) {
 
 /**
  * The gateway has confirmed the money. Safe to run twice and from two places at once:
- * Payment.markPaid only changes a "created" payment, and ExamForm.markPaid ignores a repeat.
+ * Payment.markPaid only changes a "created" payment, and the form it belongs to ignores a repeat.
  */
-async function settlePaid(req, payment, gatewayPaymentId, { source }) {
+async function settlePaid(req, payment, gatewayPaymentId, { source, method } = {}) {
   const alreadyPaid = payment.status === PAYMENT_STATUS.PAID;
-  const paid = await Payment.markPaid(payment._id, { gatewayPaymentId });
+  const fields = source === 'webhook'
+    ? {
+      confirmedVia: PAYMENT_CONFIRMED_VIA.WEBHOOK,
+      ...(method ? { gatewayMethod: PAYMENT_METHODS.includes(method) ? method : 'other' } : {}),
+    }
+    : { confirmedVia: PAYMENT_CONFIRMED_VIA.CHECKOUT, signatureVerifiedAt: new Date() };
+  const paid = await Payment.markPaid(payment._id, { gatewayPaymentId, fields });
 
   if (paid.purpose === PAYMENT_PURPOSE.EXAM) {
     try {
@@ -166,6 +168,21 @@ async function settlePaid(req, payment, gatewayPaymentId, { source }) {
       await auditSafe(req, {
         action: 'paymentVerified', entityType: 'payment', entityId: paid._id, outcome: AUDIT_OUTCOME.FAILED,
         details: { source, reason: `Paid, but the exam form was not updated: ${err.message}` },
+      });
+      throw err;
+    }
+  }
+
+  if (paid.purpose === PAYMENT_PURPOSE.ADMISSION) {
+    try {
+      const application = await Application.findById(paid.applicationId);
+      if (!application) throw new AppError('Application not found', 404);
+      await application.markFeePaid({ paymentId: paid._id });
+    } catch (err) {
+      // The money is safely recorded. Say loudly that the admission was not updated, then let the caller see the error.
+      await auditSafe(req, {
+        action: 'paymentVerified', entityType: 'payment', entityId: paid._id, outcome: AUDIT_OUTCOME.FAILED,
+        details: { source, reason: `Paid, but the application was not updated: ${err.message}` },
       });
       throw err;
     }

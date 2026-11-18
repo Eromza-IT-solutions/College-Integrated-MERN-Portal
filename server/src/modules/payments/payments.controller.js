@@ -7,6 +7,8 @@ import { requestRefund, decideRefund, retryRefund, listRefunds, refundToClient }
 import {
   orderBody, verifyBody, refundBody, decisionBody, listQuery, parse,
 } from './payments.validation.js';
+import { sendPdf, pdfFilename } from '../../utils/pdf.js';
+import { receiptPdf } from '../../utils/pdfDocuments.js';
 
 const ok = (req, res, data, status = 200, meta = {}) => res.status(status).json({ success: true, data, meta: { ...meta, requestId: req.id } });
 const paged = ({ total, page, limit }) => ({ page, limit, total, totalPages: Math.ceil(total / limit) });
@@ -35,8 +37,15 @@ const getPayments = asyncHandler(async (req, res) => {
 // GET /api/v1/payments/:id
 const getPayment = asyncHandler(async (req, res) => ok(req, res, getOwnPayment(req, req.payment)));
 
-// GET /api/v1/payments/:id/receipt
-const getPaymentReceipt = asyncHandler(async (req, res) => ok(req, res, await getReceipt(req, req.payment)));
+// GET /api/v1/payments/:id/receipt?format=pdf
+const getPaymentReceipt = asyncHandler(async (req, res) => {
+  const receipt = await getReceipt(req, req.payment);
+  if (req.query.format === 'pdf') {
+    sendPdf(res, receiptPdf(receipt), pdfFilename(`receipt-${receipt.receiptNumber || receipt.paymentId}`));
+    return;
+  }
+  ok(req, res, receipt);
+});
 
 // POST /api/v1/payments/webhook   (called by the gateway; no sign-in; needs req.rawBody from app.js)
 const postWebhook = asyncHandler(async (req, res) => {

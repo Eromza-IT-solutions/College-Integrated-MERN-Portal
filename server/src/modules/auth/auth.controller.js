@@ -9,7 +9,7 @@ import { parseLoginId } from '../../utils/loginId.js';
 import { endSession } from '../../config/session.js';
 import { getPermissionsForRole } from '../../services/permissionService.js';
 import { validatePassword } from '../../utils/passwordPolicy.js';
-import { checkCredentials, toSafeUser, recordLoginTime, requestPasswordReset, resetPasswordWithToken, minutesFrom } from './auth.service.js';
+import { checkCredentials, toSafeUser, recordLoginTime, requestPasswordReset, resetPasswordWithToken, minutesFrom, registerApplicant, verifyApplicantEmail, resendApplicantVerification } from './auth.service.js';
 
 // What the browser must send. `identifier` is the existing name used by the login form.
 // Limits stop absurdly large inputs (very long passwords make the password check slow).
@@ -17,6 +17,15 @@ const loginSchema = z.object({
   identifier: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(128),
 });
+
+const registerSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(254),
+  mobile: z.string().trim().regex(/^\d{10}$/, 'Mobile number must be 10 digits').optional().or(z.literal('')),
+  password: z.string().min(1).max(128),
+});
+const verifyEmailSchema = z.object({ token: z.string().trim().min(10).max(200) });
+const resendVerificationSchema = z.object({ email: z.string().trim().email().max(254) });
 
 // Writes an audit row but never lets a logging problem break (or change) the login answer.
 // Only non-sensitive facts go in: the TYPE of identifier (email/mobile/aadhaar), never its value.
@@ -124,6 +133,111 @@ export const login = asyncHandler(async (req, res) => {
       user: toSafeUser(user),
       permissions: await getPermissionsForRole(user.role),
     },
+    meta: { requestId: req.id },
+  });
+});
+
+// POST /auth/register - create a pending applicant account and send the verification link.
+export const register = asyncHandler(async (req, res) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError(
+      'Enter your name, a valid email address and a password.',
+      400,
+      parsed.error.issues.map((i) => ({ field: i.path.join('.'), message: i.message })),
+      'VALIDATION_ERROR'
+    );
+  }
+
+  const problem = validatePassword(parsed.data.password);
+  if (problem) throw new AppError(problem, 400, [{ field: 'password', message: problem }], 'WEAK_PASSWORD');
+
+  const result = await registerApplicant({
+    fullName: parsed.data.fullName,
+    email: parsed.data.email,
+    mobile: parsed.data.mobile || undefined,
+    password: parsed.data.password,
+  });
+  if (!result.ok) {
+    const message = result.field === 'mobile' ? 'That mobile number is already registered.' : 'That email address is already registered.';
+    throw new AppError(message, 409, [{ field: result.field, message }], 'ALREADY_REGISTERED');
+  }
+
+  await AuditLog.record({
+    actorUserId: result.user._id,
+    action: 'applicantRegistered',
+    entityType: 'user',
+    entityId: result.user._id,
+    outcome: AUDIT_OUTCOME.SUCCESS,
+    ip: req.ip,
+  }).catch((err) => console.error('Could not write audit log:', err.message));
+
+  res.set('Cache-Control', 'no-store');
+  res.status(201).json({
+    success: true,
+    data: {
+      message: 'Account created. Check your email for the verification link.',
+      user: toSafeUser(result.user),
+    },
+    meta: { requestId: req.id },
+  });
+});
+
+// POST /auth/verify-email - { token }
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const parsed = verifyEmailSchema.safeParse(req.body);
+  if (!parsed.success) throw new AppError('The verification link is missing or invalid.', 400, undefined, 'VALIDATION_ERROR');
+
+  const result = await verifyApplicantEmail(parsed.data.token);
+  if (!result.ok) {
+    await AuditLog.record({
+      action: 'emailVerificationFailed',
+      entityType: 'user',
+      outcome: AUDIT_OUTCOME.FAILED,
+      ip: req.ip,
+      details: { reason: 'invalidOrExpiredToken' },
+    }).catch((err) => console.error('Could not write audit log:', err.message));
+    throw new AppError('This verification link is invalid or has expired. Please request a new one.', 400, undefined, 'INVALID_OR_EXPIRED_TOKEN');
+  }
+
+  await AuditLog.record({
+    actorUserId: result.userId,
+    action: 'emailVerified',
+    entityType: 'user',
+    entityId: result.userId,
+    outcome: AUDIT_OUTCOME.SUCCESS,
+    ip: req.ip,
+    details: { alreadyVerified: result.alreadyVerified },
+  }).catch((err) => console.error('Could not write audit log:', err.message));
+
+  res.set('Cache-Control', 'no-store');
+  res.status(200).json({
+    success: true,
+    data: { message: 'Your email address is verified. You can sign in now.' },
+    meta: { requestId: req.id },
+  });
+});
+
+// POST /auth/resend-verification - always the same answer, like forgot-password.
+export const resendVerification = asyncHandler(async (req, res) => {
+  const parsed = resendVerificationSchema.safeParse(req.body);
+  if (!parsed.success) throw new AppError('Enter a valid email address.', 400, undefined, 'VALIDATION_ERROR');
+
+  const result = await resendApplicantVerification(parsed.data.email);
+  await AuditLog.record({
+    actorUserId: result.userId ?? null,
+    action: 'emailVerificationRequested',
+    entityType: 'user',
+    entityId: result.userId ?? null,
+    outcome: result.found ? AUDIT_OUTCOME.SUCCESS : AUDIT_OUTCOME.FAILED,
+    ip: req.ip,
+    details: result.found ? {} : { reason: 'noPendingAccount' },
+  }).catch((err) => console.error('Could not write audit log:', err.message));
+
+  res.set('Cache-Control', 'no-store');
+  res.status(200).json({
+    success: true,
+    data: { message: 'If a pending account exists for that email, a new verification link has been sent.' },
     meta: { requestId: req.id },
   });
 });

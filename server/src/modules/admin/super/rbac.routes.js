@@ -8,11 +8,12 @@
 import express from 'express';
 import { authenticate } from '../../../middleware/authenticate.js';
 import { authorizeRole } from '../../../middleware/authorize.js';
+import { requirePasswordChange } from '../../../middleware/requirePasswordChange.js';
 import { ROLES } from '../../../utils/constants.js';
 import * as c from './rbac.controller.js';
 
 const router = express.Router();
-const superAdminOnly = [authenticate, authorizeRole(ROLES.SUPER_ADMIN)];
+const superAdminOnly = [authenticate, requirePasswordChange, authorizeRole(ROLES.SUPER_ADMIN)];
 
 router.get('/roles', superAdminOnly, c.listRoles); //                       GET    /api/v1/roles
 router.get('/roles/:roleKey', superAdminOnly, c.getRole); //                GET    /api/v1/roles/hod
