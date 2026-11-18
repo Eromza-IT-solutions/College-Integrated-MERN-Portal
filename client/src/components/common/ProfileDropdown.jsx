@@ -6,7 +6,9 @@ import { useAuth } from "../../hooks/useAuth";
 import { getInitials } from "../../utils/initials";
 import Badge from "../ui/Badge";
 
-export default function ProfileDropdown() {
+// `renderTrigger({ open, buttonProps })` (optional) lets a layout keep its own profile button design;
+// without it the default button below is used.
+export default function ProfileDropdown({ renderTrigger }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
   const { user, logout } = useAuth();
@@ -32,6 +34,15 @@ export default function ProfileDropdown() {
 
   return (
     <div ref={menuRef} className="relative">
+      {renderTrigger ? renderTrigger({
+        open,
+        buttonProps: {
+          type: "button",
+          "aria-label": "Open profile menu",
+          "aria-expanded": open,
+          onClick: () => setOpen((current) => !current),
+        },
+      }) : (
       <button
         type="button"
         aria-label="Open profile menu"
@@ -55,6 +66,7 @@ export default function ProfileDropdown() {
           className={`hidden text-eromza-subtle transition sm:block ${open ? "rotate-180" : ""}`}
         />
       </button>
+      )}
 
       {open ? (
         <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-card border border-eromza-border bg-white shadow-card">
