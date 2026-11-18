@@ -26,7 +26,9 @@ const NOTIFICATIONS = [
   },
 ];
 
-export default function NotificationBell() {
+// `renderTrigger({ open, unreadCount, buttonProps })` (optional) lets a layout keep its own bell
+// button design; without it the default button below is used.
+export default function NotificationBell({ renderTrigger }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const menuRef = useRef(null);
@@ -53,6 +55,16 @@ export default function NotificationBell() {
 
   return (
     <div ref={menuRef} className="relative">
+      {renderTrigger ? renderTrigger({
+        open,
+        unreadCount,
+        buttonProps: {
+          type: "button",
+          "aria-label": "Notifications",
+          "aria-expanded": open,
+          onClick: () => setOpen((current) => !current),
+        },
+      }) : (
       <button
         type="button"
         aria-label="Notifications"
@@ -67,6 +79,7 @@ export default function NotificationBell() {
           </span>
         ) : null}
       </button>
+      )}
 
       {open ? (
         <div className="absolute right-0 z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-card border border-eromza-border bg-white shadow-card">

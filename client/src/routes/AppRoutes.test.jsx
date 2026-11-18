@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../context/AuthContext";
@@ -33,14 +33,16 @@ function renderRoute(role, path) {
   );
 }
 
+// Some roles keep their original layouts, which don't all render a <main>
+// landmark (e.g. SuperAdminLayout), so search the whole rendered page.
 async function expectPageHeading(name) {
-  const main = await screen.findByRole("main");
-  expect(await within(main).findByRole("heading", { name })).toBeInTheDocument();
+  const headings = await screen.findAllByRole("heading", { name });
+  expect(headings[0]).toBeInTheDocument();
 }
 
 async function expectPageText(text) {
-  const main = await screen.findByRole("main");
-  expect(await within(main).findByText(text)).toBeInTheDocument();
+  const matches = await screen.findAllByText(text);
+  expect(matches[0]).toBeInTheDocument();
 }
 
 describe("admin role routes", () => {

@@ -1,6 +1,8 @@
 
 import { Bell, ChevronDown } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import ProfileDropdown from "../../../components/common/ProfileDropdown";
+import NotificationBell from "../../../components/common/NotificationBell";
 
 const PAGE_TITLES = {
   "/dashboard": "Super Admin Dashboard",
@@ -15,7 +17,7 @@ export default function SuperAdmin_Topbar() {
   const location = useLocation();
 
   const pageTitle =
-    PAGE_TITLES[location.pathname] || "Super Admin Dashboard";
+    PAGE_TITLES[location.pathname.replace("/super-admin", "")] || "Super Admin Dashboard";
 
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "long",
@@ -49,17 +51,25 @@ export default function SuperAdmin_Topbar() {
           </span>
         </div>
 
-        {/* Notifications */}
-        <button className="relative w-12 h-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-[#14264b]">
+        {/* Notifications (original bell design; click opens the notifications panel) */}
+        <NotificationBell
+          renderTrigger={({ unreadCount, buttonProps }) => (
+        <button {...buttonProps} className="relative w-12 h-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-[#14264b]">
           <Bell size={21} />
 
+          {unreadCount > 0 ? (
           <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-800 text-white text-xs flex items-center justify-center">
-            1
+            {unreadCount}
           </span>
+          ) : null}
         </button>
+          )}
+        />
 
-        {/* Admin Profile */}
-        <div className="flex items-center gap-3 px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm">
+        {/* Admin Profile (original pill design; click opens the profile menu with role + sign out) */}
+        <ProfileDropdown
+          renderTrigger={({ buttonProps }) => (
+        <button {...buttonProps} className="flex items-center gap-3 px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm">
           <div className="w-8 h-8 rounded-full bg-[#70243e] text-white flex items-center justify-center text-xs font-bold">
             SA
           </div>
@@ -69,7 +79,9 @@ export default function SuperAdmin_Topbar() {
           </span>
 
           <ChevronDown size={17} className="text-gray-500" />
-        </div>
+        </button>
+          )}
+        />
 
       </div>
     </header>

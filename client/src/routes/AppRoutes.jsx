@@ -7,7 +7,18 @@ import { navigationByRole } from "../config/navigation";
 import { NotFoundPage, UnauthorizedPage } from "../features/system/StatusPages";
 import { useAuth } from "../hooks/useAuth";
 import AppLayout from "../layouts/AppLayout";
+import SuperAdminLayout from "../features/admin/super/SuperAdminLayout";
+import WebsiteAdminLayout from "../features/admin/website/WebsiteAdminLayout";
+import AdmissionAdminLayout from "../features/admin/admission/AdmissionAdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
+
+// Roles that have their own original layout (sidebar + topbar).
+// Any role not listed here falls back to the shared AppLayout.
+const ROLE_LAYOUTS = {
+  superAdmin: SuperAdminLayout,
+  websiteAdmin: WebsiteAdminLayout,
+  admissionAdmin: AdmissionAdminLayout,
+};
 
 const HomePage = lazy(() => import("../features/public-website/HomePage"));
 const LoginRoute = lazy(() => import("./LoginRoute"));
@@ -270,6 +281,7 @@ export default function AppRoutes() {
           const navItems = navigationByRole[role] ?? [];
           const rolePages = ROLE_PAGES[role] ?? {};
           const dashboardPath = `${path}/dashboard`;
+          const Layout = ROLE_LAYOUTS[role] ?? AppLayout;
 
           return (
             <Route
@@ -277,7 +289,7 @@ export default function AppRoutes() {
               path={path}
               element={
                 <ProtectedRoute allowedRoles={[role]}>
-                  <AppLayout />
+                  <Layout />
                 </ProtectedRoute>
               }
             >
