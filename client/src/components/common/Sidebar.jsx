@@ -24,8 +24,8 @@ export default function Sidebar({
   const isActive = (path) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login", { replace: true });
   };
 

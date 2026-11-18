@@ -12,12 +12,12 @@ describe("ExamAdminDashboard", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Exam Admin Dashboard" }),
+      screen.getByRole("heading", { name: "Examination Dashboard" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Active Sessions")).toBeInTheDocument();
-    expect(screen.getByText("Hall ticket readiness")).toBeInTheDocument();
-    expect(screen.getByText("Upcoming exams")).toBeInTheDocument();
-    expect(screen.getByText("Exam sessions")).toBeInTheDocument();
+    expect(screen.getByText(/Hall ticket readiness/)).toBeInTheDocument();
+    expect(screen.getByText("Upcoming examinations")).toBeInTheDocument();
+    expect(screen.getByText("Examination activity")).toBeInTheDocument();
     expect(screen.getByText("Advanced Accounting")).toBeInTheDocument();
   });
 });

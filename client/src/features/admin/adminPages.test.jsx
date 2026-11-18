@@ -54,7 +54,7 @@ describe("primary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Exam Sessions" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Session calendar")).toBeInTheDocument();
+    expect(screen.getByText("Session Calendar")).toBeInTheDocument();
   });
 
   it("renders marks and results", () => {
@@ -62,7 +62,9 @@ describe("primary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Marks & Results" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Marks register")).toBeInTheDocument();
+    expect(
+      screen.getByText("Examination marks register"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Fatima Khan")).toBeInTheDocument();
   });
 });

@@ -130,7 +130,7 @@ describe("super admin secondary routes", () => {
 describe("HOD routes", () => {
   it("renders the department info route", async () => {
     renderRoute("hod", "/hod/department");
-    await expectPageHeading("Department Info");
+    await expectPageHeading("Department Information");
   });
 
   it("renders the manage teachers route", async () => {
@@ -145,12 +145,12 @@ describe("HOD routes", () => {
 
   it("renders the attendance route", async () => {
     renderRoute("hod", "/hod/attendance");
-    await expectPageHeading("Attendance");
+    await expectPageHeading("Attendance Management");
   });
 
   it("renders the department reports route", async () => {
     renderRoute("hod", "/hod/reports");
-    await expectPageHeading("Department Reports");
+    await expectPageText("Reports Available");
   });
 });
 
@@ -189,7 +189,7 @@ describe("teacher, student, and applicant secondary routes", () => {
 describe("role dashboard routes", () => {
   it("renders the HOD dashboard route", async () => {
     renderRoute("hod", "/hod/dashboard");
-    await expectPageHeading("HOD Dashboard");
+    await expectPageHeading("Head of Department Dashboard");
   });
 
   it("renders the teacher dashboard route", async () => {

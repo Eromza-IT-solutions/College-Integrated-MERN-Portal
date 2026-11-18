@@ -4,7 +4,7 @@ import { getRoleHome } from "../config/roles";
 import { useAuth } from "../hooks/useAuth";
 
 export default function LoginRoute() {
-  const { user, login } = useAuth();
+  const { user, login, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname;
@@ -13,6 +13,8 @@ export default function LoginRoute() {
     const nextUser = await login(credentials);
     navigate(from ?? getRoleHome(nextUser.role), { replace: true });
   };
+
+  if (loading) return null;
 
   if (user) {
     return <Navigate to={getRoleHome(user.role)} replace />;
