@@ -226,6 +226,14 @@
    "departmentCode": "SCI"
   },
   {
+   "code": "MDPSMBC",
+   "name": "M.Sc. Biochemistry",
+   "faculty": "Science and Technology",
+   "level": "Post Graduate",
+   "departmentCode": "SCI",
+   "note": "Present on the fee sheet (FeesStruc_AZAMCAMPUS page 4) but absent from the original Program_Offered_Under_Autonomy_NEP list. Syllabus confirmed from F.Y.M.Sc. Biochemistry_Syllabus_2026 Pattern and S.Y.M.Sc. Biochemistry_Syllabus_2023 Pattern PDFs. Added 2026-11."
+  },
+  {
    "code": "DDPSMB",
    "name": "Doctoral Program in Microbiology",
    "faculty": "Science and Technology",

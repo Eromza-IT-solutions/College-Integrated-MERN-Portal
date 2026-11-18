@@ -15,11 +15,11 @@ import AcademicYear from '../src/models/AcademicYear.js';
 import { requiredDocuments } from '../src/utils/documentRules.js';
 
 // Checks the college data and the admission workflow against the real DEV database.
-//  Part 1 (needs the seeds): the 59 programs and the college fee sheets are loaded, and fee lookups give the printed totals.
+//  Part 1 (needs the seeds): the 60 programs, fee sheets and subject catalog are loaded, and fee lookups give the printed totals.
 //  Part 2: a temporary applicant goes through the whole admission process
 //          submitted -> subjects -> documents -> form approved -> fee paid -> hard copy -> student.
 //          It uses temporary records named CHECK-... and removes them again. It uses up one receipt and one enrollment number.
-// Run:  npm run seed   then   npm run seed:programs   then   npm run seed:fees   then   node scripts/check-college-data.js
+// Run:  npm run seed   then   npm run seed:programs   then   npm run seed:fees   then   npm run seed:subjects   then   node scripts/check-college-data.js
 // Needs LOGIN_ID_HASH_SECRET in .env.
 async function main() {
   if (env.nodeEnv === 'production') throw new Error('Refusing to run against production');
@@ -35,7 +35,7 @@ async function main() {
 
     // ---- Part 1: seeded college data ----
     const byLevel = async (level) => Program.countDocuments({ level });
-    ok((await Program.countDocuments({ code: { $not: /^CHK-/ } })) >= 59, 'at least the 59 college programs are loaded (npm run seed:programs)');
+    ok((await Program.countDocuments({ code: { $not: /^CHK-/ } })) >= 60, 'at least the 60 college programs are loaded (npm run seed:programs)');
     ok((await byLevel('Undergraduate')) >= 22 && (await byLevel('Post Graduate')) >= 13 && (await byLevel('Ph.D.')) >= 7, 'the programs are spread over the levels as the college list says');
     const ba = await Program.findOne({ code: 'BDPAEN' });
     const phd = await Program.findOne({ code: 'DDPSCH' });
@@ -51,6 +51,12 @@ async function main() {
     const indexes = await FeeStructure.collection.indexes();
     ok(indexes.some((i) => i.unique && i.key.yearOfStudy === 1 && i.key.divisionType === 1), 'the fee index covers year of study and division');
     ok(!indexes.some((i) => i.unique && i.key.feesCategory === 1 && !('yearOfStudy' in i.key)), 'the old fee index (without year of study) is gone');
+    const subjectCount = await Subject.countDocuments({ code: { $not: /^SMP-/ } });
+    ok(subjectCount >= 1600, 'the real subject catalog is loaded (npm run seed:subjects)');
+    ok((await Subject.countDocuments({ code: /^SMP-/ })) === 0, 'the old sample SMP-* subjects are removed');
+    const bcom = await Program.findOne({ code: 'BDPCCA' });
+    const fin = bcom && (await Subject.findOne({ programId: bcom._id, semester: 1, code: '23CBCO11MM' }));
+    ok(fin && fin.name === 'Financial Accounting I' && fin.category === 'major', 'a known B.Com subject has its parsed name and category');
     let dupFee = false;
     try { await FeeStructure.create({ purpose: 'admission', academicYearId: year._id, programId: ba._id, yearOfStudy: 1, divisionType: 'P.N.G.', feesCategory: 'PAYING', amountPaise: 1 }); } catch (e) { dupFee = e.code === 11000; }
     ok(dupFee, 'the same class fee cannot be added twice');
