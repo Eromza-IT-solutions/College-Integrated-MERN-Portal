@@ -17,12 +17,12 @@ describe("HOD pages", () => {
   it("renders department information", () => {
     renderPage(<DepartmentInfo />);
     expect(
-      screen.getByRole("heading", { name: "Department Info" }),
+      screen.getByRole("heading", { name: "Department Information" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Department of Computer Science"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Programmes offered")).toBeInTheDocument();
+    expect(screen.getByText("Programmes Offered")).toBeInTheDocument();
   });
 
   it("renders teacher management", () => {
@@ -50,18 +50,18 @@ describe("HOD pages", () => {
   it("renders department attendance", () => {
     renderPage(<Attendance />);
     expect(
-      screen.getByRole("heading", { name: "Attendance" }),
+      screen.getByRole("heading", { name: "Attendance Management" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Class attendance")).toBeInTheDocument();
-    expect(screen.getByText("B.Sc. CS · Semester V")).toBeInTheDocument();
+    expect(screen.getByText("Class-wise Attendance")).toBeInTheDocument();
+    expect(screen.getByText("Dr. Imran Shaikh")).toBeInTheDocument();
   });
 
   it("renders department reports", () => {
     renderPage(<DepartmentReports />);
     expect(
-      screen.getByRole("heading", { name: "Department Reports" }),
+      screen.getByRole("heading", { name: "Department Reports", level: 1 }),
     ).toBeInTheDocument();
     expect(screen.getByText("Monthly attendance summary")).toBeInTheDocument();
-    expect(screen.getByText("Reports available")).toBeInTheDocument();
+    expect(screen.getByText("Reports Available")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,9 @@
 import SuperAdmin_Sidebar from "./SuperAdmin_Sidebar";
+import SuperAdmin_Topbar from "./SuperAdmin_Topbar";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
+
+const BASE_PATH = "/super-admin";
 
 const ACTIVE_ITEM_BY_PATH = {
   "/dashboard": "dashboard",
@@ -13,18 +17,28 @@ const ACTIVE_ITEM_BY_PATH = {
 export default function SuperAdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const activeItem = ACTIVE_ITEM_BY_PATH[location.pathname] ?? "dashboard";
+  const { logout } = useAuth();
+  const relativePath = location.pathname.replace(BASE_PATH, "");
+  const activeItem = ACTIVE_ITEM_BY_PATH[relativePath] ?? "dashboard";
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div className="min-h-screen">
-      <SuperAdmin_Sidebar
-        activeItem={activeItem}
-        onNavigate={(item) => navigate(item.path)}
-      />
+    <SuperAdmin_Sidebar
+  activeItem={activeItem}
+  onNavigate={(item) => navigate(`${BASE_PATH}${item.path}`)}
+  onLogout={handleLogout}
+/>
 
-      <div className="lg:pl-64">
-        <Outlet />
-      </div>
+<SuperAdmin_Topbar />
+
+<div className="lg:pl-64 pt-24">
+  <Outlet />
+</div>
     </div>
   );
 }

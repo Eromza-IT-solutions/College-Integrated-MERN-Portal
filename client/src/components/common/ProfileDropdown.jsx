@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, LogOut, RefreshCw, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getRoleHome, getRoleLabel, ROLES, ROLE_KEYS } from "../../config/roles";
+import { getRoleLabel } from "../../config/roles";
 import { useAuth } from "../../hooks/useAuth";
 import { getInitials } from "../../utils/initials";
 import Badge from "../ui/Badge";
 
-export default function ProfileDropdown() {
+// `renderTrigger({ open, buttonProps })` (optional) lets a layout keep its own profile button design;
+// without it the default button below is used.
+export default function ProfileDropdown({ renderTrigger }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,19 +27,22 @@ export default function ProfileDropdown() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login", { replace: true });
-  };
-
-  const handleRoleSwitch = (role) => {
-    switchRole(role);
-    setOpen(false);
-    navigate(getRoleHome(role));
   };
 
   return (
     <div ref={menuRef} className="relative">
+      {renderTrigger ? renderTrigger({
+        open,
+        buttonProps: {
+          type: "button",
+          "aria-label": "Open profile menu",
+          "aria-expanded": open,
+          onClick: () => setOpen((current) => !current),
+        },
+      }) : (
       <button
         type="button"
         aria-label="Open profile menu"
@@ -61,6 +66,7 @@ export default function ProfileDropdown() {
           className={`hidden text-eromza-subtle transition sm:block ${open ? "rotate-180" : ""}`}
         />
       </button>
+      )}
 
       {open ? (
         <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-card border border-eromza-border bg-white shadow-card">
@@ -90,31 +96,6 @@ export default function ProfileDropdown() {
               </p>
             ) : null}
           </div>
-
-          {import.meta.env.DEV ? (
-            <div className="border-b border-eromza-border px-3 py-2">
-              <p className="flex items-center gap-2 px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                <RefreshCw size={12} />
-                Demo role switcher
-              </p>
-              <div className="grid max-h-48 grid-cols-2 gap-1 overflow-y-auto">
-                {ROLE_KEYS.map((role) => (
-                  <button
-                    key={role}
-                    type="button"
-                    onClick={() => handleRoleSwitch(role)}
-                    className={`rounded-md px-2 py-1.5 text-left text-[11px] transition hover:bg-eromza-bg ${
-                      user?.role === role
-                        ? "bg-rose-50 font-semibold text-eromza-accent"
-                        : "text-eromza-muted"
-                    }`}
-                  >
-                    {ROLES[role].shortLabel}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           <button
             type="button"

@@ -16,9 +16,9 @@ describe("role dashboards", () => {
   it("renders the HOD dashboard", () => {
     renderDashboard(<HODDashboard />);
     expect(
-      screen.getByRole("heading", { name: "HOD Dashboard" }),
+      screen.getByRole("heading", { name: "Head of Department Dashboard" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Department health")).toBeInTheDocument();
+    expect(screen.getByText("Student Attendance Trend")).toBeInTheDocument();
     expect(screen.getByText("Prof. Ayesha Khan")).toBeInTheDocument();
   });
 

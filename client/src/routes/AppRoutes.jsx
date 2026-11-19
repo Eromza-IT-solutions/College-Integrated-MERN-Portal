@@ -7,18 +7,43 @@ import { navigationByRole } from "../config/navigation";
 import { NotFoundPage, UnauthorizedPage } from "../features/system/StatusPages";
 import { useAuth } from "../hooks/useAuth";
 import AppLayout from "../layouts/AppLayout";
+import SuperAdminLayout from "../features/admin/super/SuperAdminLayout";
+import WebsiteAdminLayout from "../features/admin/website/WebsiteAdminLayout";
+import AdmissionAdminLayout from "../features/admin/admission/AdmissionAdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
+
+// Roles that have their own original layout (sidebar + topbar).
+// Any role not listed here falls back to the shared AppLayout.
+const ROLE_LAYOUTS = {
+  superAdmin: SuperAdminLayout,
+  websiteAdmin: WebsiteAdminLayout,
+  admissionAdmin: AdmissionAdminLayout,
+};
 
 const HomePage = lazy(() => import("../features/public-website/HomePage"));
 const LoginRoute = lazy(() => import("./LoginRoute"));
-const SuperAdminDashboard = lazy(
-  () => import("../features/admin/super/SuperAdminDashboard"),
+const ForgotPassword = lazy(() => import("../features/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("../features/auth/ResetPassword"));
+const StudentRegistration = lazy(
+  () => import("../features/admissions/StudentRegistration"),
 );
-const Users = lazy(() => import("../features/admin/super/Users"));
-const AdminPanels = lazy(() => import("../features/admin/super/AdminPanels"));
-const Reports = lazy(() => import("../features/admin/super/Reports"));
+const StudentRegisterFlow = lazy(
+  () => import("../features/admissions/StudentRegisterFlow"),
+);
+const TeacherLogin = lazy(() => import("../features/auth/TeacherLogin"));
+const TeacherRegistration = lazy(
+  () => import("../features/auth/TeacherRegistration"),
+);
+const SuperAdminDashboard = lazy(
+  () => import("../features/admin/super/SuperAdmin_dashboard"),
+);
+const Users = lazy(() => import("../features/admin/super/ManageUsers"));
+const AdminPanels = lazy(
+  () => import("../features/admin/super/ManageAdminPanels"),
+);
+const Reports = lazy(() => import("../features/admin/super/ReportsAnalytics"));
 const AuditLogs = lazy(() => import("../features/admin/super/AuditLogs"));
-const Settings = lazy(() => import("../features/admin/super/Settings"));
+const Settings = lazy(() => import("../features/admin/super/SystemSettings"));
 const WebsiteAdminDashboard = lazy(
   () => import("../features/admin/website/WebsiteAdminDashboard"),
 );
@@ -44,7 +69,7 @@ const NoticesAndAnnouncements = lazy(
   () => import("../features/admin/website/NoticesAndAnnouncements"),
 );
 const Applications = lazy(
-  () => import("../features/admin/admission/Applications"),
+  () => import("../features/admin/admission/ManageApplications"),
 );
 const VerifyDocuments = lazy(
   () => import("../features/admin/admission/VerifyDocuments"),
@@ -53,7 +78,7 @@ const AdmissionStatus = lazy(
   () => import("../features/admin/admission/AdmissionStatus"),
 );
 const FeesAndPayments = lazy(
-  () => import("../features/admin/admission/FeesAndPayments"),
+  () => import("../features/admin/admission/FeesPayments"),
 );
 const ExamSessions = lazy(
   () => import("../features/admin/examination/ExamSessions"),
@@ -229,7 +254,8 @@ const ROLE_ROUTES = [
 ];
 
 function RoleRedirect() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={getRoleHome(user.role)} replace />;
 }
@@ -246,6 +272,11 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginRoute />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/student-register" element={<StudentRegisterFlow />} />
+        <Route path="/teacher-login" element={<TeacherLogin />} />
+        <Route path="/teacher-register" element={<TeacherRegistration />} />
         <Route path="/app" element={<RoleRedirect />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
@@ -253,6 +284,7 @@ export default function AppRoutes() {
           const navItems = navigationByRole[role] ?? [];
           const rolePages = ROLE_PAGES[role] ?? {};
           const dashboardPath = `${path}/dashboard`;
+          const Layout = ROLE_LAYOUTS[role] ?? AppLayout;
 
           return (
             <Route
@@ -260,7 +292,7 @@ export default function AppRoutes() {
               path={path}
               element={
                 <ProtectedRoute allowedRoles={[role]}>
-                  <AppLayout />
+                  <Layout />
                 </ProtectedRoute>
               }
             >

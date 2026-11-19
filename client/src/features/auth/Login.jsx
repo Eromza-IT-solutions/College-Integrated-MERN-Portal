@@ -184,7 +184,7 @@ export default function LoginPage({ onLogin }) {
                 <label htmlFor="password" className="text-xs font-semibold tracking-wide text-[#14234b] uppercase">
                   Password
                 </label>
-                <a href="#" className="text-xs font-semibold text-[#8f0014] hover:underline">
+                <a href="/forgot-password" className="text-xs font-semibold text-[#8f0014] hover:underline">
                   Forgot Password?
                 </a>
               </div>

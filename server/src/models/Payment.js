@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import AppError from '../utils/AppError.js';
 import {
   PAYMENT_PURPOSE, PAYMENT_PURPOSE_VALUES, PAYMENT_STATUS, PAYMENT_STATUS_VALUES, PAYMENT_GATEWAY_VALUES, PAYMENT_GATEWAY,
+  PAYMENT_METHODS, PAYMENT_CONFIRMED_VIA_VALUES, RAZORPAY,
 } from '../utils/constants.js';
 
 const { Schema } = mongoose;
@@ -28,9 +29,18 @@ const paymentSchema = new Schema(
 
     status: { type: String, enum: PAYMENT_STATUS_VALUES, default: PAYMENT_STATUS.CREATED, index: true },
     isTestMode: { type: Boolean, default: true }, // the demo only uses test payments
-    gateway: { type: String, enum: PAYMENT_GATEWAY_VALUES, default: PAYMENT_GATEWAY.FAKE },
-    gatewayOrderId: { type: String, trim: true },
-    gatewayPaymentId: { type: String, trim: true },
+    currency: { type: String, enum: [RAZORPAY.currency], default: RAZORPAY.currency },
+    gateway: { type: String, enum: PAYMENT_GATEWAY_VALUES, default: PAYMENT_GATEWAY.RAZORPAY },
+    gatewayOrderId: { type: String, trim: true }, // Razorpay order id (order_xxx), created before the student pays
+    gatewayPaymentId: { type: String, trim: true }, // Razorpay payment id (pay_xxx), known once the student pays
+    orderCreatedAt: Date,
+    gatewayMethod: { type: String, enum: PAYMENT_METHODS }, // card, upi, netbanking ... as reported by Razorpay
+    confirmedVia: { type: String, enum: PAYMENT_CONFIRMED_VIA_VALUES }, // who told us it was paid: the browser (checkout) or Razorpay (webhook)
+    signatureVerifiedAt: Date, // set when the checkout signature was checked and was valid
+    // A student can try several times on one order. A failed attempt does not end the payment; it is counted here.
+    failedAttempts: { type: Number, default: 0, min: 0 },
+    gatewayErrorCode: { type: String, trim: true },
+    gatewayEventIds: { type: [String], default: [] }, // webhook event ids already handled (Razorpay may deliver the same one twice)
     paidAt: Date,
     failureReason: { type: String, trim: true },
     receiptNumber: { type: String, trim: true },
@@ -38,6 +48,10 @@ const paymentSchema = new Schema(
   { timestamps: true }
 );
 
+// A form can have only one OPEN payment at a time (a double click or two tabs cannot create two).
+// Once a payment is paid or failed, a new one may be made.
+paymentSchema.index({ applicationId: 1, status: 1 }, { unique: true, name: 'one_open_payment_per_application', partialFilterExpression: { status: PAYMENT_STATUS.CREATED, applicationId: { $type: 'objectId' } } });
+paymentSchema.index({ examFormId: 1, status: 1 }, { unique: true, name: 'one_open_payment_per_exam_form', partialFilterExpression: { status: PAYMENT_STATUS.CREATED, examFormId: { $type: 'objectId' } } });
 paymentSchema.index({ receiptNumber: 1 }, { unique: true, partialFilterExpression: { receiptNumber: { $type: 'string' } } });
 paymentSchema.index({ gateway: 1, gatewayOrderId: 1 }, { unique: true, partialFilterExpression: { gatewayOrderId: { $type: 'string' } } });
 paymentSchema.index({ gateway: 1, gatewayPaymentId: 1 }, { unique: true, partialFilterExpression: { gatewayPaymentId: { $type: 'string' } } });
@@ -53,9 +67,9 @@ paymentSchema.pre('validate', function checks() {
 
 /**
  * The gateway confirmed the money. Safe to call twice (gateways retry): the second call changes nothing.
- * Gives the payment a receipt number the first time.
+ * Gives the payment a receipt number the first time. "fields" are extra values saved together with the paid status.
  */
-paymentSchema.statics.markPaid = async function markPaid(id, { gatewayPaymentId, session } = {}) {
+paymentSchema.statics.markPaid = async function markPaid(id, { gatewayPaymentId, fields, session } = {}) {
   const current = await this.findById(id).session(session || null);
   if (!current) throw new AppError('Payment not found', 404);
   if (current.status === PAYMENT_STATUS.FAILED) throw new AppError('A failed payment cannot be marked paid', 409);
@@ -64,7 +78,7 @@ paymentSchema.statics.markPaid = async function markPaid(id, { gatewayPaymentId,
     // Only one caller can win this change from "created" to "paid".
     await this.findOneAndUpdate(
       { _id: id, status: PAYMENT_STATUS.CREATED },
-      { $set: { status: PAYMENT_STATUS.PAID, paidAt: new Date(), ...(gatewayPaymentId ? { gatewayPaymentId } : {}) } },
+      { $set: { ...(fields || {}), status: PAYMENT_STATUS.PAID, paidAt: new Date(), ...(gatewayPaymentId ? { gatewayPaymentId } : {}) } },
       { new: true, session }
     );
   }
@@ -103,6 +117,29 @@ paymentSchema.statics.markFailed = async function markFailed(id, reason = 'Payme
   const current = await this.findById(id).session(session || null);
   if (!current) throw new AppError('Payment not found', 404);
   throw new AppError(`A ${current.status} payment cannot be marked failed`, 409);
+};
+
+/** Razorpay's payment methods we know; anything else is stored as "other". */
+const methodOf = (m) => (PAYMENT_METHODS.includes(m) ? m : 'other');
+
+/**
+ * Record one failed attempt on an open payment. The payment stays "created" because the payer can try again on the
+ * same order. A paid or failed payment is left unchanged.
+ */
+paymentSchema.statics.recordFailedAttempt = async function recordFailedAttempt(id, { reason, errorCode, method, session } = {}) {
+  const updated = await this.findOneAndUpdate(
+    { _id: id, status: PAYMENT_STATUS.CREATED },
+    {
+      $set: {
+        failureReason: reason || 'Payment attempt failed',
+        ...(errorCode ? { gatewayErrorCode: errorCode } : {}),
+        ...(method ? { gatewayMethod: methodOf(method) } : {}),
+      },
+      $inc: { failedAttempts: 1 },
+    },
+    { new: true, session }
+  );
+  return updated || this.findById(id).session(session || null);
 };
 
 export default mongoose.model('Payment', paymentSchema);

@@ -1,393 +1,100 @@
-import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowUpRight,
-  Award,
-  BookOpen,
-  CalendarDays,
-  ClipboardCheck,
-  Download,
-  Ticket,
-  Users,
+  Sparkles, CalendarDays, ArrowRight, ArrowUpRight, Users, FileText,
+  Ticket, Award, Clock3, ClipboardCheck, BookOpen, AlertCircle
 } from "lucide-react";
-import ActivityFeed from "../../../components/common/ActivityFeed";
-import BarList from "../../../components/charts/BarList";
-import ProgressRing from "../../../components/charts/ProgressRing";
-import TrendChart from "../../../components/charts/TrendChart";
-import Badge from "../../../components/ui/Badge";
-import Button from "../../../components/ui/Button";
-import Card, { CardBody, CardHeader } from "../../../components/ui/Card";
-import EmptyState from "../../../components/ui/EmptyState";
-import ErrorState from "../../../components/ui/ErrorState";
-import Loader from "../../../components/ui/Loader";
-import PageHeader from "../../../components/ui/PageHeader";
-import StatCard from "../../../components/ui/StatCard";
-import DataTable from "../../../components/ui/Table";
-import { downloadCsv } from "../../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../../utils/status";
-import DemoModeBanner from "./components/DemoModeBanner";
-import useExamAdminDashboard from "./hooks/useExamAdminDashboard";
-import { DATA_SOURCE } from "./services/dataSource";
-import { buildDashboardViewModel, formatCount } from "./utils/dashboardMetrics";
+const logo = "/aisc-logo.png";
+import {
+  examAdminKpis, examSubmissionSeries, examResultsProgress,
+  examUpcomingExams, examActivities
+} from "../../../mocks/examAdminData";
+import "../../../assets/styles/aisc-premium.css";
 
-const MIDDLE_DOT = "\u00b7";
-const EN_DASH = "\u2013";
-
-const KPI_ICONS = {
-  sessions: CalendarDays,
-  students: Users,
-  tickets: Ticket,
-  results: Award,
-};
-
-const ACTIVITY_ICONS = {
-  ticket: Ticket,
-  calendar: CalendarDays,
-  marks: ClipboardCheck,
-  results: Award,
-  subject: BookOpen,
-};
-
-const examColumns = [
-  {
-    key: "exam",
-    header: "Exam",
-    render: (exam) => (
-      <div className="min-w-0">
-        <p className="truncate text-xs font-semibold text-eromza-text">
-          {exam.exam}
-        </p>
-        <p className="mt-1 text-[11px] text-eromza-subtle">{exam.id}</p>
-      </div>
-    ),
-  },
-  {
-    key: "subject",
-    header: "Subject",
-    render: (exam) => (
-      <span className="text-xs text-eromza-muted">{exam.subject}</span>
-    ),
-  },
-  {
-    key: "date",
-    header: "Date",
-    render: (exam) => (
-      <span className="text-xs text-eromza-muted">
-        {exam.date} {MIDDLE_DOT} {exam.time}
-      </span>
-    ),
-  },
-  {
-    key: "room",
-    header: "Room",
-    render: (exam) => <Badge variant="neutral">{exam.room}</Badge>,
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (exam) => (
-      <Badge variant={getStatusVariant(exam.status)}>
-        {formatStatus(exam.status)}
-      </Badge>
-    ),
-  },
-  {
-    key: "actions",
-    header: "Action",
-    className: "text-right",
-    cellClassName: "text-right",
-    render: () => (
-      <Button
-        as={Link}
-        to="/exam-admin/timetables"
-        variant="ghost"
-        size="sm"
-        className="text-eromza-accent hover:bg-rose-50"
-      >
-        Open
-      </Button>
-    ),
-  },
+const icons = { sessions: CalendarDays, students: Users, tickets: Ticket, results: Award };
+const activityIcons = { ticket: Ticket, calendar: CalendarDays, marks: ClipboardCheck, results: Award, subject: BookOpen };
+const colors = [
+  ["#315FCE","#EEF3FF","76%"],["#A8212F","#F9ECEE","68%"],
+  ["#2C9271","#EAF7F1","88%"],["#B58A16","#FFF7DF","46%"]
 ];
-
-const sessionColumns = [
-  {
-    key: "name",
-    header: "Session",
-    render: (session) => (
-      <div className="min-w-0">
-        <p className="truncate text-xs font-semibold text-eromza-text">
-          {session.name}
-        </p>
-        <p className="mt-1 text-[11px] text-eromza-subtle">{session.term}</p>
-      </div>
-    ),
-  },
-  {
-    key: "dates",
-    header: "Dates",
-    render: (session) => (
-      <span className="text-xs text-eromza-muted">
-        {session.startDate} {EN_DASH} {session.endDate}
-      </span>
-    ),
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (session) => (
-      <Badge variant={getStatusVariant(session.status)}>
-        {formatStatus(session.status)}
-      </Badge>
-    ),
-  },
-  {
-    key: "actions",
-    header: "Action",
-    className: "text-right",
-    cellClassName: "text-right",
-    render: () => (
-      <Button
-        as={Link}
-        to="/exam-admin/sessions"
-        variant="ghost"
-        size="sm"
-        className="text-eromza-accent hover:bg-rose-50"
-      >
-        Manage
-      </Button>
-    ),
-  },
-];
-
-function ViewAllLink({ to, children }) {
-  return (
-    <Button as={Link} to={to} variant="ghost" size="sm">
-      {children}
-      <ArrowUpRight size={14} />
-    </Button>
-  );
-}
-
-function DashboardContent({ data, view, isDemo }) {
-  const { readiness } = view;
-
-  return (
-    <>
-      <DemoModeBanner source={isDemo ? DATA_SOURCE.DEMO : DATA_SOURCE.API} />
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {view.kpis.map((kpi) => (
-          <StatCard
-            key={kpi.id}
-            label={kpi.label}
-            value={kpi.value}
-            tone={kpi.tone}
-            icon={KPI_ICONS[kpi.icon]}
-          />
-        ))}
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
-        <Card>
-          <CardHeader
-            title="Marks submitted"
-            description="Monthly marks entry across the last six months"
-            action={
-              view.marksChange ? (
-                <Badge variant="neutral">
-                  {view.marksChange} vs previous month
-                </Badge>
-              ) : null
-            }
-          />
-          <CardBody>
-            {data.submissionSeries?.values?.length ? (
-              <TrendChart
-                labels={data.submissionSeries.labels}
-                values={data.submissionSeries.values}
-                color="#19845b"
-                ariaLabel="Marks submitted per month"
-              />
-            ) : (
-              <EmptyState
-                title="No marks submitted yet"
-                description="Monthly totals will appear here once marks are entered."
-              />
-            )}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Hall ticket readiness"
-            description="Registered students who have a hall ticket issued"
-          />
-          <CardBody className="space-y-6">
-            {readiness.percent === null ? (
-              <EmptyState
-                title="Figures unavailable"
-                description="Registered student numbers are needed to work out hall ticket coverage."
-              />
-            ) : (
-              <>
-                <ProgressRing
-                  value={readiness.percent}
-                  label="Issued"
-                  caption={`${formatCount(readiness.issued)} of ${formatCount(readiness.registered)} registered students have a hall ticket issued.`}
-                />
-                <div className="rounded-lg bg-eromza-bg p-3 text-xs leading-5 text-eromza-muted">
-                  {readiness.notYetIssued > 0
-                    ? `${formatCount(readiness.notYetIssued)} registered students do not have a hall ticket issued yet.`
-                    : "Every registered student has a hall ticket issued."}
-                </div>
-              </>
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
-        <Card>
-          <CardHeader
-            title="Upcoming exams"
-            description="Next scheduled papers across active sessions"
-            action={
-              <ViewAllLink to="/exam-admin/timetables">
-                View timetable
-              </ViewAllLink>
-            }
-          />
-          <DataTable
-            columns={examColumns}
-            rows={data.upcomingExams}
-            emptyTitle="No upcoming exams"
-            emptyDescription="Scheduled papers will appear here once a timetable is created."
-          />
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Results progress"
-            description="Marks and result processing status"
-            action={<ViewAllLink to="/exam-admin/marks">Open marks</ViewAllLink>}
-          />
-          <CardBody>
-            {data.resultsProgress?.length ? (
-              <BarList
-                items={data.resultsProgress}
-                valueFormatter={(value) => `${formatCount(value)} records`}
-              />
-            ) : (
-              <EmptyState
-                title="No results data"
-                description="Result processing figures will appear here."
-              />
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader
-          title="Exam sessions"
-          description="Current and upcoming examination cycles"
-          action={<ViewAllLink to="/exam-admin/sessions">View all</ViewAllLink>}
-        />
-        <DataTable
-          columns={sessionColumns}
-          rows={data.sessions}
-          emptyTitle="No exam sessions"
-          emptyDescription="Create a session to start planning an examination cycle."
-        />
-      </Card>
-
-      <Card>
-        <CardHeader
-          title="Recent activity"
-          description="Latest examination administration actions"
-          action={isDemo ? <Badge variant="warning">Demo data</Badge> : null}
-        />
-        <CardBody>
-          {data.activities?.length ? (
-            <ActivityFeed items={data.activities} icons={ACTIVITY_ICONS} />
-          ) : (
-            <EmptyState
-              title="No recent activity"
-              description="Examination actions will be listed here."
-            />
-          )}
-        </CardBody>
-      </Card>
-    </>
-  );
-}
 
 export default function ExamAdminDashboard() {
-  const { status, source, data, error, reload } = useExamAdminDashboard();
-  const view = useMemo(() => (data ? buildDashboardViewModel(data) : null), [data]);
-  const isDemo = source === DATA_SOURCE.DEMO;
-
-  const handleExport = () => {
-    if (!view) return;
-
-    const { readiness } = view;
-    downloadCsv("eromza-examination-report.csv", [
-      ["Metric", "Value"],
-      [
-        "Data source",
-        isDemo ? "Demo data (sample values, not real college records)" : "Server",
-      ],
-      ["Exported on", new Date().toISOString().slice(0, 10)],
-      ...view.kpis.map((kpi) => [kpi.label, kpi.value]),
-      [
-        "Hall ticket coverage",
-        readiness.percent === null ? "Not available" : `${readiness.percent}%`,
-      ],
-      ["Latest monthly marks submitted", view.latestMarks ?? "Not available"],
-      ...(data.resultsProgress ?? []).map((item) => [item.label, item.value]),
-    ]);
-  };
-
+  const max = Math.max(...examSubmissionSeries.values);
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Examination administration"
-        title="Exam Admin Dashboard"
-        description="Plan exam sessions, publish timetables, issue hall tickets, and keep results moving."
-        actions={
-          <>
-            {status === "success" ? (
-              <Button variant="secondary" onClick={handleExport}>
-                <Download size={16} />
-                Export report
-              </Button>
-            ) : null}
-            <Button as={Link} to="/exam-admin/sessions">
-              <CalendarDays size={16} />
-              Manage sessions
-            </Button>
-          </>
-        }
-      />
+    <div className="aisc-premium">
+      <div className="aisc-page-head">
+        <div>
+          <div className="aisc-eyebrow"><Sparkles size={13}/> Examination Cell · Academic year 2026–27</div>
+          <h1 className="aisc-page-title">Examination Dashboard</h1>
+          <p className="aisc-page-subtitle">A complete view of examination operations, student readiness and academic progress.</p>
+        </div>
+        <div className="aisc-date-chip"><CalendarDays size={14}/> Odd Semester · 2026–27</div>
+      </div>
 
-      {status === "loading" ? (
-        <Loader label="Loading examination dashboard..." />
-      ) : null}
+      <section className="aisc-hero">
+        <div className="aisc-hero-copy">
+          <div className="aisc-hero-kicker"><Sparkles size={12}/> ABEDA INAMDAR SENIOR COLLEGE</div>
+          <h2 className="aisc-hero-title">Excellence in every examination.</h2>
+          <p className="aisc-hero-text">Plan examination sessions, coordinate timetables, prepare hall tickets and track results through one elegant academic workspace.</p>
+          <div className="aisc-hero-actions">
+            <Link className="aisc-btn aisc-btn-primary" to="/exam-admin/sessions">Explore sessions <ArrowRight size={14}/></Link>
+            <Link className="aisc-btn aisc-btn-glass" to="/exam-admin/timetables">View timetable <CalendarDays size={14}/></Link>
+          </div>
+        </div>
+        <div className="aisc-hero-seal"><img src={logo} alt="AISC college emblem"/></div>
+      </section>
 
-      {status === "error" ? (
-        <Card>
-          <ErrorState
-            title={error.title}
-            description={error.description}
-            onRetry={error.canRetry ? reload : undefined}
-          />
-        </Card>
-      ) : null}
+      <section className="aisc-grid aisc-kpis">
+        {examAdminKpis.map((item,i) => {
+          const Icon = icons[item.icon] || FileText;
+          const [color,soft,progress] = colors[i % colors.length];
+          return <article className="aisc-kpi" key={item.id} style={{"--kpi-color":color,"--kpi-soft":soft,"--progress":progress}}>
+            <div className="aisc-kpi-top"><div className="aisc-kpi-icon"><Icon size={19}/></div><span className="aisc-kpi-change">{item.change}</span></div>
+            <div className="aisc-kpi-label">{item.label}</div><div className="aisc-kpi-value">{item.value}</div>
+            <div className="aisc-kpi-note">Current examination cycle</div><div className="aisc-kpi-track"><span/></div>
+          </article>;
+        })}
+      </section>
 
-      {status === "success" ? (
-        <DashboardContent data={data} view={view} isDemo={isDemo} />
-      ) : null}
+      <section className="aisc-grid aisc-two-col">
+        <article className="aisc-panel">
+          <div className="aisc-panel-head"><div><h3 className="aisc-panel-title">Examination activity</h3><p className="aisc-panel-sub">Monthly marks submission trend</p></div><span className="aisc-panel-link">Last 6 months <ArrowUpRight size={13}/></span></div>
+          <div className="aisc-chart">
+            {examSubmissionSeries.values.map((value,i)=><div className="aisc-chart-col" key={examSubmissionSeries.labels[i]}>
+              <div className="aisc-chart-bar-wrap"><div className="aisc-chart-bar" style={{"--bar-height":`${Math.max(8,value/max*100)}%`,animationDelay:`${i*80}ms`}}/></div>
+              <span className="aisc-chart-label">{examSubmissionSeries.labels[i]}</span>
+            </div>)}
+          </div>
+          <div className="aisc-chart-legend"><i/> Marks submitted across active sessions</div>
+        </article>
+        <article className="aisc-panel">
+          <div className="aisc-panel-head"><div><h3 className="aisc-panel-title">Results & moderation</h3><p className="aisc-panel-sub">Current processing overview</p></div><Award size={18} color="#A8212F"/></div>
+          <div className="aisc-progress-list">
+            {examResultsProgress.map((item,i)=><div key={item.label}>
+              <div className="aisc-progress-top"><span>{item.label}</span><strong>{Number(item.value).toLocaleString("en-IN")}</strong></div>
+              <div className="aisc-progress-track"><span style={{"--progress":`${Math.min(100,item.value/1500*100)}%`,background:i===0?"#14264B":i===1?"#D2A72C":i===2?"#A8212F":"#6A8DBB"}}/></div>
+            </div>)}
+          </div>
+          <div className="aisc-callout" style={{marginTop:20}}><Clock3 size={17}/><span><strong>Hall ticket readiness:</strong> 88% issued · 146 students pending eligibility clearance.</span></div>
+        </article>
+      </section>
+
+      <section className="aisc-grid aisc-two-col">
+        <article className="aisc-panel">
+          <div className="aisc-panel-head"><div><h3 className="aisc-panel-title">Upcoming examinations</h3><p className="aisc-panel-sub">Next scheduled papers across active sessions</p></div><Link className="aisc-panel-link" to="/exam-admin/timetables">View timetable <ArrowUpRight size={13}/></Link></div>
+          <div className="aisc-table-wrap"><table className="aisc-table"><thead><tr><th>Examination / Subject</th><th>Date & time</th><th>Venue</th><th>Status</th></tr></thead>
+            <tbody>{examUpcomingExams.slice(0,5).map(row=><tr key={row.id}>
+              <td><div className="aisc-table-primary">{row.subject}</div><div className="aisc-table-secondary">{row.exam} · {row.id}</div></td>
+              <td>{row.date}<div className="aisc-table-secondary">{row.time}</div></td><td>{row.room}</td><td><span className="aisc-status">{row.status}</span></td>
+            </tr>)}</tbody></table></div>
+          <div className="aisc-note"><AlertCircle size={12}/> Preview records are sample data until connected to the examination APIs.</div>
+        </article>
+        <article className="aisc-panel">
+          <div className="aisc-panel-head"><div><h3 className="aisc-panel-title">Recent activity</h3><p className="aisc-panel-sub">Latest examination cell updates</p></div><ClipboardCheck size={18} color="#A8212F"/></div>
+          {examActivities.slice(0,5).map(item=>{const Icon=activityIcons[item.icon]||FileText;return <div className="aisc-activity" key={item.id}>
+            <div className="aisc-activity-icon"><Icon size={15}/></div><div><div className="aisc-activity-title">{item.title}</div><div className="aisc-activity-time">{item.time}</div></div>
+          </div>;})}
+        </article>
+      </section>
     </div>
   );
 }

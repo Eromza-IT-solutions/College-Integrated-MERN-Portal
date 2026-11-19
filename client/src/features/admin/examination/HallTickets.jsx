@@ -1,26 +1,33 @@
 import { useMemo, useState } from "react";
 import {
+  CalendarDays,
   CheckCircle2,
   Clock3,
   Download,
   Eye,
+  GraduationCap,
+  Lock,
   Printer,
   ShieldAlert,
+  Sparkles,
   Ticket,
+  Unlock,
+  Users,
 } from "lucide-react";
+
 import Badge from "../../../components/ui/Badge";
 import Button from "../../../components/ui/Button";
-import Card, { CardHeader } from "../../../components/ui/Card";
 import DataTable from "../../../components/ui/Table";
 import Modal from "../../../components/ui/Modal";
-import PageHeader from "../../../components/ui/PageHeader";
 import Pagination from "../../../components/ui/Pagination";
 import SearchInput from "../../../components/ui/SearchInput";
 import Select from "../../../components/ui/Select";
-import StatCard from "../../../components/ui/StatCard";
+
 import { examHallTickets } from "../../../mocks/examAdminData";
 import { downloadCsv } from "../../../utils/csv";
 import { formatStatus, getStatusVariant } from "../../../utils/status";
+
+import "../../../assets/styles/aisc-premium.css";
 
 const PAGE_SIZE = 6;
 
@@ -33,8 +40,8 @@ export default function HallTickets() {
   const [selectedTicket, setSelectedTicket] = useState(null);
 
   const sessions = useMemo(
-    () => [...new Set(rows.map((row) => row.session))],
-    [rows],
+    () => [...new Set(rows.map((row) => row.session).filter(Boolean))],
+    [rows]
   );
 
   const filteredRows = useMemo(() => {
@@ -43,11 +50,15 @@ export default function HallTickets() {
     return rows.filter((row) => {
       const matchesSearch =
         !search ||
-        row.student.toLowerCase().includes(search) ||
-        row.rollNo.toLowerCase().includes(search) ||
-        row.seatNo.toLowerCase().includes(search);
+        row.student?.toLowerCase().includes(search) ||
+        row.rollNo?.toLowerCase().includes(search) ||
+        row.seatNo?.toLowerCase().includes(search) ||
+        row.program?.toLowerCase().includes(search) ||
+        row.id?.toLowerCase().includes(search);
+
       const matchesSession =
         sessionFilter === "all" || row.session === sessionFilter;
+
       const matchesStatus =
         statusFilter === "all" || row.status === statusFilter;
 
@@ -55,11 +66,16 @@ export default function HallTickets() {
     });
   }, [query, rows, sessionFilter, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredRows.length / PAGE_SIZE)
+  );
+
   const currentPage = Math.min(page, totalPages);
+
   const pageRows = filteredRows.slice(
     (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
+    currentPage * PAGE_SIZE
   );
 
   const counts = {
@@ -69,9 +85,40 @@ export default function HallTickets() {
     total: rows.length,
   };
 
+  const today = new Date().toLocaleDateString("en-IN");
+
+  const updateTicket = (ticket, updates) => {
+    if (!ticket) return;
+
+    const updatedTicket = {
+      ...ticket,
+      ...updates,
+    };
+
+    setRows((current) =>
+      current.map((row) =>
+        row.id === ticket.id ? updatedTicket : row
+      )
+    );
+
+    setSelectedTicket((current) =>
+      current?.id === ticket.id ? updatedTicket : current
+    );
+  };
+
   const handleExport = () => {
-    downloadCsv("eromza-hall-tickets.csv", [
-      ["Ticket", "Student", "Roll number", "Program", "Session", "Seat", "Room", "Status"],
+    downloadCsv("aisc-hall-tickets.csv", [
+      [
+        "Ticket",
+        "Student",
+        "Roll number",
+        "Program",
+        "Session",
+        "Seat",
+        "Room",
+        "Status",
+        "Issued on",
+      ],
       ...filteredRows.map((row) => [
         row.id,
         row.student,
@@ -81,43 +128,111 @@ export default function HallTickets() {
         row.seatNo,
         row.room,
         row.status,
+        row.issuedOn,
       ]),
     ]);
   };
 
   const issueTicket = (ticket) => {
-    setRows((current) =>
-      current.map((row) =>
-        row.id === ticket.id
-          ? { ...row, status: "issued", issuedOn: "Today" }
-          : row,
-      ),
-    );
-    setSelectedTicket((current) =>
-      current ? { ...current, status: "issued", issuedOn: "Today" } : current,
-    );
+    updateTicket(ticket, {
+      status: "issued",
+      issuedOn: today,
+    });
   };
 
   const generatePendingTickets = () => {
+    const pendingCount = rows.filter(
+      (row) => row.status === "pending"
+    ).length;
+
+    if (pendingCount === 0) {
+      window.alert("There are no pending hall tickets to generate.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Generate ${pendingCount} pending hall ticket(s)?`
+    );
+
+    if (!confirmed) return;
+
     setRows((current) =>
       current.map((row) =>
         row.status === "pending"
-          ? { ...row, status: "issued", issuedOn: "Today" }
-          : row,
-      ),
+          ? { ...row, status: "issued", issuedOn: today }
+          : row
+      )
     );
   };
+
+  const unblockTicket = (ticket) => {
+    updateTicket(ticket, {
+      status: "pending",
+      issuedOn: "Not issued",
+    });
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const stats = [
+    {
+      label: "Issued Tickets",
+      value: counts.issued,
+      change: "Successfully issued",
+      icon: CheckCircle2,
+      color: "#2C9271",
+      soft: "#EAF7F1",
+      progress: rows.length
+        ? `${(counts.issued / rows.length) * 100}%`
+        : "0%",
+    },
+    {
+      label: "Pending Tickets",
+      value: counts.pending,
+      change: "Awaiting generation",
+      icon: Clock3,
+      color: "#B58A16",
+      soft: "#FFF7DF",
+      progress: rows.length
+        ? `${(counts.pending / rows.length) * 100}%`
+        : "0%",
+    },
+    {
+      label: "Blocked Tickets",
+      value: counts.blocked,
+      change: "Require eligibility review",
+      icon: ShieldAlert,
+      color: "#A8212F",
+      soft: "#F9ECEE",
+      progress: rows.length
+        ? `${(counts.blocked / rows.length) * 100}%`
+        : "0%",
+    },
+    {
+      label: "Total Tickets",
+      value: counts.total,
+      change: "Student ticket records",
+      icon: Ticket,
+      color: "#315FCE",
+      soft: "#EEF3FF",
+      progress: "100%",
+    },
+  ];
 
   const columns = [
     {
       key: "student",
-      header: "Student",
+      header: "Student Details",
       render: (row) => (
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-eromza-text">
+        <div className="min-w-[145px] py-1">
+          <p className="text-xs font-bold text-[#14264B]">
             {row.student}
           </p>
-          <p className="mt-1 text-[11px] text-eromza-subtle">{row.rollNo}</p>
+          <p className="mt-1 text-[11px] font-semibold text-[#A8212F]">
+            {row.rollNo}
+          </p>
         </div>
       ),
     },
@@ -125,28 +240,37 @@ export default function HallTickets() {
       key: "program",
       header: "Program",
       render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.program}</span>
+        <span className="text-xs font-medium text-slate-600">
+          {row.program}
+        </span>
       ),
     },
     {
       key: "session",
-      header: "Exam session",
+      header: "Exam Session",
       render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.session}</span>
+        <span className="text-xs font-medium text-slate-600">
+          {row.session}
+        </span>
       ),
     },
     {
       key: "seatNo",
-      header: "Seat",
+      header: "Seat Number",
       render: (row) => (
-        <span className="text-xs font-medium text-eromza-text">{row.seatNo}</span>
+        <span className="font-bold text-[#14264B]">
+          {row.seatNo}
+        </span>
       ),
     },
     {
       key: "room",
       header: "Room",
       render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.room}</span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+          <Lock size={13} className="text-[#A8212F]" />
+          {row.room}
+        </span>
       ),
     },
     {
@@ -160,95 +284,203 @@ export default function HallTickets() {
     },
     {
       key: "issuedOn",
-      header: "Issued on",
+      header: "Issued On",
       render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.issuedOn}</span>
+        <span className="text-xs text-slate-500">
+          {row.issuedOn || "Not issued"}
+        </span>
       ),
     },
     {
       key: "actions",
-      header: "",
-      className: "text-right",
-      cellClassName: "text-right",
+      header: "Actions",
       render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSelectedTicket(row)}
-          className="text-eromza-accent hover:bg-rose-50"
-        >
-          <Eye size={14} />
-          View
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            title="View hall ticket"
+            onClick={() => setSelectedTicket(row)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#DBE9F5] text-[#14264B] transition hover:bg-[#c6dcef]"
+          >
+            <Eye size={14} />
+          </button>
+
+          {row.status === "pending" && (
+            <button
+              type="button"
+              title="Issue ticket"
+              onClick={() => issueTicket(row)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EAF7F1] text-emerald-700 transition hover:bg-emerald-100"
+            >
+              <CheckCircle2 size={14} />
+            </button>
+          )}
+
+          {row.status === "blocked" && (
+            <button
+              type="button"
+              title="Unblock ticket"
+              onClick={() => unblockTicket(row)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F9ECEE] text-[#A8212F] transition hover:bg-[#f4d2d7]"
+            >
+              <Unlock size={14} />
+            </button>
+          )}
+        </div>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Examination administration"
-        title="Hall Tickets"
-        description="Generate, review, and issue examination hall tickets with seat and room allocations."
-        actions={
-          <>
-            <Button variant="secondary" onClick={handleExport}>
-              <Download size={16} />
-              Export hall tickets
-            </Button>
-            <Button onClick={generatePendingTickets}>
-              <Printer size={16} />
+    <div className="aisc-premium space-y-6">
+
+      {/* Page heading */}
+      <section className="aisc-page-head">
+        <div>
+          <div className="aisc-eyebrow">
+            <Sparkles size={13} />
+            Examination Cell · Academic year 2026–27
+          </div>
+
+          <h1 className="aisc-page-title">
+            Hall Tickets
+          </h1>
+
+          <p className="aisc-page-subtitle">
+            Generate, review and manage student examination hall tickets,
+            seat numbers and examination room allocations.
+          </p>
+        </div>
+
+        <div className="aisc-date-chip">
+          <CalendarDays size={14} />
+          Examination Administration
+        </div>
+      </section>
+
+      {/* Hero */}
+      <section className="aisc-hero">
+        <div className="aisc-hero-copy">
+          <div className="aisc-hero-kicker">
+            <Sparkles size={12} />
+            ABEDA INAMDAR SENIOR COLLEGE
+          </div>
+
+          <h2 className="aisc-hero-title">
+            Every student, exam-ready.
+          </h2>
+
+          <p className="aisc-hero-text">
+            Prepare examination passes, verify student eligibility,
+            manage seat allocations and issue hall tickets through
+            one organised examination workspace.
+          </p>
+
+          <div className="aisc-hero-actions">
+            <button
+              type="button"
+              className="aisc-btn aisc-btn-primary"
+              onClick={generatePendingTickets}
+            >
+              <Printer size={15} />
               Generate pending
-            </Button>
-          </>
-        }
-      />
+            </button>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Issued"
-          value={String(counts.issued)}
-          icon={CheckCircle2}
-          tone="success"
-        />
-        <StatCard
-          label="Pending"
-          value={String(counts.pending)}
-          icon={Clock3}
-          tone="warning"
-        />
-        <StatCard
-          label="Blocked"
-          value={String(counts.blocked)}
-          icon={ShieldAlert}
-          tone="accent"
-        />
-        <StatCard
-          label="Total Tickets"
-          value={String(counts.total)}
-          icon={Ticket}
-          tone="info"
-        />
-      </div>
+            <button
+              type="button"
+              className="aisc-btn aisc-btn-glass"
+              onClick={handleExport}
+            >
+              <Download size={15} />
+              Export register
+            </button>
+          </div>
+        </div>
 
-      <Card>
-        <CardHeader
-          title="Hall ticket register"
-          description="Student-wise hall ticket status for active examination sessions"
-        />
+        <div className="aisc-hero-seal">
+          <Ticket size={76} strokeWidth={1.1} />
+        </div>
+      </section>
 
-        <div className="flex flex-col gap-3 border-b border-eromza-border p-4 sm:flex-row sm:items-center sm:justify-between">
-          <SearchInput
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by student, roll number, or seat..."
-            className="w-full sm:max-w-xs"
-          />
+      {/* Statistics */}
+      <section className="aisc-grid aisc-kpis">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
 
-          <div className="flex flex-col gap-2 sm:flex-row">
+          return (
+            <article
+              className="aisc-kpi"
+              key={stat.label}
+              style={{
+                "--kpi-color": stat.color,
+                "--kpi-soft": stat.soft,
+                "--progress": stat.progress,
+              }}
+            >
+              <div className="aisc-kpi-top">
+                <div className="aisc-kpi-icon">
+                  <Icon size={19} />
+                </div>
+
+                <span className="aisc-kpi-change">
+                  {stat.change}
+                </span>
+              </div>
+
+              <div className="aisc-kpi-label">
+                {stat.label}
+              </div>
+
+              <div className="aisc-kpi-value">
+                {stat.value}
+              </div>
+
+              <div className="aisc-kpi-note">
+                Current examination cycle
+              </div>
+
+              <div className="aisc-kpi-track">
+                <span />
+              </div>
+            </article>
+          );
+        })}
+      </section>
+
+      {/* Hall Ticket Register */}
+      <section className="aisc-panel">
+        <div className="aisc-panel-head">
+          <div>
+            <h3 className="aisc-panel-title">
+              Hall Ticket Register
+            </h3>
+
+            <p className="aisc-panel-sub">
+              Student-wise hall ticket status and examination details
+            </p>
+          </div>
+
+          <span className="aisc-panel-link">
+            <Users size={14} />
+            {filteredRows.length} student records
+          </span>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col gap-3 border-b border-slate-100 bg-[#FBF6EE] p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="w-full lg:max-w-sm">
+            <SearchInput
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search student, roll number or seat..."
+              className="w-full"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto">
             <Select
               value={sessionFilter}
               onChange={(event) => {
@@ -275,7 +507,7 @@ export default function HallTickets() {
               aria-label="Filter hall tickets by status"
               className="min-w-[150px]"
             >
-              <option value="all">All status</option>
+              <option value="all">All statuses</option>
               <option value="issued">Issued</option>
               <option value="pending">Pending</option>
               <option value="blocked">Blocked</option>
@@ -283,106 +515,234 @@ export default function HallTickets() {
           </div>
         </div>
 
-        <DataTable
-          columns={columns}
-          rows={pageRows}
-          emptyTitle="No hall tickets found"
-          emptyDescription="Try adjusting the search or filters."
-        />
+        {/* Table */}
+        <div className="aisc-table-wrap overflow-x-auto">
+          <DataTable
+            columns={columns}
+            rows={pageRows}
+            emptyTitle="No hall tickets found"
+            emptyDescription="Try adjusting the search or filters."
+          />
+        </div>
 
-        <div className="flex flex-col gap-3 border-t border-eromza-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-eromza-subtle">
-            Showing {pageRows.length} of {filteredRows.length} hall tickets
+        {/* Pagination */}
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-medium text-slate-500">
+            Showing{" "}
+            <strong className="text-[#14264B]">
+              {pageRows.length}
+            </strong>{" "}
+            of{" "}
+            <strong className="text-[#14264B]">
+              {filteredRows.length}
+            </strong>{" "}
+            hall tickets
           </p>
+
           <Pagination
             page={currentPage}
             totalPages={totalPages}
             onPageChange={setPage}
           />
         </div>
-      </Card>
+      </section>
 
+      {/* Hall Ticket Preview */}
       <Modal
         open={Boolean(selectedTicket)}
         onClose={() => setSelectedTicket(null)}
-        title="Hall ticket preview"
+        title="Hall Ticket Preview"
         description={selectedTicket?.id}
         size="lg"
         footer={
           <>
-            {selectedTicket?.status === "pending" ? (
+            {selectedTicket?.status === "pending" && (
               <Button onClick={() => issueTicket(selectedTicket)}>
-                <Printer size={14} />
-                Issue hall ticket
+                <CheckCircle2 size={14} />
+                Issue ticket
               </Button>
-            ) : null}
-            <Button variant="secondary" onClick={() => setSelectedTicket(null)}>
+            )}
+
+            {selectedTicket?.status === "blocked" && (
+              <Button onClick={() => unblockTicket(selectedTicket)}>
+                <Unlock size={14} />
+                Unblock ticket
+              </Button>
+            )}
+
+            {selectedTicket?.status === "issued" && (
+              <Button onClick={handlePrint}>
+                <Printer size={14} />
+                Print ticket
+              </Button>
+            )}
+
+            <Button
+              variant="secondary"
+              onClick={() => setSelectedTicket(null)}
+            >
               Close
             </Button>
           </>
         }
       >
-        {selectedTicket ? (
+        {selectedTicket && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-eromza-sidebar p-5 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">
-                Examination hall ticket
-              </p>
-              <p className="mt-2 text-xl font-semibold">{selectedTicket.student}</p>
-              <p className="mt-1 text-xs text-white/70">
-                {selectedTicket.rollNo} · {selectedTicket.program}
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Badge variant={getStatusVariant(selectedTicket.status)}>
-                  {formatStatus(selectedTicket.status)}
-                </Badge>
-                <Badge variant="neutral">{selectedTicket.session}</Badge>
+            <div
+              id="hall-ticket-print"
+              className="overflow-hidden rounded-xl border-2 border-[#14264B] bg-white"
+            >
+              {/* Ticket Header */}
+              <div className="relative overflow-hidden bg-gradient-to-r from-[#14264B] to-[#A8212F] p-5 text-white">
+                <div className="absolute -right-8 -top-12 h-36 w-36 rounded-full border-[18px] border-white/10" />
+
+                <div className="relative z-10 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#F2C200]">
+                      Abeda Inamdar Senior College
+                    </p>
+
+                    <h2 className="mt-2 text-lg font-extrabold">
+                      Examination Hall Ticket
+                    </h2>
+
+                    <p className="mt-1 text-xs text-white/75">
+                      Student examination pass
+                    </p>
+                  </div>
+
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/10">
+                    <Ticket size={25} className="text-[#F2C200]" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Ticket Details */}
+              <div className="space-y-4 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Student name
+                    </p>
+
+                    <p className="mt-1 text-lg font-extrabold text-[#14264B]">
+                      {selectedTicket.student}
+                    </p>
+                  </div>
+
+                  <Badge variant={getStatusVariant(selectedTicket.status)}>
+                    {formatStatus(selectedTicket.status)}
+                  </Badge>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg bg-[#F3F7FB] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Roll number
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#14264B]">
+                      {selectedTicket.rollNo}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg bg-[#F3F7FB] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Program
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#14264B]">
+                      {selectedTicket.program}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg bg-[#F3F7FB] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Exam session
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#14264B]">
+                      {selectedTicket.session}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg bg-[#F3F7FB] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Ticket reference
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#14264B]">
+                      {selectedTicket.id}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-[#F2C200]/50 bg-[#FBF6EE] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Seat number
+                    </p>
+                    <p className="mt-1 text-xl font-extrabold text-[#A8212F]">
+                      {selectedTicket.seatNo}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-[#F2C200]/50 bg-[#FBF6EE] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Examination room
+                    </p>
+                    <p className="mt-1 text-xl font-extrabold text-[#A8212F]">
+                      {selectedTicket.room}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-slate-300 pt-3 text-xs text-slate-500">
+                  <span>
+                    Issued on: {selectedTicket.issuedOn || "Not issued"}
+                  </span>
+
+                  <span className="font-semibold text-[#14264B]">
+                    AISC Examination Cell
+                  </span>
+                </div>
               </div>
             </div>
 
-            <dl className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Seat number
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedTicket.seatNo}
-                </dd>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Examination room
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedTicket.room}
-                </dd>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Issued on
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedTicket.issuedOn}
-                </dd>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Ticket reference
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedTicket.id}
-                </dd>
-              </div>
-            </dl>
+            <div className="rounded-xl border border-[#DBE9F5] bg-[#DBE9F5]/40 p-4">
+              <p className="text-xs font-bold text-[#14264B]">
+                <GraduationCap size={15} className="mr-2 inline text-[#A8212F]" />
+                Examination instructions
+              </p>
 
-            <div className="rounded-lg bg-eromza-bg p-3 text-xs leading-5 text-eromza-muted">
-              Candidates must carry a printed hall ticket and a valid college ID
-              to the examination hall. Report at least 30 minutes before the exam
-              begins.
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                Candidates must carry a printed hall ticket and a valid
+                college ID to the examination hall. Report at least
+                30 minutes before the examination begins.
+              </p>
             </div>
           </div>
-        ) : null}
+        )}
       </Modal>
+
+      {/* Print-only ticket styling */}
+      <style>
+        {`
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+
+            #hall-ticket-print,
+            #hall-ticket-print * {
+              visibility: visible !important;
+            }
+
+            #hall-ticket-print {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              border: 2px solid #14264B !important;
+              box-shadow: none !important;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 }

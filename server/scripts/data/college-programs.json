@@ -1,0 +1,426 @@
+{
+ "source": "College \"Program Offered Under Autonomy (NEP)\" list and the diploma/certificate list. 59 programs. Department codes are PROPOSED (they match the demo departments).",
+ "programs": [
+  {
+   "code": "BDPAEN",
+   "name": "B.A. English",
+   "faculty": "Arts and Humanities",
+   "level": "Undergraduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "BDPAEC",
+   "name": "B.A. Economics",
+   "faculty": "Arts and Humanities",
+   "level": "Undergraduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "BDPAPO",
+   "name": "B.A. Political Science",
+   "faculty": "Arts and Humanities",
+   "level": "Undergraduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "BDPAPS",
+   "name": "B.A. Psychology",
+   "faculty": "Arts and Humanities",
+   "level": "Undergraduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "BDPASO",
+   "name": "B.A. Sociology",
+   "faculty": "Arts and Humanities",
+   "level": "Undergraduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "BDPAUR",
+   "name": "B.A. Urdu",
+   "faculty": "Arts and Humanities",
+   "level": "Undergraduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "MDPAEN",
+   "name": "M.A. English",
+   "faculty": "Arts and Humanities",
+   "level": "Post Graduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "MDPAEC",
+   "name": "M.A. Economics",
+   "faculty": "Arts and Humanities",
+   "level": "Post Graduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "MDPAPO",
+   "name": "M.A. Political Science",
+   "faculty": "Arts and Humanities",
+   "level": "Post Graduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "MDPASO",
+   "name": "M.A. Sociology",
+   "faculty": "Arts and Humanities",
+   "level": "Post Graduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "MDPAUR",
+   "name": "M.A. Urdu",
+   "faculty": "Arts and Humanities",
+   "level": "Post Graduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "MDPAPS",
+   "name": "M.A. Psychology",
+   "faculty": "Arts and Humanities",
+   "level": "Post Graduate",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "DDPAEN",
+   "name": "Doctoral Program in English",
+   "faculty": "Arts and Humanities",
+   "level": "Ph.D.",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "DDPASO",
+   "name": "Doctoral Program in Sociology",
+   "faculty": "Arts and Humanities",
+   "level": "Ph.D.",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "DDPAPO",
+   "name": "Doctoral Program in Political Science",
+   "faculty": "Arts and Humanities",
+   "level": "Ph.D.",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "DDPAEC",
+   "name": "Doctoral Program in Economics",
+   "faculty": "Arts and Humanities",
+   "level": "Ph.D.",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "PGDCS",
+   "name": "P.G. Diploma in Counselling Skills",
+   "faculty": "Arts and Humanities",
+   "level": "PG Diploma",
+   "departmentCode": "ART"
+  },
+  {
+   "code": "BDPSCH",
+   "name": "B.Sc. Chemistry",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "BDPSCHBT",
+   "name": "B.Sc. Chemistry Vocational",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "BDPSMI",
+   "name": "B.Sc. Microbiology",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "BDPSMIBT",
+   "name": "B.Sc. Microbiology Vocational",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "BDPSMT",
+   "name": "B.Sc. Mathematics",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "BDPSEV",
+   "name": "B.Sc. Environmental Science",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "BDPSCS",
+   "name": "B.Sc. Computer Science",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "BDPSCA",
+   "name": "B.C.A. Science",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "BDPSVDS",
+   "name": "B.Voc. Data Science and Data Analytics",
+   "faculty": "Science and Technology",
+   "level": "Undergraduate",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "MDPSCHA",
+   "name": "M.Sc. Analytical Chemistry",
+   "faculty": "Science and Technology",
+   "level": "Post Graduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "MDPSCHO",
+   "name": "M.Sc. Organic Chemistry",
+   "faculty": "Science and Technology",
+   "level": "Post Graduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "MDPSMI",
+   "name": "M.Sc. Microbiology",
+   "faculty": "Science and Technology",
+   "level": "Post Graduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "MDPSMT",
+   "name": "M.Sc. Mathematics",
+   "faculty": "Science and Technology",
+   "level": "Post Graduate",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "MDPSCS",
+   "name": "M.Sc. Computer Science",
+   "faculty": "Science and Technology",
+   "level": "Post Graduate",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "DDPSCH",
+   "name": "Doctoral Program in Chemistry",
+   "faculty": "Science and Technology",
+   "level": "Ph.D.",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "MDPSMBC",
+   "name": "M.Sc. Biochemistry",
+   "faculty": "Science and Technology",
+   "level": "Post Graduate",
+   "departmentCode": "SCI",
+   "note": "Present on the fee sheet (FeesStruc_AZAMCAMPUS page 4) but absent from the original Program_Offered_Under_Autonomy_NEP list. Syllabus confirmed from F.Y.M.Sc. Biochemistry_Syllabus_2026 Pattern and S.Y.M.Sc. Biochemistry_Syllabus_2023 Pattern PDFs. Added 2026-11."
+  },
+  {
+   "code": "DDPSMB",
+   "name": "Doctoral Program in Microbiology",
+   "faculty": "Science and Technology",
+   "level": "Ph.D.",
+   "departmentCode": "SCI"
+  },
+  {
+   "code": "D3DA",
+   "name": "Diploma in 3D Animation",
+   "faculty": "Science and Technology",
+   "level": "UG Diploma",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "DVFX",
+   "name": "Diploma in VFX",
+   "faculty": "Science and Technology",
+   "level": "UG Diploma",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "DGWD",
+   "name": "Diploma Graphics and Web Design",
+   "faculty": "Science and Technology",
+   "level": "UG Diploma",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "PGD3DA",
+   "name": "PG Diploma in 3D Animation",
+   "faculty": "Science and Technology",
+   "level": "PG Diploma",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "PGDVFX",
+   "name": "PG Diploma in VFX",
+   "faculty": "Science and Technology",
+   "level": "PG Diploma",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "PGD2DA",
+   "name": "PG Diploma in 2D Animation",
+   "faculty": "Science and Technology",
+   "level": "PG Diploma",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "PGDGD",
+   "name": "PG Diploma in Graphics Design",
+   "faculty": "Science and Technology",
+   "level": "PG Diploma",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "PGDWD",
+   "name": "PG Diploma in Web Design",
+   "faculty": "Science and Technology",
+   "level": "PG Diploma",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "CC3DA",
+   "name": "Certificate Course in 3D Animation",
+   "faculty": "Science and Technology",
+   "level": "Certificate Course",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "CCDP",
+   "name": "Certificate Course in Digital Photography",
+   "faculty": "Science and Technology",
+   "level": "Certificate Course",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "CCGD",
+   "name": "Certificate Course in Graphic Design",
+   "faculty": "Science and Technology",
+   "level": "Certificate Course",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "CCPP",
+   "name": "Certificate Course in Pre-Production",
+   "faculty": "Science and Technology",
+   "level": "Certificate Course",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "CCVFX",
+   "name": "Certificate Course in VFX",
+   "faculty": "Science and Technology",
+   "level": "Certificate Course",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "CCWD",
+   "name": "Certificate Course in Web Design",
+   "faculty": "Science and Technology",
+   "level": "Certificate Course",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "CCCA",
+   "name": "Certificate Course in Commercial Arts",
+   "faculty": "Science and Technology",
+   "level": "Certificate Course",
+   "departmentCode": "CSC"
+  },
+  {
+   "code": "BDPCCA",
+   "name": "B.Com. Cost and Management Accounting",
+   "faculty": "Commerce and Management",
+   "level": "Undergraduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "BDPCMK",
+   "name": "B.Com. Marketing Management",
+   "faculty": "Commerce and Management",
+   "level": "Undergraduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "BDPCBAHR",
+   "name": "B.B.A. Human Resource",
+   "faculty": "Commerce and Management",
+   "level": "Undergraduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "BDPCBAFN",
+   "name": "B.B.A. Finance",
+   "faculty": "Commerce and Management",
+   "level": "Undergraduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "BDPCBAMK",
+   "name": "B.B.A. Marketing",
+   "faculty": "Commerce and Management",
+   "level": "Undergraduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "BDPCBACA",
+   "name": "B.B.A. Computer Application",
+   "faculty": "Commerce and Management",
+   "level": "Undergraduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "BDPCVRM",
+   "name": "B.Voc. Retail Management",
+   "faculty": "Commerce and Management",
+   "level": "Undergraduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "MDPCCA",
+   "name": "M.Com. Cost and Management Accounting",
+   "faculty": "Commerce and Management",
+   "level": "Post Graduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "MDPCBA",
+   "name": "M.Com. Business Administration",
+   "faculty": "Commerce and Management",
+   "level": "Post Graduate",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "DDPCCO",
+   "name": "Doctoral Program in Commerce",
+   "faculty": "Commerce and Management",
+   "level": "Ph.D.",
+   "departmentCode": "COM"
+  },
+  {
+   "code": "PDDPCCO",
+   "name": "Post-Doctoral Program in Commerce",
+   "faculty": "Commerce and Management",
+   "level": "Post-Doctoral",
+   "departmentCode": "COM"
+  }
+ ]
+}

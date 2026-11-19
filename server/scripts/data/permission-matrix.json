@@ -1066,5 +1066,113 @@
   "resource": "auditLogs",
   "action": "export",
   "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "exams",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "exams",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "examAdmin",
+  "resource": "exams",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "exams",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "exams",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "exams",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "programs",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "programs",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "programs",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "programs",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "subjects",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "subjects",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "subjects",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "subjects",
+  "action": "delete",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "feeStructures",
+  "action": "view",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "feeStructures",
+  "action": "create",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "feeStructures",
+  "action": "update",
+  "scope": "all"
+ },
+ {
+  "roleKey": "superAdmin",
+  "resource": "feeStructures",
+  "action": "delete",
+  "scope": "all"
  }
 ]

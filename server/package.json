@@ -12,17 +12,23 @@
     "start": "node src/server.js",
     "lint": "eslint .",
     "seed": "node scripts/seed-demo-data.js",
-    "seed:fees": "node scripts/seed-sample-fees.js",
-    "seed:subjects": "node scripts/seed-sample-subjects.js",
+    "seed:programs": "node scripts/seed-college-programs.js",
+    "seed:fees": "node scripts/seed-college-fees.js",
+    "seed:subjects": "node scripts/seed-college-subjects.js",
+    "seed:sample-subjects": "node scripts/seed-sample-subjects.js",
     "seed:exam": "node scripts/seed-sample-exam.js",
     "seed:timetable": "node scripts/seed-sample-timetable.js",
     "seed:permissions": "node scripts/seed-permissions.js",
+    "job:admission-deadlines": "node scripts/run-admission-deadlines.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "seed:demo-student": "node scripts/seed-demo-student.js",
+    "seed:demo-applicant": "node scripts/seed-demo-applicant.js",
+    "seed:website-content": "node scripts/seed-website-content.js",
+    "seed:audit-logs": "node scripts/seed-sample-audit-logs.js",
     "create-super-admin": "node scripts/create-super-admin.js"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.3",
     "connect-mongo": "^5.1.0",
     "cookie-parser": "^1.4.7",
@@ -35,6 +41,7 @@
     "mongoose": "^8.9.5",
     "morgan": "^1.12.1",
     "multer": "^2.0.1",
+    "nodemailer": "^10.6.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -45,5 +52,8 @@
     "mongodb-memory-server": "^10.1.4",
     "nodemon": "^3.1.9",
     "supertest": "^7.0.0"
+  },
+  "allowScripts": {
+    "mongodb-memory-server@10.4.3": true
   }
 }

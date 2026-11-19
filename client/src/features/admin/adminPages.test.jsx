@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
-import Applications from "./admission/Applications";
-import FeesAndPayments from "./admission/FeesAndPayments";
+import ManageApplications from "./admission/ManageApplications";
+import FeesPayments from "./admission/FeesPayments";
 import ExamSessions from "./examination/ExamSessions";
 import MarksAndResults from "./examination/MarksAndResults";
 import ManageContent from "./website/ManageContent";
@@ -18,9 +18,9 @@ describe("primary admin pages", () => {
   it("renders website content management", () => {
     renderPage(<ManageContent />);
     expect(
-      screen.getByRole("heading", { name: "Manage Content" }),
+      screen.getByRole("heading", { name: "Manage Website Content" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Content library")).toBeInTheDocument();
+    expect(screen.getByText("Content Overview")).toBeInTheDocument();
   });
 
   it("renders website notices", () => {
@@ -28,25 +28,25 @@ describe("primary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Notices & Announcements" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Notice board")).toBeInTheDocument();
+    expect(screen.getByText("Total Notices")).toBeInTheDocument();
   });
 
   it("renders admission applications", () => {
-    renderPage(<Applications />);
+    renderPage(<ManageApplications />);
     expect(
-      screen.getByRole("heading", { name: "Applications" }),
+      screen.getByRole("heading", { name: "Manage Applications" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Application queue")).toBeInTheDocument();
-    expect(screen.getByText("Rida Khan")).toBeInTheDocument();
+    expect(screen.getByText("Application Overview")).toBeInTheDocument();
+    expect(screen.getByText("Aarav Sharma")).toBeInTheDocument();
   });
 
   it("renders admission fees and payments", () => {
-    renderPage(<FeesAndPayments />);
+    renderPage(<FeesPayments />);
     expect(
-      screen.getByRole("heading", { name: "Fees & Payments" }),
+      screen.getByRole("heading", { name: "Fees & Payments Management" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Payment ledger")).toBeInTheDocument();
-    expect(screen.getByText("Hasan Patel")).toBeInTheDocument();
+    expect(screen.getByText("Payment Highlights")).toBeInTheDocument();
+    expect(screen.getByText("Aarav Sharma")).toBeInTheDocument();
   });
 
   it("renders examination sessions", () => {
@@ -54,7 +54,7 @@ describe("primary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Exam Sessions" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Session calendar")).toBeInTheDocument();
+    expect(screen.getByText("Session Calendar")).toBeInTheDocument();
   });
 
   it("renders marks and results", () => {
@@ -62,7 +62,9 @@ describe("primary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Marks & Results" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Marks register")).toBeInTheDocument();
+    expect(
+      screen.getByText("Examination marks register"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Fatima Khan")).toBeInTheDocument();
   });
 });

@@ -3,10 +3,12 @@ import {
   createOrder, verifyPayment, orderReply, getOwnPayment, listPayments, getReceipt,
 } from './payments.service.js';
 import { handleWebhook } from './webhook.service.js';
-import { requestRefund, decideRefund, listRefunds, refundToClient } from './refunds.service.js';
+import { requestRefund, decideRefund, retryRefund, listRefunds, refundToClient } from './refunds.service.js';
 import {
   orderBody, verifyBody, refundBody, decisionBody, listQuery, parse,
 } from './payments.validation.js';
+import { sendPdf, pdfFilename } from '../../utils/pdf.js';
+import { receiptPdf } from '../../utils/pdfDocuments.js';
 
 const ok = (req, res, data, status = 200, meta = {}) => res.status(status).json({ success: true, data, meta: { ...meta, requestId: req.id } });
 const paged = ({ total, page, limit }) => ({ page, limit, total, totalPages: Math.ceil(total / limit) });
@@ -35,8 +37,15 @@ const getPayments = asyncHandler(async (req, res) => {
 // GET /api/v1/payments/:id
 const getPayment = asyncHandler(async (req, res) => ok(req, res, getOwnPayment(req, req.payment)));
 
-// GET /api/v1/payments/:id/receipt
-const getPaymentReceipt = asyncHandler(async (req, res) => ok(req, res, await getReceipt(req, req.payment)));
+// GET /api/v1/payments/:id/receipt?format=pdf
+const getPaymentReceipt = asyncHandler(async (req, res) => {
+  const receipt = await getReceipt(req, req.payment);
+  if (req.query.format === 'pdf') {
+    sendPdf(res, receiptPdf(receipt), pdfFilename(`receipt-${receipt.receiptNumber || receipt.paymentId}`));
+    return;
+  }
+  ok(req, res, receipt);
+});
 
 // POST /api/v1/payments/webhook   (called by the gateway; no sign-in; needs req.rawBody from app.js)
 const postWebhook = asyncHandler(async (req, res) => {
@@ -62,6 +71,12 @@ const postRefundDecision = asyncHandler(async (req, res) => {
   ok(req, res, { ...refundToClient(refund), gatewayRefundId });
 });
 
+// POST /api/v1/refunds/:id/retry   (no body) - send an approved refund again after the gateway had failed
+const postRefundRetry = asyncHandler(async (req, res) => {
+  const { refund, gatewayRefundId } = await retryRefund(req, req.refund._id);
+  ok(req, res, { ...refundToClient(refund), gatewayRefundId });
+});
+
 // GET /api/v1/refunds?purpose=admission|exam&status=&page=&limit=
 const getRefunds = asyncHandler(async (req, res) => {
   const q = parse(listQuery, req.query);
@@ -69,4 +84,7 @@ const getRefunds = asyncHandler(async (req, res) => {
   ok(req, res, result.rows, 200, paged(result));
 });
 
-export { postOrder, postVerify, getPayments, getPayment, getPaymentReceipt, postWebhook, postRefund, postRefundDecision, getRefunds };
+export {
+  postOrder, postVerify, getPayments, getPayment, getPaymentReceipt, postWebhook,
+  postRefund, postRefundDecision, postRefundRetry, getRefunds,
+};

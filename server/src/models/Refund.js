@@ -23,6 +23,12 @@ const refundSchema = new Schema(
     decidedByUserId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     decidedAt: Date,
     decisionNote: { type: String, trim: true },
+    // Set once the money has gone back through the gateway (see refunds.service.js). An approved refund
+    // without gatewayRefundId has NOT been paid out yet.
+    gatewayRefundId: { type: String, trim: true },
+    processedAt: Date,
+    // A short lock while the money is being sent, so two requests can never send it twice.
+    processingAt: Date,
   },
   { timestamps: true }
 );

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../context/AuthContext";
@@ -33,20 +33,27 @@ function renderRoute(role, path) {
   );
 }
 
+// Some roles keep their original layouts, which don't all render a <main>
+// landmark (e.g. SuperAdminLayout), so search the whole rendered page.
 async function expectPageHeading(name) {
-  const main = await screen.findByRole("main");
-  expect(await within(main).findByRole("heading", { name })).toBeInTheDocument();
+  const headings = await screen.findAllByRole("heading", { name });
+  expect(headings[0]).toBeInTheDocument();
+}
+
+async function expectPageText(text) {
+  const matches = await screen.findAllByText(text);
+  expect(matches[0]).toBeInTheDocument();
 }
 
 describe("admin role routes", () => {
   it("renders website content management route", async () => {
     renderRoute("websiteAdmin", "/website-admin/content");
-    await expectPageHeading("Manage Content");
+    await expectPageHeading("Manage Website Content");
   });
 
   it("renders admission applications route", async () => {
     renderRoute("admissionAdmin", "/admission-admin/applications");
-    await expectPageHeading("Applications");
+    await expectPageHeading("Manage Applications");
   });
 
   it("renders examination marks route", async () => {
@@ -71,12 +78,12 @@ describe("admin role routes", () => {
 
   it("renders admission document verification route", async () => {
     renderRoute("admissionAdmin", "/admission-admin/documents");
-    await expectPageHeading("Verify Documents");
+    await expectPageHeading("Verify Student Documents");
   });
 
   it("renders admission status route", async () => {
     renderRoute("admissionAdmin", "/admission-admin/status");
-    await expectPageHeading("Admission Status");
+    await expectPageHeading("Admission Status Tracking");
   });
 
   it("renders examination subjects route", async () => {
@@ -98,34 +105,34 @@ describe("admin role routes", () => {
 describe("super admin secondary routes", () => {
   it("renders the users route", async () => {
     renderRoute("superAdmin", "/super-admin/users");
-    await expectPageHeading("Users");
+    await expectPageText("Total Users");
   });
 
   it("renders the admin panels route", async () => {
     renderRoute("superAdmin", "/super-admin/admin-panels");
-    await expectPageHeading("Admin Panels");
+    await expectPageText("Total panels");
   });
 
   it("renders the reports route", async () => {
     renderRoute("superAdmin", "/super-admin/reports");
-    await expectPageHeading("Reports & Analytics");
+    await expectPageHeading("User Growth");
   });
 
   it("renders the audit logs route", async () => {
     renderRoute("superAdmin", "/super-admin/audit-logs");
-    await expectPageHeading("Audit Logs");
+    await expectPageHeading("Activity Log");
   });
 
   it("renders the system settings route", async () => {
     renderRoute("superAdmin", "/super-admin/settings");
-    await expectPageHeading("System Settings");
+    await expectPageText("College Name");
   });
 });
 
 describe("HOD routes", () => {
   it("renders the department info route", async () => {
     renderRoute("hod", "/hod/department");
-    await expectPageHeading("Department Info");
+    await expectPageHeading("Department Information");
   });
 
   it("renders the manage teachers route", async () => {
@@ -140,12 +147,12 @@ describe("HOD routes", () => {
 
   it("renders the attendance route", async () => {
     renderRoute("hod", "/hod/attendance");
-    await expectPageHeading("Attendance");
+    await expectPageHeading("Attendance Management");
   });
 
   it("renders the department reports route", async () => {
     renderRoute("hod", "/hod/reports");
-    await expectPageHeading("Department Reports");
+    await expectPageText("Reports Available");
   });
 });
 
@@ -184,7 +191,7 @@ describe("teacher, student, and applicant secondary routes", () => {
 describe("role dashboard routes", () => {
   it("renders the HOD dashboard route", async () => {
     renderRoute("hod", "/hod/dashboard");
-    await expectPageHeading("HOD Dashboard");
+    await expectPageHeading("Head of Department Dashboard");
   });
 
   it("renders the teacher dashboard route", async () => {
