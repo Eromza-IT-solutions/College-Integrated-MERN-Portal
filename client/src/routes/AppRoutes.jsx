@@ -16,6 +16,9 @@ const ResetPassword = lazy(() => import("../features/auth/ResetPassword"));
 const StudentRegistration = lazy(
   () => import("../features/admissions/StudentRegistration"),
 );
+const StudentRegisterFlow = lazy(
+  () => import("../features/admissions/StudentRegisterFlow"),
+);
 const TeacherLogin = lazy(() => import("../features/auth/TeacherLogin"));
 const TeacherRegistration = lazy(
   () => import("../features/auth/TeacherRegistration"),
@@ -260,7 +263,7 @@ export default function AppRoutes() {
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/student-register" element={<StudentRegistration />} />
+        <Route path="/student-register" element={<StudentRegisterFlow />} />
         <Route path="/teacher-login" element={<TeacherLogin />} />
         <Route path="/teacher-register" element={<TeacherRegistration />} />
         <Route path="/app" element={<RoleRedirect />} />
