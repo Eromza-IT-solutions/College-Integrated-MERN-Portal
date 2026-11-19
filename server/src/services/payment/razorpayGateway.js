@@ -11,13 +11,13 @@ function createRazorpayGateway({ keyId, keySecret, webhookSecret }, fetchImpl = 
   const auth = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
   const hmac = (secret, text) => crypto.createHmac('sha256', secret).update(text).digest('hex');
 
-  async function call(path, body) {
+  async function call(path, { method = 'POST', body } = {}) {
     let res;
     try {
       res = await fetchImpl(`${BASE_URL}${path}`, {
-        method: 'POST',
+        method,
         headers: { Authorization: auth, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch {
       throw new AppError('The payment gateway could not be reached', 502, undefined, 'GATEWAY_UNREACHABLE');
@@ -34,8 +34,12 @@ function createRazorpayGateway({ keyId, keySecret, webhookSecret }, fetchImpl = 
     name: PAYMENT_GATEWAY.RAZORPAY,
     publicKeyId: keyId, // safe to send to the browser; the secret never leaves the server
     async createOrder({ amountPaise, receipt, notes }) {
-      const order = await call('/orders', { amount: amountPaise, currency: 'INR', receipt, notes });
+      const order = await call('/orders', { body: { amount: amountPaise, currency: 'INR', receipt, notes } });
       return { gatewayOrderId: order.id, amountPaise: order.amount, currency: order.currency, receipt: order.receipt };
+    },
+    async listOrderPayments(gatewayOrderId) {
+      const result = await call(`/orders/${encodeURIComponent(gatewayOrderId)}/payments`, { method: 'GET' });
+      return Array.isArray(result.items) ? result.items : [];
     },
     verifyPaymentSignature({ orderId, paymentId, signature }) {
       return safeEqual(hmac(keySecret, `${orderId}|${paymentId}`), signature);
@@ -44,7 +48,7 @@ function createRazorpayGateway({ keyId, keySecret, webhookSecret }, fetchImpl = 
       return safeEqual(hmac(webhookSecret, rawBody), signature);
     },
     async refund({ gatewayPaymentId, amountPaise, notes }) {
-      const r = await call(`/payments/${encodeURIComponent(gatewayPaymentId)}/refund`, { amount: amountPaise, notes });
+      const r = await call(`/payments/${encodeURIComponent(gatewayPaymentId)}/refund`, { body: { amount: amountPaise, notes } });
       return { gatewayRefundId: r.id, gatewayPaymentId, amountPaise: r.amount };
     },
   };

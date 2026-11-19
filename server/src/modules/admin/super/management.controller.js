@@ -27,7 +27,7 @@ const audit = (req, action, entityType, entityId, details = {}) => AuditLog.reco
 
 // ---- users ----
 export const listUsers = asyncHandler(async (req, res) => {
-  const result = await s.listUsers(parse(userListQuery, req.query));
+  const result = await s.listUsers(req, parse(userListQuery, req.query));
   send(req, res, result.items, 200, paged(result));
 });
 
@@ -38,7 +38,7 @@ export const createUser = asyncHandler(async (req, res) => {
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
-  const user = await s.updateUser(parse(idParam, req.params.id), parse(userUpdateBody, req.body), req.user.id);
+  const user = await s.updateUser(req, parse(idParam, req.params.id), parse(userUpdateBody, req.body));
   await audit(req, 'userUpdated', 'user', user._id, { fields: Object.keys(req.body || {}) });
   send(req, res, user);
 });
@@ -51,7 +51,7 @@ export const deactivateUser = asyncHandler(async (req, res) => {
 
 // ---- teachers ----
 export const listTeachers = asyncHandler(async (req, res) => {
-  const result = await s.listTeachers(parse(listQuery, req.query));
+  const result = await s.listTeachers(req, parse(listQuery, req.query));
   send(req, res, result.items, 200, paged(result));
 });
 
@@ -62,7 +62,7 @@ export const createTeacher = asyncHandler(async (req, res) => {
 });
 
 export const updateTeacher = asyncHandler(async (req, res) => {
-  const teacher = await s.updateTeacher(parse(idParam, req.params.id), parse(teacherUpdateBody, req.body));
+  const teacher = await s.updateTeacher(req, parse(idParam, req.params.id), parse(teacherUpdateBody, req.body));
   await audit(req, 'teacherUpdated', 'teacher', teacher._id, { fields: Object.keys(req.body || {}) });
   send(req, res, teacher);
 });

@@ -43,12 +43,11 @@ async function submitMarks(req, { ids }) {
   return result;
 }
 
-// HOD approve / return karta hai. Model ke decideMany me department check nahi hai,
-// isliye pehle yahan ids ko HOD ke scope tak limit karte hain; baaki "skipped" me gine jaate hain.
+// HOD approve / return karta hai. The department check is inside Marks.decideMany, so a model call
+// cannot approve marks of a department the HOD does not belong to.
 async function decideMarks(req, { ids, approve, note }) {
   const actor = getActor(req);
-  const allowed = await Marks.distinct('_id', { _id: { $in: ids }, ...scopeFilter(req) });
-  const { decided } = await Marks.decideMany(allowed, { approve, byUserId: actor.id, note });
+  const { decided } = await Marks.decideMany(ids, { approve, byUserId: actor.id, note, departmentId: actor.departmentId });
   const result = { decided, skipped: ids.length - decided };
   await auditSafe(req, {
     action: approve ? 'marksApproved' : 'marksReturned', entityType: 'marks',
@@ -64,21 +63,19 @@ async function decideMarks(req, { ids, approve, note }) {
 //   hod      -> apne department ke
 //   examAdmin-> sab, par sirf approved
 //   superAdmin -> sab
-async function listMarks(req, q) {
+async function markScope(req) {
   const actor = getActor(req);
-  const client = clean({ subjectId: q.subjectId, semester: q.semester, academicYearId: q.academicYearId, studentId: q.studentId, status: q.status });
-  let scope;
-
   if (isStudent(req)) {
     const student = await studentOfActor(req);
-    scope = { studentId: student._id, status: REVIEW_STATUS.APPROVED };
-  } else if (actor.role === ROLES.EXAM_ADMIN) {
-    scope = { status: REVIEW_STATUS.APPROVED };
-  } else {
-    scope = scopeFilter(req, { ownerField: 'enteredByUserId' });
+    return { studentId: student._id, status: REVIEW_STATUS.APPROVED };
   }
+  if (actor.role === ROLES.EXAM_ADMIN) return { status: REVIEW_STATUS.APPROVED };
+  return scopeFilter(req, { ownerField: 'enteredByUserId' });
+}
 
-  const filter = both(client, scope);
+async function listMarks(req, q) {
+  const client = clean({ subjectId: q.subjectId, semester: q.semester, academicYearId: q.academicYearId, studentId: q.studentId, status: q.status });
+  const filter = both(client, await markScope(req));
   const [rows, total] = await Promise.all([
     Marks.find(filter).sort({ component: 1, createdAt: -1 }).skip(skipOf(q)).limit(q.limit)
       .populate('subjectId', 'code name').populate('studentId', 'enrollmentNumber').lean(),
@@ -87,4 +84,13 @@ async function listMarks(req, q) {
   return { rows, total, page: q.page, limit: q.limit };
 }
 
-export { enterMarks, submitMarks, decideMarks, listMarks };
+async function getMark(req, id) {
+  const row = await Marks.findOne(both({ _id: id }, await markScope(req)))
+    .populate('subjectId', 'code name')
+    .populate('studentId', 'enrollmentNumber')
+    .lean();
+  if (!row) throw new AppError('Marks not found', 404, undefined, 'NOT_FOUND');
+  return row;
+}
+
+export { enterMarks, submitMarks, decideMarks, listMarks, getMark };

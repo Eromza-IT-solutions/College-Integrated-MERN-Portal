@@ -99,4 +99,14 @@ export default {
     keySecret: process.env.PAYMENT_KEY_SECRET || '',
     webhookSecret: process.env.PAYMENT_WEBHOOK_SECRET || '',
   },
+
+  // Background jobs. They are off in tests so a test run never touches live deadlines or payments.
+  jobs: {
+    enabled: process.env.JOBS_ENABLED ? process.env.JOBS_ENABLED === 'true' : nodeEnv !== 'test',
+    runOnStart: process.env.JOBS_RUN_ON_START === 'true',
+    admissionDeadlineIntervalMs: positiveNumber(process.env.ADMISSION_DEADLINE_INTERVAL_MS, 24 * 60 * 60 * 1000),
+    paymentReconciliationIntervalMs: positiveNumber(process.env.PAYMENT_RECONCILIATION_INTERVAL_MS, 15 * 60 * 1000),
+    paymentReconciliationMinAgeMs: positiveNumber(process.env.PAYMENT_RECONCILIATION_MIN_AGE_MS, 30 * 60 * 1000),
+    batchSize: positiveNumber(process.env.JOB_BATCH_SIZE, 100),
+  },
 };

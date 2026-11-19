@@ -80,7 +80,7 @@ async function main() {
     ok(await fails(() => Marks.enter({ ...entry, byUserId: made.hod._id }), 403), 'a teacher who does not teach the subject cannot enter marks');
     ok((await Marks.submitMany([mark._id], { byUserId: made.teacher._id })).submitted === 1, 'marks are sent for approval');
     ok(await fails(() => Marks.enter(entry), 409), 'submitted marks cannot be changed');
-    ok((await Marks.decideMany([mark._id], { approve: true, byUserId: made.hod._id })).decided === 1, 'the HOD approves the marks');
+    ok((await Marks.decideMany([mark._id], { approve: true, byUserId: made.hod._id, departmentId: made.hod.departmentId })).decided === 1, 'the HOD approves the marks');
   } finally {
     const studentId = made.student && made.student._id;
     if (studentId) await Marks.deleteMany({ studentId });

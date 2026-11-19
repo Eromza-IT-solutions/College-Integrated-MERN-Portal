@@ -1,6 +1,12 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../services/adminApi", async () => {
+  const { createAdminApiMock } = await import("../../test/adminApiFixture");
+  return createAdminApiMock();
+});
+
 import AdmissionStatus from "./admission/AdmissionStatus";
 import VerifyDocuments from "./admission/VerifyDocuments";
 import ExamTimetables from "./examination/ExamTimetables";
@@ -64,7 +70,7 @@ describe("secondary admin pages", () => {
     expect(screen.getByText("Aarav Sharma")).toBeInTheDocument();
   });
 
-  it("renders examination subjects and exam forms", () => {
+  it("renders examination subjects and exam forms", async () => {
     renderPage(<SubjectsAndExamForms />);
     expect(
       screen.getByRole("heading", { name: "Subjects & Exam Forms" }),
@@ -72,24 +78,27 @@ describe("secondary admin pages", () => {
     expect(
       screen.getByText("Subject & exam form register"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Data Structures")).toBeInTheDocument();
+    await waitFor(
+      () => expect(screen.getByText(/Data Structures/)).toBeInTheDocument(),
+      { timeout: 2000 },
+    );
   });
 
-  it("renders examination timetables", () => {
+  it("renders examination timetables", async () => {
     renderPage(<ExamTimetables />);
     expect(
       screen.getByRole("heading", { name: "Exam Timetables" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Examination Schedule")).toBeInTheDocument();
-    expect(screen.getByText("Advanced Accounting")).toBeInTheDocument();
+    expect(await screen.findByText(/Advanced Accounting/)).toBeInTheDocument();
   });
 
-  it("renders examination hall tickets", () => {
+  it("renders examination hall tickets", async () => {
     renderPage(<HallTickets />);
     expect(
       screen.getByRole("heading", { name: "Hall Tickets" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Hall Ticket Register")).toBeInTheDocument();
-    expect(screen.getByText("Fatima Khan")).toBeInTheDocument();
+    expect(await screen.findByText("Fatima Khan")).toBeInTheDocument();
   });
 });

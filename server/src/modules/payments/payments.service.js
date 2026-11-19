@@ -131,6 +131,7 @@ async function createOrder(req, { purpose, applicationId, examFormId }) {
     amountPaise: target.amountPaise,
     gateway: gateway.name,
     gatewayOrderId: order.gatewayOrderId,
+    orderCreatedAt: new Date(),
   });
 
   await auditSafe(req, {
@@ -150,12 +151,12 @@ async function createOrder(req, { purpose, applicationId, examFormId }) {
  */
 async function settlePaid(req, payment, gatewayPaymentId, { source, method } = {}) {
   const alreadyPaid = payment.status === PAYMENT_STATUS.PAID;
+  const methodFields = method ? { gatewayMethod: PAYMENT_METHODS.includes(method) ? method : 'other' } : {};
   const fields = source === 'webhook'
-    ? {
-      confirmedVia: PAYMENT_CONFIRMED_VIA.WEBHOOK,
-      ...(method ? { gatewayMethod: PAYMENT_METHODS.includes(method) ? method : 'other' } : {}),
-    }
-    : { confirmedVia: PAYMENT_CONFIRMED_VIA.CHECKOUT, signatureVerifiedAt: new Date() };
+    ? { confirmedVia: PAYMENT_CONFIRMED_VIA.WEBHOOK, ...methodFields }
+    : source === 'reconciliation'
+      ? { confirmedVia: PAYMENT_CONFIRMED_VIA.RECONCILIATION, ...methodFields }
+      : { confirmedVia: PAYMENT_CONFIRMED_VIA.CHECKOUT, signatureVerifiedAt: new Date() };
   const paid = await Payment.markPaid(payment._id, { gatewayPaymentId, fields });
 
   if (paid.purpose === PAYMENT_PURPOSE.EXAM) {

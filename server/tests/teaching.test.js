@@ -281,8 +281,9 @@ describe('Marks', () => {
     let call;
     Marks.updateMany = async (f, u) => { call = { f, u }; return { modifiedCount: 2 }; };
     await expect(Marks.decideMany([id()], { approve: false, byUserId: id() })).rejects.toMatchObject({ statusCode: 400 });
-    expect(await Marks.decideMany([id(), id()], { approve: true, byUserId: teacher })).toEqual({ decided: 2, skipped: 0 });
+    expect(await Marks.decideMany([id(), id()], { approve: true, byUserId: teacher, departmentId: id() })).toEqual({ decided: 2, skipped: 0 });
     expect(call.f.status).toBe('submitted');
+    expect(call.f.departmentId).toBeDefined();
     expect(call.f.enteredByUserId).toBeUndefined(); // no "not your own" restriction
     expect(call.u.$set.status).toBe('approved');
   });
