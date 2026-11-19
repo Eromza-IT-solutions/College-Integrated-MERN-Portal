@@ -78,10 +78,11 @@ marksSchema.statics.submitMany = async function submitMany(ids, { byUserId, sess
  * The HOD approves or returns submitted marks. Returning needs a note. Per the team's decision a HOD approves their own
  * marks. Returns how many were decided; marks that were not "submitted" are skipped.
  */
-marksSchema.statics.decideMany = async function decideMany(ids, { approve, byUserId, note }, { session } = {}) {
+marksSchema.statics.decideMany = async function decideMany(ids, { approve, byUserId, note, departmentId }, { session } = {}) {
   if (!approve && !note) throw new AppError('Say what needs to change', 400);
+  if (!departmentId) throw new AppError('A department is required to decide marks', 400);
   const r = await this.updateMany(
-    { _id: { $in: ids }, status: REVIEW_STATUS.SUBMITTED },
+    { _id: { $in: ids }, status: REVIEW_STATUS.SUBMITTED, departmentId },
     { $set: { status: approve ? REVIEW_STATUS.APPROVED : REVIEW_STATUS.RETURNED, reviewedByUserId: byUserId, reviewedAt: new Date(), reviewNote: note } },
     { session }
   );

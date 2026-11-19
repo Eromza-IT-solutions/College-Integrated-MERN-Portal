@@ -1,8 +1,8 @@
 import express from 'express';
 import asyncHandler from '../../utils/asyncHandler.js';
 import { requirePermission } from '../../middleware/requirePermission.js';
-import { marksEnterBody, marksSubmitBody, marksDecisionBody, marksQuery, parse } from './academics.validation.js';
-import { enterMarks, submitMarks, decideMarks, listMarks } from './marks.service.js';
+import { marksEnterBody, marksSubmitBody, marksDecisionBody, marksQuery, idParam, parse } from './academics.validation.js';
+import { enterMarks, submitMarks, decideMarks, listMarks, getMark } from './marks.service.js';
 import { ok, paged } from './academics.helpers.js';
 
 const router = express.Router();
@@ -26,6 +26,10 @@ router.post('/decision', requirePermission('marks', 'approve'), asyncHandler(asy
 router.get('/', requirePermission('marks', 'view'), asyncHandler(async (req, res) => {
   const result = await listMarks(req, parse(marksQuery, req.query));
   ok(req, res, result.rows, 200, paged(result));
+}));
+
+router.get('/:id', requirePermission('marks', 'view'), asyncHandler(async (req, res) => {
+  ok(req, res, await getMark(req, parse(idParam, req.params.id)));
 }));
 
 export default router;

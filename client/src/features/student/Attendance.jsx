@@ -1,55 +1,77 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, ClipboardCheck, Download } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardCheck,
+  Download,
+} from "lucide-react";
 import BarList from "../../components/charts/BarList";
 import ProgressRing from "../../components/charts/ProgressRing";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card, { CardBody, CardHeader } from "../../components/ui/Card";
 import DataTable from "../../components/ui/Table";
+import ErrorState from "../../components/ui/ErrorState";
+import Loader from "../../components/ui/Loader";
 import PageHeader from "../../components/ui/PageHeader";
 import SearchInput from "../../components/ui/SearchInput";
 import StatCard from "../../components/ui/StatCard";
-import {
-  studentAttendanceBreakdown,
-  studentAttendanceRows,
-} from "../../mocks/studentData";
+import { useApiData } from "../../hooks/useApiData";
+import { fetchAttendanceSummary } from "../../services/studentApi";
+import { formatPercent } from "../../utils/format";
 import { downloadCsv } from "../../utils/csv";
+
+const COLORS = ["#19845b", "#3279be", "#d88a2d", "#a9233d", "#7c5cbf"];
 
 export default function Attendance() {
   const [query, setQuery] = useState("");
+  const { data, loading, error, reload } = useApiData(fetchAttendanceSummary);
+
+  const rows = useMemo(
+    () =>
+      (data?.subjects ?? []).map((row) => ({
+        id: String(row.subjectId),
+        subject: row.subject?.name || "Subject",
+        code: row.subject?.code || "",
+        attended: row.present ?? 0,
+        total: row.held ?? 0,
+        leave: row.leave ?? 0,
+        percentage: Number(row.percentage) || 0,
+      })),
+    [data],
+  );
 
   const filteredRows = useMemo(() => {
     const search = query.trim().toLowerCase();
-    return studentAttendanceRows.filter(
+    return rows.filter(
       (row) =>
         !search ||
         row.subject.toLowerCase().includes(search) ||
-        row.faculty.toLowerCase().includes(search),
+        row.code.toLowerCase().includes(search),
     );
-  }, [query]);
+  }, [rows, query]);
 
-  const totalAttended = studentAttendanceRows.reduce(
-    (sum, row) => sum + row.attended,
-    0,
-  );
-  const totalClasses = studentAttendanceRows.reduce(
-    (sum, row) => sum + row.total,
-    0,
-  );
-  const overall = Math.round((totalAttended / totalClasses) * 100);
-  const belowThreshold = studentAttendanceRows.filter(
-    (row) => row.percentage < 85,
-  ).length;
+  const totalAttended = rows.reduce((sum, row) => sum + row.attended, 0);
+  const totalClasses = rows.reduce((sum, row) => sum + row.total, 0);
+  const overall = totalClasses
+    ? Math.round((totalAttended / totalClasses) * 100)
+    : 0;
+  const belowThreshold = rows.filter((row) => row.percentage < 85).length;
+  const breakdown = rows.map((row, index) => ({
+    label: row.subject,
+    value: Math.round(row.percentage),
+    color: COLORS[index % COLORS.length],
+  }));
 
   const handleExport = () => {
     downloadCsv("eromza-student-attendance.csv", [
-      ["Subject", "Faculty", "Attended", "Total", "Percentage"],
-      ...studentAttendanceRows.map((row) => [
+      ["Subject", "Code", "Attended", "Total", "Percentage"],
+      ...rows.map((row) => [
         row.subject,
-        row.faculty,
+        row.code,
         row.attended,
         row.total,
-        `${row.percentage}%`,
+        `${Math.round(row.percentage)}%`,
       ]),
     ]);
   };
@@ -63,7 +85,9 @@ export default function Attendance() {
           <p className="truncate text-xs font-semibold text-eromza-text">
             {row.subject}
           </p>
-          <p className="mt-1 text-[11px] text-eromza-subtle">{row.faculty}</p>
+          <p className="mt-1 text-[11px] text-eromza-subtle">
+            {row.code || "Code not set"}
+          </p>
         </div>
       ),
     },
@@ -81,7 +105,7 @@ export default function Attendance() {
       header: "Attendance",
       render: (row) => (
         <Badge variant={row.percentage >= 85 ? "success" : "warning"}>
-          {row.percentage}%
+          {formatPercent(row.percentage)}
         </Badge>
       ),
     },
@@ -110,78 +134,99 @@ export default function Attendance() {
         title="Attendance"
         description="Track subject-wise attendance and stay above the college threshold."
         actions={
-          <Button variant="secondary" onClick={handleExport}>
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            disabled={rows.length === 0}
+          >
             <Download size={16} />
             Export attendance
           </Button>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Overall attendance"
-          value={`${overall}%`}
-          tone="success"
-          icon={ClipboardCheck}
-        />
-        <StatCard
-          label="Classes attended"
-          value={`${totalAttended}/${totalClasses}`}
-          tone="info"
-          icon={CheckCircle2}
-        />
-        <StatCard
-          label="Subjects tracked"
-          value={String(studentAttendanceRows.length)}
-          tone="accent"
-          icon={ClipboardCheck}
-        />
-        <StatCard
-          label="Below 85%"
-          value={String(belowThreshold)}
-          tone="warning"
-          icon={AlertTriangle}
-        />
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
+      {loading ? (
         <Card>
-          <CardHeader
-            title="Subject attendance"
-            description="Attendance recorded across your Semester V subjects"
-          />
-          <CardBody>
-            <SearchInput
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by subject or faculty"
-            />
-          </CardBody>
-          <DataTable
-            columns={columns}
-            rows={filteredRows}
-            emptyTitle="No attendance records match your search"
+          <Loader label="Loading attendance..." />
+        </Card>
+      ) : error ? (
+        <Card>
+          <ErrorState
+            title="Could not load attendance"
+            description={error.message}
+            onRetry={reload}
           />
         </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Overall attendance"
+              value={`${overall}%`}
+              tone="success"
+              icon={ClipboardCheck}
+            />
+            <StatCard
+              label="Classes attended"
+              value={`${totalAttended}/${totalClasses}`}
+              tone="info"
+              icon={CheckCircle2}
+            />
+            <StatCard
+              label="Subjects tracked"
+              value={String(rows.length)}
+              tone="accent"
+              icon={ClipboardCheck}
+            />
+            <StatCard
+              label="Below 85%"
+              value={String(belowThreshold)}
+              tone="warning"
+              icon={AlertTriangle}
+            />
+          </div>
 
-        <Card>
-          <CardHeader
-            title="Attendance health"
-            description="Your current semester average"
-          />
-          <CardBody className="space-y-6">
-            <ProgressRing
-              value={overall}
-              label="Present"
-              caption={`You have attended ${totalAttended} of ${totalClasses} scheduled classes.`}
-            />
-            <BarList
-              items={studentAttendanceBreakdown}
-              valueFormatter={(value) => `${value}%`}
-            />
-          </CardBody>
-        </Card>
-      </div>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
+            <Card>
+              <CardHeader
+                title="Subject attendance"
+                description="Attendance recorded across your enrolled subjects"
+              />
+              <CardBody>
+                <SearchInput
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search by subject or code"
+                />
+              </CardBody>
+              <DataTable
+                columns={columns}
+                rows={filteredRows}
+                getRowKey={(row) => row.id}
+                emptyTitle="No attendance records match your search"
+              />
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Attendance health"
+                description="Your current overall average"
+              />
+              <CardBody className="space-y-6">
+                <ProgressRing
+                  value={overall}
+                  label="Present"
+                  caption={`You have attended ${totalAttended} of ${totalClasses} scheduled classes.`}
+                />
+                <BarList
+                  items={breakdown}
+                  valueFormatter={(value) => `${value}%`}
+                />
+              </CardBody>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }

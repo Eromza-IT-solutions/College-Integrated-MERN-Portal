@@ -2,12 +2,26 @@ import express from 'express';
 import asyncHandler from '../../utils/asyncHandler.js';
 import { requirePermission } from '../../middleware/requirePermission.js';
 import { ok, paged } from '../academics/academics.helpers.js';
-import { formQuery, subjectSelectionBody, decisionBody, idParam, parse } from './examinations.validation.js';
+import { formQuery, subjectSelectionBody, decisionBody, hallTicketUpdateBody, idParam, parse } from './examinations.validation.js';
 import { listForms, getForm, selectSubjects, continueForm, decideForm } from './examinations.service.js';
+import { myTickets, updateTicket, getTicketForPdf } from './hallTickets.service.js';
 import { sendPdf, pdfFilename } from '../../utils/pdf.js';
-import { examFormPdf } from '../../utils/pdfDocuments.js';
+import { examFormPdf, hallTicketPdf } from '../../utils/pdfDocuments.js';
 
 const router = express.Router();
+
+router.get('/hall-tickets/me', requirePermission('examForms', 'view'), asyncHandler(async (req, res) => {
+  ok(req, res, await myTickets(req));
+}));
+
+router.patch('/hall-tickets/:id', requirePermission('examForms', 'approve'), asyncHandler(async (req, res) => {
+  ok(req, res, await updateTicket(req, parse(idParam, req.params.id), parse(hallTicketUpdateBody, req.body)));
+}));
+
+router.get('/hall-tickets/:id/pdf', requirePermission('examForms', 'view'), asyncHandler(async (req, res) => {
+  const ticket = await getTicketForPdf(req, parse(idParam, req.params.id));
+  sendPdf(res, hallTicketPdf(ticket), pdfFilename(`hall-ticket-${ticket.enrollmentNumber || ticket._id}`));
+}));
 
 router.get('/', requirePermission('examForms', 'view'), asyncHandler(async (req, res) => {
   const result = await listForms(req, parse(formQuery, req.query));

@@ -19,6 +19,10 @@ function createFakeGateway() {
         receipt,
       };
     },
+    // The fake gateway has no remote ledger; reconciliation finds nothing to repair.
+    async listOrderPayments() {
+      return [];
+    },
     // order_id|payment_id signed with the secret (same recipe as Razorpay's checkout signature)
     sign(orderId, paymentId) {
       return crypto.createHmac('sha256', FAKE_SECRET).update(`${orderId}|${paymentId}`).digest('hex');

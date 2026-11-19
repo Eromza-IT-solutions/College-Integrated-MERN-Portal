@@ -117,13 +117,22 @@ describe('payment report', () => {
 });
 
 describe('CSV export', () => {
+  test('an export is scoped to the HOD own department', async () => {
+    const own = await request(hod(w.deptA._id)).get('/reports/admission?format=csv');
+    expect(own.status).toBe(200);
+    expect(own.text).toContain('FYCS');
+    const other = await request(hod(w.deptB._id)).get('/reports/admission?format=csv');
+    expect(other.status).toBe(200);
+    expect(other.text).not.toContain('FYCS');
+  });
+
   test('CSV download works, has a header row, and an audit row is written', async () => {
     const res = await request(superAdmin()).get('/reports/payment?format=csv');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/text\/csv/);
     expect(res.headers['content-disposition']).toMatch(/payment-report-\d{4}-\d{2}-\d{2}\.csv/);
     expect(res.text).toContain('purpose,paidCount,collectedPaise');
-    const row = await AuditLog.findOne({ action: 'reportExported' }).lean();
+    const row = await AuditLog.findOne({ action: 'reportExported', 'details.report': 'payment' }).sort({ createdAt: -1 }).lean();
     expect(row.details).toMatchObject({ report: 'payment', rows: 2 });
   });
 });

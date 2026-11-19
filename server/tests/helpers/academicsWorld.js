@@ -14,6 +14,7 @@ import Marks from '../../src/models/Marks.js';
 import Result from '../../src/models/Result.js';
 import Exam from '../../src/models/Exam.js';
 import ExamForm from '../../src/models/ExamForm.js';
+import HallTicket from '../../src/models/HallTicket.js';
 import FeeStructure from '../../src/models/FeeStructure.js';
 import TeachingPlan from '../../src/models/TeachingPlan.js';
 import Teacher from '../../src/models/Teacher.js';
@@ -36,7 +37,7 @@ import studentsRoutes from '../../src/modules/students/students.routes.js';
 // Login abhi bana nahi hai, isliye appFor() har request par req.user khud laga deta hai (jaise login middleware lagayega).
 
 const matrix = JSON.parse(readFileSync(new URL('../../scripts/data/permission-matrix.json', import.meta.url), 'utf8'));
-const MODELS = [Department, Program, AcademicYear, User, Subject, Student, Enrollment, Timetable, Attendance, Marks, Result, Exam, ExamForm, FeeStructure, Teacher, TeachingPlan, AuditLog, Permission];
+const MODELS = [Department, Program, AcademicYear, User, Subject, Student, Enrollment, Timetable, Attendance, Marks, Result, Exam, ExamForm, HallTicket, FeeStructure, Teacher, TeachingPlan, AuditLog, Permission];
 
 /** Indexes (jaise unique slot) database me ban jaane do, phir permission matrix daalo. */
 async function prepareDatabase() {
@@ -101,7 +102,19 @@ async function buildWorld() {
     teacherUserId: teacher1._id, dayOfWeek: weekdayOf(today), period: 1,
   });
 
-  const exam = await Exam.create({ name: 'End Sem Nov 2026', academicYearId: year._id, programId: progA._id, semester: 1, formOpensAt: new Date('2026-10-01'), formClosesAt: new Date('2026-10-20'), status: 'open' });
+  const exam = await Exam.create({
+    name: 'End Sem Nov 2026',
+    academicYearId: year._id,
+    programId: progA._id,
+    semester: 1,
+    formOpensAt: new Date('2026-10-01'),
+    formClosesAt: new Date('2026-10-20'),
+    status: 'open',
+    schedule: [
+      { subjectId: subject1._id, date: new Date('2026-11-20'), startTime: '10:00', endTime: '12:00', room: '101' },
+      { subjectId: subject2._id, date: new Date('2026-11-22'), startTime: '10:00', endTime: '12:00', room: '102' },
+    ],
+  });
   const examForm = await ExamForm.create({
     examId: exam._id, studentId: stu1._id, status: 'approved',
     details: { enrollmentNumber: 'EN001', fullName: 'stu1 Name', semester: 1 },

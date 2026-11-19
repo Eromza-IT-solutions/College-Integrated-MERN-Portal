@@ -69,7 +69,15 @@ function wireFakes() {
     if (update.$inc) Object.entries(update.$inc).forEach(([k, v]) => { p[k] = (p[k] || 0) + v; });
     return copy(p);
   };
-  Payment.updateOne = async (filter, update) => { Object.entries(update.$inc).forEach(([k, v]) => { payments[String(filter._id)][k] += v; }); };
+  Payment.updateOne = async (filter, update) => {
+    const p = payments[String(filter._id)];
+    if (!p) return;
+    if (update.$inc) Object.entries(update.$inc).forEach(([k, v]) => { p[k] += v; });
+    if (update.$addToSet) Object.entries(update.$addToSet).forEach(([k, v]) => {
+      p[k] = p[k] || [];
+      if (!p[k].includes(v)) p[k].push(v);
+    });
+  };
   AcademicYear.findById = () => q({ label: '2026-27' });
   Counter.next = async () => { counter += 1; return counter; };
   User.findById = () => q({ fullName: 'Riya Patil' });
@@ -131,7 +139,7 @@ const addExamSetup = ({ userId = studentUser, formStatus = 'pendingPayment', ope
   return { exam, student, form };
 };
 const addPayment = (over = {}) => {
-  const p = { _id: id(), purpose: 'admission', payerUserId: applicantA, academicYearId: YEAR, feeStructureId: id(), applicationId: id(), amountPaise: 1200000, reservedRefundPaise: 0, failedAttempts: 0, status: 'created', gateway: 'fake', gatewayOrderId: `order_fake_${id()}`, isTestMode: true, createdAt: new Date(), ...over };
+  const p = { _id: id(), purpose: 'admission', payerUserId: applicantA, academicYearId: YEAR, feeStructureId: id(), applicationId: id(), amountPaise: 1200000, reservedRefundPaise: 0, failedAttempts: 0, status: 'created', gateway: 'fake', gatewayOrderId: `order_fake_${id()}`, isTestMode: true, gatewayEventIds: [], createdAt: new Date(), ...over };
   payments[String(p._id)] = p;
   if (p.purpose === 'admission' && p.applicationId && !apps[String(p.applicationId)]) {
     apps[String(p.applicationId)] = {
@@ -184,6 +192,20 @@ describe('gateway layer', () => {
     expect(calls[0].init.headers.Authorization).toBe(`Basic ${Buffer.from('rzp_test_abc:sec').toString('base64')}`);
     expect(JSON.parse(calls[0].init.body)).toMatchObject({ amount: 5000, currency: 'INR', receipt: 'pay_1' });
     expect(g.publicKeyId).toBe('rzp_test_abc');
+  });
+
+  test('razorpay gateway: lists the payments of an order with a GET and no body', async () => {
+    const calls = [];
+    const fakeFetch = async (url, init) => {
+      calls.push({ url, init });
+      return { ok: true, json: async () => ({ items: [{ id: 'pay_R1', status: 'captured', amount: 5000 }] }) };
+    };
+    const g = createRazorpayGateway({ keyId: 'rzp_test_abc', keySecret: 'sec', webhookSecret: 'wh' }, fakeFetch);
+    const items = await g.listOrderPayments('order_R1');
+    expect(items).toEqual([{ id: 'pay_R1', status: 'captured', amount: 5000 }]);
+    expect(calls[0].url).toBe('https://api.razorpay.com/v1/orders/order_R1/payments');
+    expect(calls[0].init.method).toBe('GET');
+    expect(calls[0].init.body).toBeUndefined();
   });
 
   test('razorpay gateway: a refused request and an unreachable gateway both become 502', async () => {
