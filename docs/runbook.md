@@ -41,7 +41,7 @@ npm run seed:permissions
 npm run seed
 ```
 
-College data seeding order:
+Real college data seeding order:
 
 ```powershell
 npm run seed:programs
@@ -49,23 +49,27 @@ npm run seed:fees
 npm run seed:subjects
 ```
 
+`seed:subjects` loads the 1,636-subject college catalog from `college-subjects.json`. `seed:sample-subjects` creates only the demo `SMP-*` subjects used by the sample exam, timetable, and demo student flows. They are not duplicates and should not be used together in production: `seed:subjects` prunes stale `SMP-*` rows.
+
 Create a Super Admin:
 
 ```powershell
 npm run create-super-admin
 ```
 
-Optional sample data:
+Optional demo-only data, in dependency order:
 
 ```powershell
+npm run seed:sample-subjects
 npm run seed:exam
 npm run seed:timetable
-npm run seed:sample-subjects
-npm run seed:website-content
-npm run seed:audit-logs
 npm run seed:demo-student
 npm run seed:demo-applicant
+npm run seed:website-content
+npm run seed:audit-logs
 ```
+
+`seed:exam`, `seed:timetable`, `seed:demo-student`, and `seed:demo-applicant` depend on the `SMP-*` subjects. Run `seed:subjects` only for real college data, and back up the database first because it prunes rows not present in the JSON catalog.
 
 ## Verification
 
@@ -81,16 +85,37 @@ npm run build
 ```powershell
 cd server
 npm run lint
+npm run openapi:check
 npm test
 ```
 
-CI runs the same lint/test/build commands on pull requests and pushes to `main` and `develop`.
+CI runs these checks on pull requests and pushes to `main` and `develop`: client lint/test/build, server lint, OpenAPI validation, and server tests.
+
+## Repository protection
+
+Branch protection is a GitHub repository setting, not a repository file. Configure it on `main` and `develop`:
+
+- Require a pull request before merging.
+- Require at least one approving review.
+- Dismiss stale approvals when new commits are pushed.
+- Require these status checks: client lint/test/build, server lint, `openapi:check`, and server test.
+- Require branches to be up to date before merging.
+- Block force pushes and branch deletion.
+- Restrict direct pushes to maintainers.
+
+This cannot be verified from a local checkout; confirm it in GitHub repository settings before release.
+
+## Deployment target
+
+Status: not selected. This is a release blocker, not an implemented component.
+
+A deployment decision is required for the API host, MongoDB provider, client host, domain/TLS, public webhook URL, and environment-secret store. Until those are chosen, the runbook can describe local and CI behavior only. Do not configure production payment credentials or scheduled jobs against an unapproved target.
 
 ## Data inventory
 
 - `docs/db-model-map.md` lists every model, relationship, and invariant.
 - `docs/openapi.yaml` lists the HTTP contract, including `/exams/reference`, hall tickets, payments, and reports.
-- `server/scripts/data/college-programs.json` has 60 programs.
+- `server/scripts/data/college-programs.json` has 60 programs, enforced by `server/tests/college-alignment.test.js`.
 - `server/scripts/data/college-subjects.json` has 1,636 subjects across 32 programs.
 - `server/scripts/data/college-fees-2026-27.json` has 28 confirmed fee groups.
 
@@ -176,11 +201,13 @@ Issued tickets snapshot the schedule. Later `Exam.schedule` edits do not alter i
 - Student self-update allowlist is `mobile`.
 - Enrollment add/drop/promote requires `scope: all`.
 - Deleting a student means deactivate the student and linked user, never hard delete.
-- MIME and image-dimension validation for admission documents remains a hardening gap.
+- MIME, size, and image-dimension validation for admission documents is tracked as `SEC-001` in `docs/security-backlog.md`.
 
 ## Release checklist
 
-- [ ] All CI checks pass.
+- [ ] All CI checks pass, including `npm run openapi:check`.
+- [ ] Branch protection is enabled on `main` and `develop`.
+- [ ] Deployment target and domain/TLS decisions are approved.
 - [ ] Required env variables are set in the target environment.
 - [ ] `npm run seed:permissions` has been run after permission-matrix changes.
 - [ ] `docs/openapi.yaml` matches deployed routes.
@@ -189,4 +216,5 @@ Issued tickets snapshot the schedule. Later `Exam.schedule` edits do not alter i
 - [ ] Webhook URL is public and signature secret matches.
 - [ ] Scheduled jobs are enabled with intended intervals.
 - [ ] Backup taken before any seed that mutates live data.
+- [ ] `SEC-001` is triaged and either fixed or explicitly accepted before admitting real uploads.
 - [ ] Rollback plan identified.
