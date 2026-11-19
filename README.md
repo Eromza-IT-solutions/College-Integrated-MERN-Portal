@@ -27,6 +27,7 @@ Create a working website with secure login, role-based dashboards, and departmen
 - [Database model map](docs/db-model-map.md)
 - [OpenAPI specification](docs/openapi.yaml)
 - [Operations runbook](docs/runbook.md)
+- [Security backlog](docs/security-backlog.md)
 - [Pull request template](.github/PULL_REQUEST_TEMPLATE.md)
 
 ## Development Rules

@@ -20,6 +20,7 @@
 - [ ] `cd client && npm test`
 - [ ] `cd client && npm run build`
 - [ ] `cd server && npm run lint`
+- [ ] `cd server && npm run openapi:check`
 - [ ] `cd server && npm test`
 - [ ] Manual flow verified in browser or API client
 
