@@ -14,6 +14,7 @@ import './Enrollment.js';
 import './Exam.js';
 import './ExamForm.js';
 import './FeeStructure.js';
+import './HallTicket.js';
 import './Marks.js';
 import './Payment.js';
 import './Permission.js';

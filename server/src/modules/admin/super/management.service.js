@@ -10,6 +10,8 @@ import FeeStructure from '../../../models/FeeStructure.js';
 import { hashPassword } from '../../../utils/password.js';
 import { validatePassword } from '../../../utils/passwordPolicy.js';
 import { ROLES, USER_STATUS, TEACHER_STATUS, ACADEMIC_YEAR_STATUS } from '../../../utils/constants.js';
+import { getActor } from '../../../middleware/requirePermission.js';
+import { scopeFilter, isInScope } from '../../../utils/scope.js';
 
 const notFound = (what) => new AppError(`${what} not found`, 404, undefined, 'NOT_FOUND');
 const blank = (value) => (value === '' ? undefined : value);
@@ -49,6 +51,9 @@ function userFilter(query) {
   return filter;
 }
 
+const scoped = (client, scope) => ({ $and: [client, scope] });
+const SELF_TEACHER_FIELDS = new Set(['fullName', 'email', 'mobile', 'phone']);
+
 async function newPassword(password, email) {
   const problem = validatePassword(password, email);
   if (problem) throw new AppError(problem, 400, [{ field: 'password', message: problem }], 'WEAK_PASSWORD');
@@ -56,7 +61,13 @@ async function newPassword(password, email) {
 }
 
 // ---- users ----
-export const listUsers = (query) => list(User, userFilter(query), query, ['fullName', 'email'], { createdAt: -1 });
+export const listUsers = (req, query) => list(
+  User,
+  scoped(userFilter(query), scopeFilter(req, { ownerField: '_id' })),
+  query,
+  ['fullName', 'email'],
+  { createdAt: -1 }
+);
 
 export async function createStaffUser(body) {
   const passwordHash = await newPassword(body.password, body.email);
@@ -76,10 +87,14 @@ export async function createStaffUser(body) {
   }
 }
 
-export async function updateUser(id, body, actorId) {
+export async function updateUser(req, id, body) {
+  const actor = getActor(req);
   const user = mongoose.isValidObjectId(id) ? await User.findById(id) : null;
-  if (!user) throw notFound('User');
-  if (String(user._id) === String(actorId) && (body.role || body.status)) {
+  if (!user || !isInScope(req, user, { ownerField: '_id' })) throw notFound('User');
+  if (req.permission.scope !== 'all' && (body.role !== undefined || body.status !== undefined)) {
+    throw new AppError('You cannot change your own role or status.', 400, undefined, 'SELF_CHANGE_BLOCKED');
+  }
+  if (String(user._id) === actor.id && (body.role !== undefined || body.status !== undefined)) {
     throw new AppError('You cannot change your own role or status.', 400, undefined, 'SELF_CHANGE_BLOCKED');
   }
   for (const key of ['fullName', 'email', 'role', 'status']) if (body[key] !== undefined) user[key] = body[key];
@@ -106,7 +121,13 @@ export async function deactivateUser(id, actorId) {
 }
 
 // ---- teachers ----
-export const listTeachers = (query) => list(Teacher, {}, query, ['employeeNumber', 'designation'], { createdAt: -1 });
+export const listTeachers = (req, query) => list(
+  Teacher,
+  scopeFilter(req, { ownerField: 'userId', departmentField: 'departmentId' }),
+  query,
+  ['employeeNumber', 'designation'],
+  { createdAt: -1 }
+);
 
 export async function createTeacher(body) {
   await mustExist(Department, body.departmentId, 'Department');
@@ -143,9 +164,13 @@ export async function createTeacher(body) {
   }
 }
 
-export async function updateTeacher(id, body) {
+export async function updateTeacher(req, id, body) {
   const teacher = mongoose.isValidObjectId(id) ? await Teacher.findById(id) : null;
-  if (!teacher) throw notFound('Teacher');
+  if (!teacher || !isInScope(req, teacher, { ownerField: 'userId', departmentField: 'departmentId' })) throw notFound('Teacher');
+  if (req.permission.scope !== 'all') {
+    const outside = Object.keys(body).filter((key) => !SELF_TEACHER_FIELDS.has(key));
+    if (outside.length) throw new AppError('You can change only your own contact details.', 403, outside.map((field) => ({ field, message: 'Not allowed' })), 'FORBIDDEN');
+  }
   const user = await User.findById(teacher.userId);
   if (!user) throw notFound('User');
 

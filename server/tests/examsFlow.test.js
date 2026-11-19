@@ -74,6 +74,24 @@ describe('exam routes', () => {
     expect(await AuditLog.countDocuments({ action: 'examCreated' })).toBe(1);
   });
 
+  test('exam admins can load scoped reference data for the exam forms', async () => {
+    expect((await request(student()).get('/exams/reference')).status).toBe(403);
+
+    const res = await request(examAdmin()).get('/exams/reference');
+    expect(res.status).toBe(200);
+    expect(res.body.data.academicYears.map((year) => year._id)).toContain(String(w.year._id));
+    expect(res.body.data.programs.map((program) => program._id)).toContain(String(w.progA._id));
+    expect(res.body.data.subjects.map((subject) => subject._id)).toEqual(expect.arrayContaining([String(w.subject1._id)]));
+
+    const filtered = await request(examAdmin()).get('/exams/reference').query({
+      programId: String(w.progA._id),
+      semester: 1,
+    });
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.data.subjects.length).toBeGreaterThan(0);
+    expect(filtered.body.data.subjects.every((subject) => subject.programId === String(w.progA._id) && subject.semester === 1)).toBe(true);
+  });
+
   test('bad dates are refused and the exam can be opened', async () => {
     const bad = await request(examAdmin()).post('/exams').send(examBody({
       name: 'Bad Exam',
@@ -84,6 +102,32 @@ describe('exam routes', () => {
     const opened = await request(examAdmin()).patch(`/exams/${examId}`).send({ status: 'open' });
     expect(opened.status).toBe(200);
     expect(opened.body.data.status).toBe('open');
+  });
+
+  test('a schedule must use papers from this class and end after it starts', async () => {
+    const wrongSubject = await request(examAdmin()).post('/exams').send(examBody({
+      name: 'Wrong Subject Exam',
+      schedule: [{
+        subjectId: String(new mongoose.Types.ObjectId()),
+        date: '2026-11-20',
+        startTime: '10:00',
+        endTime: '12:00',
+      }],
+    }));
+    expect(wrongSubject.status).toBe(400);
+    expect(wrongSubject.body.error.code).toBe('SCHEDULE_SUBJECT_INVALID');
+
+    const badTime = await request(examAdmin()).post('/exams').send(examBody({
+      name: 'Bad Time Exam',
+      schedule: [{
+        subjectId: String(w.subject1._id),
+        date: '2026-11-20',
+        startTime: '12:00',
+        endTime: '10:00',
+      }],
+    }));
+    expect(badTime.status).toBe(400);
+    expect(badTime.body.error.code).toBe('VALIDATION_ERROR');
   });
 
   test('a student sees the open exam and starts a form with the offered subjects', async () => {

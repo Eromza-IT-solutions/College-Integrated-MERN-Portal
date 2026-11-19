@@ -2,12 +2,12 @@ import AppError from '../../utils/AppError.js';
 import Attendance from '../../models/Attendance.js';
 import Timetable from '../../models/Timetable.js';
 import Student from '../../models/Student.js';
-import Program from '../../models/Program.js';
 import Subject from '../../models/Subject.js';
 import User from '../../models/User.js';
 import { ATTENDANCE_STATUS } from '../../utils/constants.js';
 import { getActor } from '../../middleware/requirePermission.js';
-import { scopeFilter, isInScope } from '../../utils/scope.js';
+import { scopeFilter } from '../../utils/scope.js';
+import { isStudentInScope } from '../../services/studentScope.js';
 import { auditSafe } from '../../services/auditService.js';
 import { both, clean, isStudent, skipOf, studentOfActor } from './academics.helpers.js';
 
@@ -84,9 +84,8 @@ async function studentSummary(req, q) {
     if (!q.studentId) throw new AppError('studentId is required', 400, [{ field: 'studentId', message: 'studentId is required' }], 'VALIDATION_ERROR');
     student = await Student.findById(q.studentId);
     if (!student) throw new AppError('Student not found', 404);
-    if (req.permission.scope === 'department') {
-      const program = await Program.findById(student.programId);
-      if (!program || !isInScope(req, { departmentId: program.departmentId })) throw new AppError('Student not found', 404);
+    if (req.permission.scope === 'department' && !(await isStudentInScope(req, student))) {
+      throw new AppError('Student not found', 404);
     }
   }
 

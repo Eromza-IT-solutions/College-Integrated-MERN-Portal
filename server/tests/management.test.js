@@ -3,6 +3,7 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import User from '../src/models/User.js';
+import Teacher from '../src/models/Teacher.js';
 import AcademicYear from '../src/models/AcademicYear.js';
 import AuditLog from '../src/models/AuditLog.js';
 import { prepareDatabase, appFor, buildWorld } from './helpers/academicsWorld.js';
@@ -131,5 +132,52 @@ describe('Super Admin management routes', () => {
     expect((await request(superAdmin()).post('/admin/subjects').send({
       code: 'X1', name: 'Missing program', programId: new mongoose.Types.ObjectId().toString(), semester: 1, category: 'major',
     })).status).toBe(400);
+  });
+});
+
+describe('department-scoped staff management', () => {
+  const hodA = () => as({ id: w.hodA._id, role: 'hod', departmentId: w.deptA._id });
+  const hodB = () => as({ id: w.hodB._id, role: 'hod', departmentId: w.deptB._id });
+  const teacher1 = () => as({ id: w.teacher1._id, role: 'teacher', departmentId: w.deptA._id });
+  let teacher1Id;
+  let teacher2Id;
+
+  beforeAll(async () => {
+    const [t1, t2] = await Teacher.create([
+      { userId: w.teacher1._id, employeeNumber: 'EMP-T1', departmentId: w.deptA._id, designation: 'Assistant Professor' },
+      { userId: w.teacher2._id, employeeNumber: 'EMP-T2', departmentId: w.deptA._id, designation: 'Assistant Professor' },
+      { userId: w.hodA._id, employeeNumber: 'EMP-HA', departmentId: w.deptA._id, designation: 'Head' },
+    ]);
+    teacher1Id = t1._id;
+    teacher2Id = t2._id;
+  });
+
+  test('a HOD sees only own department users and cannot update another user', async () => {
+    const res = await request(hodA()).get('/admin/users');
+    expect(res.status).toBe(200);
+    expect(res.body.meta.total).toBe(3);
+    expect(res.body.data.map((u) => u.email)).toContain('teacher1@test.edu');
+    expect(res.body.data.map((u) => u.email)).not.toContain('superadmin@test.edu');
+
+    expect((await request(hodA()).patch(`/admin/users/${w.teacher1._id}`).send({ fullName: 'Changed' })).status).toBe(404);
+    expect((await request(hodA()).patch(`/admin/users/${w.hodA._id}`).send({ fullName: 'HOD A New' })).status).toBe(200);
+    expect((await request(hodA()).patch(`/admin/users/${w.hodA._id}`).send({ role: 'superAdmin' })).status).toBe(400);
+  });
+
+  test('teacher profiles are department-scoped and self-updates are field-limited', async () => {
+    expect((await request(hodA()).get('/admin/teachers')).body.meta.total).toBe(3);
+    expect((await request(hodB()).get('/admin/teachers')).body.meta.total).toBe(0);
+    expect((await request(teacher1()).get('/admin/teachers')).body.meta.total).toBe(1);
+
+    expect((await request(teacher1()).patch(`/admin/teachers/${teacher1Id}`).send({ phone: '1234567890' })).status).toBe(200);
+    expect((await request(teacher1()).patch(`/admin/teachers/${teacher1Id}`).send({ departmentId: String(w.deptB._id) })).status).toBe(403);
+    expect((await request(teacher1()).patch(`/admin/teachers/${teacher2Id}`).send({ phone: '1234567890' })).status).toBe(404);
+  });
+
+  test('moving a teacher department keeps the User and Teacher records in sync', async () => {
+    const res = await request(superAdmin()).patch(`/admin/teachers/${teacher1Id}`).send({ departmentId: String(w.deptB._id) });
+    expect(res.status).toBe(200);
+    expect(String((await User.findById(w.teacher1._id)).departmentId)).toBe(String(w.deptB._id));
+    expect(String((await Teacher.findById(teacher1Id)).departmentId)).toBe(String(w.deptB._id));
   });
 });

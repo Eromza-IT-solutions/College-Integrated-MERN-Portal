@@ -157,7 +157,7 @@ export const PAYMENT_STATUS_VALUES = Object.values(PAYMENT_STATUS);
 export const PAYMENT_GATEWAY = Object.freeze({"RAZORPAY": "razorpay", "FAKE": "fake"});
 export const PAYMENT_GATEWAY_VALUES = Object.values(PAYMENT_GATEWAY);
 export const PAYMENT_METHODS = Object.freeze(["card", "upi", "netbanking", "wallet", "emi", "paylater", "other"]);
-export const PAYMENT_CONFIRMED_VIA = Object.freeze({"CHECKOUT": "checkout", "WEBHOOK": "webhook"});
+export const PAYMENT_CONFIRMED_VIA = Object.freeze({"CHECKOUT": "checkout", "WEBHOOK": "webhook", "RECONCILIATION": "reconciliation"});
 export const PAYMENT_CONFIRMED_VIA_VALUES = Object.values(PAYMENT_CONFIRMED_VIA);
 // Razorpay amounts are in paise, the same as ours. Receipt ids are limited to 40 characters.
 export const RAZORPAY = Object.freeze({
@@ -182,6 +182,8 @@ export const EXAM_STATUS = Object.freeze({"DRAFT": "draft", "OPEN": "open", "CLO
 export const EXAM_STATUS_VALUES = Object.values(EXAM_STATUS);
 export const EXAM_FORM_STATUS = Object.freeze({"DRAFT": "draft", "PENDING_PAYMENT": "pendingPayment", "SUBMITTED": "submitted", "APPROVED": "approved", "REJECTED": "rejected"});
 export const EXAM_FORM_STATUS_VALUES = Object.values(EXAM_FORM_STATUS);
+export const HALL_TICKET_STATUS = Object.freeze({"PENDING": "pending", "ISSUED": "issued", "BLOCKED": "blocked"});
+export const HALL_TICKET_STATUS_VALUES = Object.values(HALL_TICKET_STATUS);
 
 // ---- Results ----
 export const RESULT_OUTCOME = Object.freeze({"PASS": "pass", "FAIL": "fail"});

@@ -20,6 +20,7 @@
     "seed:timetable": "node scripts/seed-sample-timetable.js",
     "seed:permissions": "node scripts/seed-permissions.js",
     "job:admission-deadlines": "node scripts/run-admission-deadlines.js",
+    "job:payment-reconciliation": "node scripts/run-payment-reconciliation.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "seed:demo-student": "node scripts/seed-demo-student.js",

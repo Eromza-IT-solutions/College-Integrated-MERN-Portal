@@ -1,10 +1,9 @@
 import AppError from '../../utils/AppError.js';
 import Result from '../../models/Result.js';
 import Exam from '../../models/Exam.js';
-import Student from '../../models/Student.js';
-import Program from '../../models/Program.js';
 import { getActor } from '../../middleware/requirePermission.js';
 import { auditSafe } from '../../services/auditService.js';
+import { studentIdsInDepartment } from '../../services/studentScope.js';
 import { both, clean, isStudent, skipOf, studentOfActor } from './academics.helpers.js';
 
 // Exam results. Examination Admin marks daalta hai, total / class apne aap nikalta hai (Result model + resultRules.js),
@@ -29,9 +28,7 @@ async function scopeOf(req) {
   }
   if (req.permission.scope === 'department') {
     const actor = getActor(req);
-    if (!actor.departmentId) return { _id: { $in: [] } };
-    const programIds = await Program.distinct('_id', { departmentId: actor.departmentId });
-    const studentIds = await Student.distinct('_id', { programId: { $in: programIds } });
+    const studentIds = await studentIdsInDepartment(actor.departmentId);
     return { studentId: { $in: studentIds }, isPublished: true };
   }
   return {};
