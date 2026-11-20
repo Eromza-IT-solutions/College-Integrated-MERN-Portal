@@ -1,5 +1,7 @@
 
 import { useNavigate } from "react-router-dom";
+import { useApiData } from "../../../hooks/useApiData";
+import { fetchContentStats } from "../../../services/websiteApi";
 
 import {
   FileText,
@@ -21,6 +23,12 @@ import campusImage from "../../../assets/images/college-campus-reference.jpg";
 
 function WebsiteAdminDashboard() {
   const navigate = useNavigate();
+  const { data: contentStats } = useApiData(() => fetchContentStats());
+  // Live counts from the database; a dash until they arrive (or if they cannot be loaded).
+  const countOf = (...types) =>
+    contentStats
+      ? String(types.reduce((n, [type, field]) => n + (contentStats.byType?.[type]?.[field] ?? 0), 0))
+      : "—";
 
   const today = new Date().toLocaleDateString("en-IN", {
     day: "numeric",
@@ -31,7 +39,7 @@ function WebsiteAdminDashboard() {
   const stats = [
     {
       title: "Website Pages",
-      count: "12",
+      count: countOf(["page", "published"]),
       description: "Pages published",
       icon: FileText,
       color: "text-[#A00018]",
@@ -41,7 +49,7 @@ function WebsiteAdminDashboard() {
     },
     {
       title: "Departments",
-      count: "18",
+      count: countOf(["department", "total"], ["course", "total"]),
       description: "Departments & courses",
       icon: GraduationCap,
       color: "text-[#142B50]",
@@ -51,7 +59,7 @@ function WebsiteAdminDashboard() {
     },
     {
       title: "Notices",
-      count: "45",
+      count: countOf(["notice", "total"]),
       description: "Announcements",
       icon: Megaphone,
       color: "text-[#B8860B]",
@@ -61,7 +69,7 @@ function WebsiteAdminDashboard() {
     },
     {
       title: "Gallery Items",
-      count: "22",
+      count: countOf(["gallery", "total"], ["document", "total"]),
       description: "Photos & documents",
       icon: Images,
       color: "text-[#526A91]",

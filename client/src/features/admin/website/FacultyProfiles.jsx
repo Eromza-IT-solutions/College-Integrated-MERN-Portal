@@ -1,5 +1,14 @@
 
 import { useMemo, useState } from "react";
+import { useApiData } from "../../../hooks/useApiData";
+import {
+  fetchAcademicDepartments,
+  fetchContent,
+  publishContent,
+  removeContent,
+  saveContent,
+  unpublishContent,
+} from "../../../services/websiteApi";
 import {
   Search,
   Plus,
@@ -19,86 +28,24 @@ import {
   BookOpen,
 } from "lucide-react";
 
-const initialFaculty = [
-  {
-    id: 1,
-    name: "Dr. Rahul Sharma",
-    employeeId: "FAC001",
-    designation: "Head of Department",
-    department: "Computer Science",
-    qualification: "Ph.D. in Computer Science",
-    specialization: "Artificial Intelligence",
-    experience: "12 Years",
-    email: "rahul.sharma@example.com",
-    phone: "9876543210",
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Prof. Priya Patil",
-    employeeId: "FAC002",
-    designation: "Assistant Professor",
-    department: "Computer Science",
-    qualification: "M.Sc. Computer Science",
-    specialization: "Web Development",
-    experience: "7 Years",
-    email: "priya.patil@example.com",
-    phone: "9876543211",
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Dr. Amit Deshmukh",
-    employeeId: "FAC003",
-    designation: "Associate Professor",
-    department: "Commerce",
-    qualification: "Ph.D. in Commerce",
-    specialization: "Accounting",
-    experience: "10 Years",
-    email: "amit.d@example.com",
-    phone: "9876543212",
-    status: "Active",
-  },
-  {
-    id: 4,
-    name: "Prof. Sana Khan",
-    employeeId: "FAC004",
-    designation: "Assistant Professor",
-    department: "Arts & Humanities",
-    qualification: "M.A. English",
-    specialization: "English Literature",
-    experience: "5 Years",
-    email: "sana.khan@example.com",
-    phone: "9876543213",
-    status: "Inactive",
-  },
-  {
-    id: 5,
-    name: "Dr. Neha Kulkarni",
-    employeeId: "FAC005",
-    designation: "Professor",
-    department: "Computer Science",
-    qualification: "Ph.D. in Information Technology",
-    specialization: "Database Management",
-    experience: "15 Years",
-    email: "neha.k@example.com",
-    phone: "9876543214",
-    status: "Active",
-  },
-  {
-    id: 6,
-    name: "Prof. Faisal Shaikh",
-    employeeId: "FAC006",
-    designation: "Assistant Professor",
-    department: "Commerce",
-    qualification: "M.Com",
-    specialization: "Business Management",
-    experience: "6 Years",
-    email: "faisal.shaikh@example.com",
-    phone: "9876543215",
-    status: "Active",
-  },
-];
+// A faculty profile as this screen shows it, made from the stored website content item.
+const toFaculty = (item) => {
+  const meta = item.meta || {};
+  return {
+    id: item.id,
+    name: item.title,
+    employeeId: meta.employeeId || "",
+    designation: meta.designation || "",
+    department: item.category || "",
+    qualification: meta.qualification || "",
+    specialization: meta.specialization || "",
+    experience: meta.experience || "",
+    email: meta.email || "",
+    phone: meta.phone || "",
+    status: item.status === "published" ? "Active" : "Inactive",
+    raw: item,
+  };
+};
 
 const emptyForm = {
   name: "",
@@ -113,14 +60,29 @@ const emptyForm = {
   status: "Active",
 };
 
-const departments = [
+// Used only when the college has no departments set up yet.
+const defaultDepartments = [
   "Computer Science",
   "Commerce",
   "Arts & Humanities",
 ];
 
 function FacultyProfiles() {
-  const [faculty, setFaculty] = useState(initialFaculty);
+  const { data, loading, error, reload } = useApiData(() => fetchContent("faculty"));
+  const faculty = useMemo(() => (data?.items ?? []).map(toFaculty), [data]);
+  const { data: academicDepartments } = useApiData(() =>
+    fetchAcademicDepartments().catch(() => [])
+  );
+  // Departments to choose from: the college's academic departments plus any already used on a profile.
+  const departments = useMemo(() => {
+    const names = new Set(
+      (academicDepartments ?? []).map((d) => d.name).filter(Boolean)
+    );
+    faculty.forEach((item) => item.department && names.add(item.department));
+    if (names.size === 0) defaultDepartments.forEach((name) => names.add(name));
+    return [...names].sort();
+  }, [academicDepartments, faculty]);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -137,7 +99,7 @@ function FacultyProfiles() {
     (item) => item.status === "Inactive"
   ).length;
   const departmentsCount = new Set(
-    faculty.map((item) => item.department)
+    faculty.map((item) => item.department).filter(Boolean)
   ).size;
 
   const filteredFaculty = useMemo(() => {
@@ -166,7 +128,8 @@ function FacultyProfiles() {
 
   const openEditForm = (item) => {
     setEditingId(item.id);
-    setForm({ ...item });
+    const { raw: _raw, id: _id, ...fields } = item;
+    setForm({ ...emptyForm, ...fields });
     setSelectedFaculty(null);
     setShowForm(true);
   };
@@ -176,8 +139,9 @@ function FacultyProfiles() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
 
     const duplicateId = faculty.some(
       (item) =>
@@ -191,48 +155,76 @@ function FacultyProfiles() {
       return;
     }
 
-    if (editingId) {
-      setFaculty((prev) =>
-        prev.map((item) =>
-          item.id === editingId
-            ? { ...form, id: editingId }
-            : item
-        )
-      );
-    } else {
-      setFaculty((prev) => [
-        ...prev,
-        { ...form, id: Date.now() },
-      ]);
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      alert("Please enter a valid email address.");
+      return;
     }
 
-    setShowForm(false);
-    setForm(emptyForm);
-    setEditingId(null);
+    if (form.phone && !/^[0-9+\-\s]{7,15}$/.test(form.phone.trim())) {
+      alert("Please enter a valid phone number.");
+      return;
+    }
+
+    const current = faculty.find((item) => item.id === editingId)?.raw;
+    setSaving(true);
+    try {
+      await saveContent({
+        id: editingId,
+        type: "faculty",
+        current,
+        fields: {
+          title: form.name.trim(),
+          category: form.department,
+          meta: {
+            employeeId: form.employeeId.trim(),
+            designation: form.designation.trim(),
+            qualification: form.qualification.trim(),
+            specialization: form.specialization.trim(),
+            experience: form.experience.trim(),
+            email: form.email.trim(),
+            phone: form.phone.trim(),
+          },
+        },
+        want: form.status === "Active" ? "published" : "draft",
+      });
+      setShowForm(false);
+      setForm(emptyForm);
+      setEditingId(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+      reload();
+    }
   };
 
-  const toggleStatus = (id) => {
-    setFaculty((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status:
-                item.status === "Active" ? "Inactive" : "Active",
-            }
-          : item
-      )
-    );
+  const toggleStatus = async (id) => {
+    const item = faculty.find((entry) => entry.id === id);
+    if (!item) return;
+    try {
+      if (item.status === "Active") await unpublishContent(id);
+      else await publishContent(id);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      reload();
+    }
   };
 
-  const deleteFaculty = (id) => {
+  const deleteFaculty = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this faculty profile?"
     );
 
-    if (confirmed) {
-      setFaculty((prev) => prev.filter((item) => item.id !== id));
+    if (!confirmed) return;
+    const item = faculty.find((entry) => entry.id === id);
+    try {
+      await removeContent(item.raw);
       setSelectedFaculty(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      reload();
     }
   };
 
@@ -391,10 +383,10 @@ function FacultyProfiles() {
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
             <Users size={40} className="mx-auto text-gray-300" />
             <h3 className="mt-3 font-semibold text-gray-700">
-              No Faculty Found
+              {loading ? "Loading Faculty..." : error ? "Could Not Load Faculty" : "No Faculty Found"}
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Try changing your search or filter.
+              {error ? error.message : loading ? "Please wait." : "Try changing your search or filter."}
             </p>
           </div>
         ) : (
@@ -598,6 +590,7 @@ function FacultyProfiles() {
 
                 <button
                   type="submit"
+                  disabled={saving}
                   className="rounded-xl bg-[#A00018] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#7F0013]"
                 >
                   {editingId ? "Update Faculty" : "Save Faculty"}

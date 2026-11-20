@@ -1,5 +1,13 @@
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useApiData } from "../../../hooks/useApiData";
+import {
+  fetchContent,
+  publishContent,
+  removeContent,
+  saveContent,
+  unpublishContent,
+} from "../../../services/websiteApi";
 import {
   GraduationCap,
   BookOpen,
@@ -20,69 +28,49 @@ import {
   Eye,
 } from "lucide-react";
 
+// The website's department and course profiles (public website content, not the academic records).
+const toCourse = (item) => ({
+  id: item.id,
+  name: item.title,
+  code: item.meta?.code || "",
+  level: item.meta?.level || "Undergraduate",
+  duration: item.meta?.duration || "",
+  status: item.status === "published" ? "Active" : "Inactive",
+  departmentRef: item.meta?.departmentRef || "",
+  raw: item,
+});
+
+const toDepartment = (item, courses) => ({
+  id: item.id,
+  name: item.title,
+  code: item.meta?.code || "",
+  description: item.summary || "",
+  status: item.status === "published" ? "Active" : "Inactive",
+  courses: courses.filter((course) => course.departmentRef === item.id),
+  raw: item,
+});
+
 function DepartmentsAndCourses() {
-  // Demo records only. Replace with approved college data/API records.
-  const [departments, setDepartments] = useState([
-    {
-      id: 1,
-      name: "Computer Science",
-      code: "CS",
-      description: "Computer and information technology programs.",
-      status: "Active",
-      courses: [
-        {
-          id: 101,
-          name: "Bachelor of Computer Applications",
-          code: "BCA",
-          level: "Undergraduate",
-          duration: "3 Years",
-          status: "Active",
-        },
-        {
-          id: 102,
-          name: "B.Sc. Computer Science",
-          code: "BSC-CS",
-          level: "Undergraduate",
-          duration: "3 Years",
-          status: "Active",
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Commerce",
-      code: "COM",
-      description: "Commerce, finance and business-related programs.",
-      status: "Active",
-      courses: [
-        {
-          id: 201,
-          name: "Bachelor of Commerce",
-          code: "BCOM",
-          level: "Undergraduate",
-          duration: "3 Years",
-          status: "Active",
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: "Arts and Humanities",
-      code: "ART",
-      description: "Arts, humanities and social science programs.",
-      status: "Active",
-      courses: [
-        {
-          id: 301,
-          name: "Bachelor of Arts",
-          code: "BA",
-          level: "Undergraduate",
-          duration: "3 Years",
-          status: "Active",
-        },
-      ],
-    },
-  ]);
+  const {
+    data: departmentData,
+    loading,
+    error,
+    reload: reloadDepartments,
+  } = useApiData(() => fetchContent("department"));
+  const { data: courseData, reload: reloadCourses } = useApiData(() =>
+    fetchContent("course")
+  );
+  const departments = useMemo(() => {
+    const courses = (courseData?.items ?? []).map(toCourse);
+    return (departmentData?.items ?? [])
+      .map((item) => toDepartment(item, courses))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [departmentData, courseData]);
+  const reload = () => {
+    reloadDepartments();
+    reloadCourses();
+  };
+  const [saving, setSaving] = useState(false);
 
   const [activeTab, setActiveTab] = useState("departments");
   const [search, setSearch] = useState("");
@@ -158,7 +146,7 @@ function DepartmentsAndCourses() {
 
         const matchesDepartment =
           selectedDepartment === "All" ||
-          department.id === Number(selectedDepartment);
+          department.id === selectedDepartment;
 
         return matchesSearch && matchesStatus && matchesDepartment;
       })
@@ -196,8 +184,9 @@ function DepartmentsAndCourses() {
     setShowDepartmentModal(true);
   };
 
-  const saveDepartment = (e) => {
+  const saveDepartment = async (e) => {
     e.preventDefault();
+    if (saving) return;
 
     const normalizedCode = departmentForm.code.trim().toUpperCase();
 
@@ -212,30 +201,33 @@ function DepartmentsAndCourses() {
       return;
     }
 
-    if (editingDepartmentId) {
-      setDepartments((prev) =>
-        prev.map((department) =>
-          department.id === editingDepartmentId
-            ? { ...department, ...departmentForm, code: normalizedCode }
-            : department
-        )
-      );
-    } else {
-      setDepartments((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          ...departmentForm,
-          code: normalizedCode,
-          courses: [],
-        },
-      ]);
-    }
+    const current = departments.find(
+      (department) => department.id === editingDepartmentId
+    )?.raw;
 
-    setShowDepartmentModal(false);
+    setSaving(true);
+    try {
+      await saveContent({
+        id: editingDepartmentId,
+        type: "department",
+        current,
+        fields: {
+          title: departmentForm.name.trim(),
+          summary: departmentForm.description.trim().slice(0, 500),
+          meta: { code: normalizedCode },
+        },
+        want: departmentForm.status === "Active" ? "published" : "draft",
+      });
+      setShowDepartmentModal(false);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+      reload();
+    }
   };
 
-  const deleteDepartment = (id) => {
+  const deleteDepartment = async (id) => {
     const department = departments.find((item) => item.id === id);
 
     if (!department) return;
@@ -248,24 +240,30 @@ function DepartmentsAndCourses() {
     }
 
     if (window.confirm("Are you sure you want to delete this department?")) {
-      setDepartments((prev) =>
-        prev.filter((department) => department.id !== id)
-      );
+      try {
+        await removeContent(department.raw);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        reload();
+      }
+    }
+  };
+
+  const setLive = async (item, live) => {
+    try {
+      if (live) await publishContent(item.id);
+      else await unpublishContent(item.id);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      reload();
     }
   };
 
   const toggleDepartmentStatus = (id) => {
-    setDepartments((prev) =>
-      prev.map((department) =>
-        department.id === id
-          ? {
-              ...department,
-              status:
-                department.status === "Active" ? "Inactive" : "Active",
-            }
-          : department
-      )
-    );
+    const department = departments.find((item) => item.id === id);
+    if (department) setLive(department, department.status !== "Active");
   };
 
   // Course Modal
@@ -299,10 +297,13 @@ function DepartmentsAndCourses() {
     setShowCourseModal(true);
   };
 
-  const saveCourse = (e) => {
-    e.preventDefault();
+  const allCourses = departments.flatMap((department) => department.courses);
 
-    const departmentId = Number(courseForm.departmentId);
+  const saveCourse = async (e) => {
+    e.preventDefault();
+    if (saving) return;
+
+    const departmentId = courseForm.departmentId;
 
     const targetDepartment = departments.find(
       (department) => department.id === departmentId
@@ -315,12 +316,10 @@ function DepartmentsAndCourses() {
 
     const normalizedCode = courseForm.code.trim().toUpperCase();
 
-    const duplicate = departments.some((department) =>
-      department.courses.some(
-        (course) =>
-          course.code.toLowerCase() === normalizedCode.toLowerCase() &&
-          course.id !== editingCourseId
-      )
+    const duplicate = allCourses.some(
+      (course) =>
+        course.code.toLowerCase() === normalizedCode.toLowerCase() &&
+        course.id !== editingCourseId
     );
 
     if (duplicate) {
@@ -328,81 +327,52 @@ function DepartmentsAndCourses() {
       return;
     }
 
-    if (editingCourseId) {
-      setDepartments((prev) =>
-        prev.map((department) => ({
-          ...department,
-          courses: department.courses
-            .filter((course) => course.id !== editingCourseId)
-            .concat(
-              department.id === departmentId
-                ? [
-                    {
-                      id: editingCourseId,
-                      name: courseForm.name,
-                      code: normalizedCode,
-                      level: courseForm.level,
-                      duration: courseForm.duration,
-                      status: courseForm.status,
-                    },
-                  ]
-                : []
-            ),
-        }))
-      );
-    } else {
-      setDepartments((prev) =>
-        prev.map((department) =>
-          department.id === departmentId
-            ? {
-                ...department,
-                courses: [
-                  ...department.courses,
-                  {
-                    id: Date.now(),
-                    name: courseForm.name,
-                    code: normalizedCode,
-                    level: courseForm.level,
-                    duration: courseForm.duration,
-                    status: courseForm.status,
-                  },
-                ],
-              }
-            : department
-        )
-      );
-    }
+    const current = allCourses.find((course) => course.id === editingCourseId)?.raw;
 
-    setShowCourseModal(false);
+    setSaving(true);
+    try {
+      await saveContent({
+        id: editingCourseId,
+        type: "course",
+        current,
+        fields: {
+          title: courseForm.name.trim(),
+          category: targetDepartment.name,
+          meta: {
+            code: normalizedCode,
+            level: courseForm.level,
+            duration: courseForm.duration,
+            departmentRef: targetDepartment.id,
+          },
+        },
+        want: courseForm.status === "Active" ? "published" : "draft",
+      });
+      setShowCourseModal(false);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+      reload();
+    }
   };
 
-  const deleteCourse = (courseId) => {
+  const deleteCourse = async (courseId) => {
     if (window.confirm("Are you sure you want to delete this course?")) {
-      setDepartments((prev) =>
-        prev.map((department) => ({
-          ...department,
-          courses: department.courses.filter(
-            (course) => course.id !== courseId
-          ),
-        }))
-      );
+      const course = allCourses.find((item) => item.id === courseId);
+      if (!course) return;
+      try {
+        await removeContent(course.raw);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        reload();
+      }
     }
   };
 
   const toggleCourseStatus = (courseId) => {
-    setDepartments((prev) =>
-      prev.map((department) => ({
-        ...department,
-        courses: department.courses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                status: course.status === "Active" ? "Inactive" : "Active",
-              }
-            : course
-        ),
-      }))
-    );
+    const course = allCourses.find((item) => item.id === courseId);
+    if (course) setLive(course, course.status !== "Active");
   };
 
   const stats = [
@@ -645,7 +615,7 @@ function DepartmentsAndCourses() {
               <div className="py-12 text-center">
                 <Building2 size={38} className="mx-auto mb-3 text-gray-300" />
                 <p className="font-bold text-[#142B50]">
-                  No departments found
+                  {loading ? "Loading departments..." : error ? error.message : "No departments found"}
                 </p>
                 <p className="mt-1 text-xs text-gray-400">
                   Try another search or add a department.
@@ -988,6 +958,7 @@ function DepartmentsAndCourses() {
 
                 <button
                   type="submit"
+                  disabled={saving}
                   className="flex items-center gap-2 rounded-xl bg-[#A00018] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#780013]"
                 >
                   <Save size={16} />
@@ -1146,6 +1117,7 @@ function DepartmentsAndCourses() {
 
                 <button
                   type="submit"
+                  disabled={saving}
                   className="flex items-center gap-2 rounded-xl bg-[#A00018] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#780013]"
                 >
                   <Save size={16} />
