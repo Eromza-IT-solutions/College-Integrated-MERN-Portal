@@ -72,108 +72,70 @@ const NAV_MENU = [
     label: "About Us",
     href: `${SITE}/about_us`,
     items: [
-      { label: "About AISC", href: `${SITE}/about_us#aisc` },
-      { label: "About MCE Society", href: `${SITE}/about_us#mce` },
-      { label: "President Message", href: `${SITE}/about_us#president-message` },
-      { label: "Vice President Message", href: `${SITE}/about_us#vp-message` },
-      { label: "Principal Message", href: `${SITE}/about_us#principal-message` },
-      { label: "Our Objective & Mission", href: `${SITE}/about_us#objectives` },
-      { label: "Our Goals & Values", href: `${SITE}/about_us#goal` },
-      { label: "Graduate Attributes", href: `${SITE}/about_us#attribute` },
-      { label: "Statutory Body", href: `${SITE}/statutorybody` },
-      { label: "Alumni Association", href: `${SITE}/alumni_association` },
+     { label: "About AISC", href: "/about" },
+      { label: "About MCE Society", href:"/about" },
+      { label: "President Message", href: "/about" },
+      { label: "Vice President Message", href: "/about" },
+      { label: "Principal Message", href: "/about" },
+      { label: "Our Objective & Mission", href: "/about" },
+      { label: "Our Goals & Values", href: "/about" },
+      { label: "Graduate Attributes", href: "/about" },
+      { label: "Statutory Body", href: "/about" },
+      { label: "Alumni Association", href: "/about" },
     ],
   },
+  
+   
   {
-    label: "Academics",
-    pos: "container",
-    groups: [
-      {
-        title: "Academics",
-        items: [
-          { label: "Syllabus", href: `${SITE}/syllabus` },
-          { label: "Prospectus", href: `${SITE}/prospectus` },
-          { label: "Autonomy", href: `${SITE}/autonomy` },
-          { label: "Research", href: `${SITE}/research` },
-        ],
-      },
-      {
-        title: "Campus & Facilities",
-        items: [
-          { label: "Library", href: `${SITE}/library` },
-          { label: "Infrastructure", href: `${SITE}/infrastructure` },
-          { label: "Policies", href: `${SITE}/policies` },
-          { label: "Placement", href: "#" },
-          { label: "NSS", href: `${SITE}/nss` },
-          { label: "NCC", href: `${SITE}/ncc` },
-          { label: "Sports", href: `${SITE}/sports` },
-          { label: "I & E Start-up Cell", href: `${SITE}/startupcell` },
-        ],
-      },
-      {
-        title: "Students’ Corner",
-        items: [
-          { label: "Students’ Grievance", href: `${SITE}/grievance_redressal` },
-          { label: "Anti Ragging Regulations", href: `${SITE}/anti_ragging` },
-          { label: "Bonafide Certificate", href: `${SITE}/assets/pdfs/BONAFIDE_CERTIFICATE.pdf` },
-          { label: "Transfer Certificate", href: `${SITE}/assets/pdfs/Transfer_Certificate.pdf` },
-          { label: "Anti Drug Declaration", href: `${SITE}/assets/pdf/ANTI_Drug_declaration.pdf` },
-          { label: "Free Education Scheme For Girls", href: `${SITE}/assets/pdf/Free_Education_Scheme.pdf` },
-        ],
-      },
-    ],
+   label: "Departments",
+items: [
+  {
+    label: "Faculty of Arts",
+    href: "/departments/arts",
+    hint: "English, Political Science, Sociology, Psychology, Economics, Marathi, Hindi, Urdu, Arabic, History"
   },
   {
-    label: "Departments",
-    items: [
-      { label: "Faculty of Arts", href: `${SITE}/Departments/arts`, hint: "English, Political Science, Sociology, Psychology, Economics, Marathi, Hindi, Urdu, Arabic, History" },
-      { label: "Faculty of Commerce", href: `${SITE}/Departments/commerce`, hint: "B.Com., BBA, BBA (CA), M.Com." },
-      { label: "Faculty of Science", href: `${SITE}/Departments/science`, hint: "Computer Science, Chemistry, Microbiology, Statistics, Electronics, Physics, Zoology, Biotechnology, Mathematics, Botany, Environmental Science" },
-    ],
+    label: "Faculty of Commerce",
+    href: "/departments/commerce",
+    hint: "B.Com., BBA, BBA (CA), M.Com."
+  },
+  {
+    label: "Faculty of Science",
+    href: "/departments/science",
+    hint: "Computer Science, Chemistry, Microbiology, Statistics, Electronics, Physics, Zoology, Biotechnology, Mathematics, Botany, Environmental Science"
+  },
+],
   },
   {
     label: "Admissions",
     items: [
-      { label: "Online Admission 2026–27", href: ADMISSION_PORTAL, hint: "Apply on the Vriddhi portal" },
+      { label: "Online Admission 2026–27", href: "/student-instructions", hint: "Read student instructions before applying" },
       { label: "Undergraduate Programmes", href: "#admissions", tab: "ug" },
       { label: "Postgraduate Programmes", href: "#admissions", tab: "pg" },
-      { label: "Prospectus", href: `${SITE}/prospectus` },
+      { label: "Prospectus", href: "/prospectus" },
     ],
   },
   {
     label: "Examinations",
     pos: "right",
     items: [
-      { label: "Examination", href: `${SITE}/examination` },
-      { label: "Notices / Circulars", href: `${SITE}/notice` },
+      { label: "Examination", href: "/examination" },
+      { label: "Notices / Circulars", href: "/examination" },
       { label: "Exam Fee Waiver Notice 2026–27", href: `${SITE}/assets/pdf/Exam_Fee_Waiver_Notice_2026-27.pdf`, hint: "Drought-affected talukas (PDF)" },
     ],
   },
   {
-    label: "IQAC",
-    pos: "right",
-    groups: [
-      {
-        title: "IQAC",
-        items: [
-          { label: "NAAC", href: `${SITE}/iqac` },
-          { label: "NIRF", href: `${SITE}/nirf` },
-          { label: "NEP-ABC ID", href: `${SITE}/nep` },
-        ],
-      },
-      {
-        title: "Feedback",
-        items: [
-          { label: "Students", href: "#" },
-          { label: "Parents", href: "#" },
-          { label: "Teachers", href: "#" },
-          { label: "Alumni", href: "#" },
-          { label: "Employers", href: "#" },
-          { label: "Feedback Analysis", href: `${SITE}/assets/pdf/Feedback_on_curriculum_and_its_analysis_2019-20.pdf` },
-          { label: "Institutional Feedback", href: `${SITE}/assets/pdf/Institutional_Feedback.xlsx` },
-        ],
-      },
+   label: "IQAC",
+pos: "right",
+groups: [
+  {
+    title: "IQAC",
+    items: [
+      { label: "NAAC", href: "/iqac/naac" },
+      { label: "NIRF", href: "/iqac/nirf" },
     ],
+  },
+],
   },
   { label: "Gallery", href: `${SITE}/gallery` },
   { label: "Contact", href: `${SITE}/contact`, pos: "right", contact: true },
@@ -195,7 +157,7 @@ const HERO = [
 const HERO_SECONDS = 5;
 
 // Login drop-down (edit the links to match your routes)
-const LOGIN_MENU = [{ label: "Student Login", icon: LogIn, href: "/login" },
+const LOGIN_MENU = [{ label: "Login", icon: LogIn, href: "/login" },
   { label: "Student Register", icon: UserPlus, href: "/student-register" },
   { label: "Teacher Login (LMS)", icon: BookOpen, href: "/teacher-login" },
   { label: "Teacher Registration (LMS)", icon: UserPlus, href: "/teacher-register", sep: true },
@@ -322,8 +284,7 @@ function ContactCard({ onPick }) {
         <span>Abeda Inamdar College, 2390-B, K.B. Hidayatullah Road, Azam Campus, Camp, Pune 411001, Maharashtra, India.</span>
       </p>
       <a
-        href={`${SITE}/contact`}
-        {...linkProps(`${SITE}/contact`)}
+        href="/contact"
         onClick={() => onPick({})}
         className="mt-1 block rounded-lg bg-gradient-to-b from-[#a30018] to-[#6d000f] px-4 py-2.5 text-center text-xs font-semibold text-white transition hover:brightness-110"
       >
@@ -335,14 +296,21 @@ function ContactCard({ onPick }) {
 
 function NavPanel({ n, onPick }) {
   const align = n.pos === "right" ? "right-0" : "left-0";
-  const width = n.groups
-    ? n.groups.length >= 3
-      ? "w-[min(48rem,calc(100vw-2rem))]"
-      : "w-[min(34rem,calc(100vw-2rem))]"
-    : n.contact
-    ? "w-80"
-    : "w-72";
-  const cols = n.groups && n.groups.length >= 3 ? "grid-cols-3" : "grid-cols-2";
+ const width = n.groups
+  ? n.groups.length >= 3
+    ? "w-[min(48rem,calc(100vw-2rem))]"
+    : n.groups.length === 2
+    ? "w-[min(34rem,calc(100vw-2rem))]"
+    : "w-72"
+  : n.contact
+  ? "w-80"
+  : "w-72";
+
+const cols = n.groups?.length >= 3
+  ? "grid-cols-3"
+  : n.groups?.length === 2
+  ? "grid-cols-2"
+  : "grid-cols-1";
 
   return (
     <div className={`absolute top-full z-50 pt-2 ${align}`}>
