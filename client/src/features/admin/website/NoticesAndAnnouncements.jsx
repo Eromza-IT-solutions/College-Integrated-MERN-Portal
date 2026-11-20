@@ -1,5 +1,17 @@
 
 import { useMemo, useState } from "react";
+import { useApiData } from "../../../hooks/useApiData";
+import {
+  displayStatus,
+  fetchContent,
+  fetchContentItem,
+  publishContent,
+  removeContent,
+  saveContent,
+  toDateInput,
+  unpublishContent,
+  updateContent,
+} from "../../../services/websiteApi";
 import {
   Megaphone,
   Plus,
@@ -20,73 +32,29 @@ import {
   Pin,
 } from "lucide-react";
 
-const initialNotices = [
-  {
-    id: 1,
-    title: "Admissions Open for Academic Year 2026-27",
-    description:
-      "Applications are invited for undergraduate and postgraduate courses. Interested students can visit the admission office or apply through the college admission portal.",
-    category: "Admission",
-    priority: "High",
-    status: "Published",
-    publishDate: "2026-11-12",
-    expiryDate: "2026-12-30",
-    audience: "All Students",
-    pinned: true,
-  },
-  {
-    id: 2,
-    title: "Annual Cultural Festival Registration",
-    description:
-      "Students are invited to participate in the annual cultural festival. Register for dance, music, drama and other cultural activities before the deadline.",
-    category: "Events",
-    priority: "Medium",
-    status: "Published",
-    publishDate: "2026-11-10",
-    expiryDate: "2026-11-25",
-    audience: "All Students",
-    pinned: false,
-  },
-  {
-    id: 3,
-    title: "Semester Examination Schedule",
-    description:
-      "The semester examination timetable will be announced shortly. Students are advised to check the examination section for updates.",
-    category: "Examination",
-    priority: "High",
-    status: "Draft",
-    publishDate: "",
-    expiryDate: "",
-    audience: "Students",
-    pinned: false,
-  },
-  {
-    id: 4,
-    title: "Library Membership Renewal",
-    description:
-      "Students are requested to renew their library membership and return overdue books before the end of the month.",
-    category: "Academic",
-    priority: "Low",
-    status: "Published",
-    publishDate: "2026-11-08",
-    expiryDate: "2026-11-30",
-    audience: "All Students",
-    pinned: false,
-  },
-  {
-    id: 5,
-    title: "Faculty Development Programme",
-    description:
-      "A faculty development programme will be conducted for teaching staff. Details regarding the venue and schedule will be shared soon.",
-    category: "Faculty",
-    priority: "Medium",
-    status: "Scheduled",
-    publishDate: "2026-11-20",
-    expiryDate: "2026-11-28",
-    audience: "Faculty",
-    pinned: false,
-  },
-];
+// A notice as this screen shows it, made from the stored content item.
+const toNotice = (item) => {
+  const meta = item.meta || {};
+  const status = displayStatus(item);
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.body ?? item.summary ?? "",
+    category: item.category || "General",
+    priority: meta.priority || "Medium",
+    status: status === "Archived" ? "Draft" : status,
+    publishDate: item.publishedAt ? toDateInput(item.publishedAt) : meta.publishDate || "",
+    expiryDate: item.expiresAt ? toDateInput(item.expiresAt) : meta.expiryDate || "",
+    audience: meta.audience || "All Students",
+    pinned: !!item.isPinned,
+    raw: item,
+  };
+};
+
+// yyyy-mm-dd -> start of that day (local time), as an ISO string for the server.
+const dayStart = (value) => (value ? new Date(`${value}T00:00:00`).toISOString() : undefined);
+const dayEnd = (value) => (value ? new Date(`${value}T23:59:59`).toISOString() : undefined);
+const todayInput = () => toDateInput(new Date());
 
 const categories = [
   "All",
@@ -111,7 +79,9 @@ const emptyForm = {
 };
 
 function NoticesAndAnnouncements() {
-  const [notices, setNotices] = useState(initialNotices);
+  const { data, loading, error, reload } = useApiData(() => fetchContent("notice"));
+  const notices = useMemo(() => (data?.items ?? []).map(toNotice), [data]);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -155,30 +125,43 @@ function NoticesAndAnnouncements() {
     });
   }, [notices, search, statusFilter, categoryFilter]);
 
+  // The list carries only a short summary; load the full text before editing or viewing.
+  const withFullText = async (notice) => {
+    try {
+      return toNotice(await fetchContentItem(notice.id));
+    } catch {
+      return notice;
+    }
+  };
+
+  const openViewModal = async (notice) => setViewNotice(await withFullText(notice));
+
   const openAddModal = () => {
     setEditingNotice(null);
     setForm(emptyForm);
     setShowModal(true);
   };
 
-  const openEditModal = (notice) => {
-    setEditingNotice(notice);
+  const openEditModal = async (notice) => {
+    const full = await withFullText(notice);
+    setEditingNotice(full);
     setForm({
-      title: notice.title,
-      description: notice.description,
-      category: notice.category,
-      priority: notice.priority,
-      status: notice.status,
-      publishDate: notice.publishDate,
-      expiryDate: notice.expiryDate,
-      audience: notice.audience,
-      pinned: notice.pinned,
+      title: full.title,
+      description: full.description,
+      category: full.category,
+      priority: full.priority,
+      status: full.status,
+      publishDate: full.publishDate,
+      expiryDate: full.expiryDate,
+      audience: full.audience,
+      pinned: full.pinned,
     });
     setShowModal(true);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (saving) return;
 
     if (
       form.expiryDate &&
@@ -189,73 +172,112 @@ function NoticesAndAnnouncements() {
       return;
     }
 
-    if (editingNotice) {
-      setNotices((previous) =>
-        previous.map((notice) =>
-          notice.id === editingNotice.id
-            ? { ...notice, ...form }
-            : notice
-        )
-      );
-      showMessage("Notice updated successfully");
-    } else {
-      const newNotice = {
-        id: Date.now(),
-        ...form,
-      };
-
-      setNotices((previous) => [newNotice, ...previous]);
-      showMessage("Notice created successfully");
+    if (form.status === "Scheduled" && !(form.publishDate > todayInput())) {
+      showMessage("A scheduled notice needs a publish date after today");
+      return;
     }
 
-    setShowModal(false);
-    setEditingNotice(null);
-    setForm(emptyForm);
+    const description = form.description.trim();
+    const current = editingNotice?.raw;
+    const live = form.status === "Published" || form.status === "Scheduled";
+
+    setSaving(true);
+    try {
+      await saveContent({
+        id: editingNotice?.id,
+        type: "notice",
+        current,
+        fields: {
+          title: form.title.trim(),
+          summary: description.slice(0, 500),
+          body: description,
+          category: form.category,
+          isPinned: !!form.pinned,
+          meta: {
+            priority: form.priority,
+            audience: form.audience,
+            publishDate: form.publishDate,
+            expiryDate: form.expiryDate,
+          },
+        },
+        want: live ? "published" : "draft",
+        // An already published notice keeps its publish time unless a date is given.
+        publishAt: live
+          ? dayStart(form.publishDate) ||
+            (current?.status === "published" ? current.publishedAt : undefined)
+          : undefined,
+        expiresAt: live ? dayEnd(form.expiryDate) ?? null : undefined,
+      });
+      showMessage(
+        editingNotice
+          ? "Notice updated successfully"
+          : "Notice created successfully"
+      );
+      setShowModal(false);
+      setEditingNotice(null);
+      setForm(emptyForm);
+    } catch (err) {
+      showMessage(err.message);
+    } finally {
+      setSaving(false);
+      reload();
+    }
   };
 
-  const deleteNotice = (id) => {
+  const deleteNotice = async (id) => {
     if (!window.confirm("Are you sure you want to delete this notice?")) {
       return;
     }
 
-    setNotices((previous) =>
-      previous.filter((notice) => notice.id !== id)
-    );
-
-    if (viewNotice?.id === id) {
-      setViewNotice(null);
+    const notice = notices.find((item) => item.id === id);
+    try {
+      await removeContent(notice.raw);
+      if (viewNotice?.id === id) {
+        setViewNotice(null);
+      }
+      showMessage("Notice deleted successfully");
+    } catch (err) {
+      showMessage(err.message);
+    } finally {
+      reload();
     }
-
-    showMessage("Notice deleted successfully");
   };
 
-  const changeStatus = (notice) => {
-    const newStatus =
-      notice.status === "Published" ? "Draft" : "Published";
+  const changeStatus = async (notice) => {
+    const goingLive = notice.status === "Draft";
 
-    setNotices((previous) =>
-      previous.map((item) =>
-        item.id === notice.id
-          ? { ...item, status: newStatus }
-          : item
-      )
-    );
-
-    showMessage(
-      newStatus === "Published"
-        ? "Notice published successfully"
-        : "Notice moved to drafts"
-    );
+    try {
+      if (goingLive) {
+        const expiry =
+          notice.expiryDate && notice.expiryDate >= todayInput()
+            ? dayEnd(notice.expiryDate)
+            : undefined;
+        await publishContent(notice.id, { expiresAt: expiry });
+      } else {
+        await unpublishContent(notice.id);
+      }
+      showMessage(
+        goingLive
+          ? "Notice published successfully"
+          : "Notice moved to drafts"
+      );
+    } catch (err) {
+      showMessage(err.message);
+    } finally {
+      reload();
+    }
   };
 
-  const togglePin = (id) => {
-    setNotices((previous) =>
-      previous.map((notice) =>
-        notice.id === id
-          ? { ...notice, pinned: !notice.pinned }
-          : notice
-      )
-    );
+  const togglePin = async (id) => {
+    const notice = notices.find((item) => item.id === id);
+    if (!notice) return;
+    try {
+      await updateContent(id, { isPinned: !notice.pinned });
+    } catch (err) {
+      showMessage(err.message);
+    } finally {
+      reload();
+    }
   };
 
   const formatDate = (date) => {
@@ -450,11 +472,19 @@ function NoticesAndAnnouncements() {
             </div>
 
             <h3 className="text-lg font-bold text-[#142B50]">
-              No Notices Found
+              {loading
+                ? "Loading Notices..."
+                : error
+                  ? "Could Not Load Notices"
+                  : "No Notices Found"}
             </h3>
 
             <p className="mt-2 text-sm text-gray-500">
-              Try another search or create a new announcement.
+              {error
+                ? error.message
+                : loading
+                  ? "Please wait."
+                  : "Try another search or create a new announcement."}
             </p>
 
             <button
@@ -523,7 +553,7 @@ function NoticesAndAnnouncements() {
 
                   <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4 xl:border-0 xl:pt-0">
                     <button
-                      onClick={() => setViewNotice(notice)}
+                      onClick={() => openViewModal(notice)}
                       className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                     >
                       <Eye size={15} />
@@ -777,6 +807,7 @@ function NoticesAndAnnouncements() {
 
                 <button
                   type="submit"
+                  disabled={saving}
                   className="rounded-xl bg-[#A00018] px-6 py-3 text-sm font-semibold text-white shadow transition hover:bg-[#7D0015]"
                 >
                   {editingNotice ? "Save Changes" : "Create Notice"}
