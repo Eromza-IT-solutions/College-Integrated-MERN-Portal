@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   GraduationCap,
@@ -94,9 +93,6 @@ function DepartmentsAndCourses() {
 
   const [editingDepartmentId, setEditingDepartmentId] = useState(null);
   const [editingCourseId, setEditingCourseId] = useState(null);
-  const [selectedCourseDepartmentId, setSelectedCourseDepartmentId] =
-    useState(null);
-
   const [previewDepartment, setPreviewDepartment] = useState(null);
 
   const [departmentForm, setDepartmentForm] = useState({
@@ -448,10 +444,8 @@ function DepartmentsAndCourses() {
 
   return (
     <div className="flex w-full flex-col gap-6 pb-6">
-
       {/* Header Banner */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#101D3A] via-[#172E55] to-[#8E0018] p-6 text-white shadow-xl md:p-8">
-
         <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full border-[35px] border-white/5" />
 
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-5">
@@ -540,7 +534,6 @@ function DepartmentsAndCourses() {
 
       {/* Department and Course Tabs */}
       <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 p-5">
           <div>
             <h2 className="text-lg font-extrabold text-[#142B50]">
@@ -586,7 +579,6 @@ function DepartmentsAndCourses() {
 
         {/* Search and Filters */}
         <div className="flex flex-col gap-3 border-b border-gray-100 bg-[#F8F9FC] p-4 lg:flex-row lg:items-center lg:justify-between">
-
           <div className="relative w-full lg:max-w-sm">
             <Search
               size={18}
@@ -655,7 +647,7 @@ function DepartmentsAndCourses() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {filteredDepartments.map((department, index) => (
+                {filteredDepartments.map((department) => (
                   <div
                     key={department.id}
                     className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#A00018]/20 hover:shadow-xl"
@@ -714,10 +706,7 @@ function DepartmentsAndCourses() {
                         </button>
 
                         <button
-                          onClick={() => {
-                            setSelectedCourseDepartmentId(department.id);
-                            openAddCourse(department.id);
-                          }}
+                          onClick={() => openAddCourse(department.id)}
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#A00018]/5 px-3 py-2.5 text-xs font-bold text-[#A00018] transition hover:bg-[#A00018] hover:text-white"
                         >
                           <Plus size={14} />
@@ -889,7 +878,6 @@ function DepartmentsAndCourses() {
       {showDepartmentModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#101D3A]/70 p-4 backdrop-blur-sm">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-
             <div className="flex items-center justify-between bg-gradient-to-r from-[#142B50] to-[#8E0018] px-6 py-5 text-white">
               <div>
                 <h2 className="text-xl font-extrabold">
@@ -1008,7 +996,6 @@ function DepartmentsAndCourses() {
       {showCourseModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#101D3A]/70 p-4 backdrop-blur-sm">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-
             <div className="flex items-center justify-between bg-gradient-to-r from-[#142B50] to-[#8E0018] px-6 py-5 text-white">
               <div>
                 <h2 className="text-xl font-extrabold">
@@ -1166,7 +1153,6 @@ function DepartmentsAndCourses() {
       {previewDepartment && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#101D3A]/70 p-4 backdrop-blur-sm">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-
             <div className="flex items-center justify-between bg-gradient-to-r from-[#142B50] to-[#8E0018] px-6 py-5 text-white">
               <div>
                 <p className="text-xs font-semibold text-[#FFE8A3]">
@@ -1249,7 +1235,6 @@ function DepartmentsAndCourses() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
