@@ -16,12 +16,16 @@ Minimum required outside tests:
 
 - `MONGODB_URI`
 - `SESSION_SECRET` (at least 32 characters in production)
+- `LOGIN_ID_HASH_SECRET` (at least 16 characters)
+- `RATE_LIMIT_HASH_SECRET` (required in production, at least 32 characters)
 - `CLIENT_ORIGIN`
 - `SESSION_NAME` (defaults to `icms.sid`)
-- `PAYMENT_GATEWAY` (`fake` or `razorpay`)
-- `PAYMENT_KEY_ID`, `PAYMENT_KEY_SECRET`, `PAYMENT_WEBHOOK_SECRET` when using Razorpay
+- `PAYMENT_GATEWAY` (`fake` in development only, or `razorpay`)
+- `PAYMENT_KEY_ID` (`rzp_test_...` prefix), `PAYMENT_KEY_SECRET`, and `PAYMENT_WEBHOOK_SECRET` when using Razorpay
 
 Payment variables are canonically named `PAYMENT_*`. Do not add `RAZORPAY_*` aliases.
+
+Startup validation fails before the server listens when a required value is missing, a secret is too short, `PAYMENT_GATEWAY` is invalid, production uses `fake`, Razorpay credentials are missing, a live Razorpay key is used, or either `PAYMENT_RECONCILIATION_*` interval is malformed. The gateway is also built once during startup. Error messages name environment variables and never print their values.
 
 Scheduled jobs are disabled by default in tests. For deployments, configure:
 
@@ -70,6 +74,40 @@ npm run seed:audit-logs
 ```
 
 `seed:exam`, `seed:timetable`, `seed:demo-student`, and `seed:demo-applicant` depend on the `SMP-*` subjects. Run `seed:subjects` only for real college data, and back up the database first because it prunes rows not present in the JSON catalog.
+
+## Data-integrity migration
+
+Run this when upgrading a database that predates active-only enrollment uniqueness, `Payment.examFormId` references, or persisted refund gateway IDs.
+
+1. Take a verified backup.
+
+```powershell
+mongodump --uri $env:MONGODB_URI --out .\backups\pre-data-integrity
+```
+
+2. Run the dry run. It never changes data; it reports duplicate active enrollments, payment/exam-form disagreements, unresolved refunds, and planned index changes.
+
+```powershell
+cd server
+npm run migrate:data-integrity
+```
+
+3. Review the report. Mismatches and unresolved refunds must be resolved manually before apply; the script exits with code 1 after an apply that still has unresolved records.
+
+4. Apply after the backup is confirmed. The script is idempotent; older duplicate active enrollments are marked `dropped`, the legacy full-tuple unique index is replaced with partial unique index `uniq_enrollment_active`, missing `Payment.examFormId` values are backfilled from `ExamForm.paymentId`, and refund gateway IDs are recovered from append-only audit logs.
+
+```powershell
+$env:MIGRATION_BACKUP_CONFIRMED = 'yes'
+npm run migrate:data-integrity -- --apply
+```
+
+Rollback: restore the backup taken in step 1. This is the safe rollback because the apply step changes documents and indexes.
+
+```powershell
+mongorestore --uri $env:MONGODB_URI --drop .\backups\pre-data-integrity
+```
+
+For an index-only rollback on a database with no duplicate enrollment rows, drop `uniq_enrollment_active` and recreate `{ studentId: 1, subjectId: 1, semester: 1 }` as unique.
 
 ## Verification
 
@@ -215,6 +253,7 @@ Issued tickets snapshot the schedule. Later `Exam.schedule` edits do not alter i
 - [ ] Payment gateway is set to the intended mode.
 - [ ] Webhook URL is public and signature secret matches.
 - [ ] Scheduled jobs are enabled with intended intervals.
-- [ ] Backup taken before any seed that mutates live data.
+- [ ] Backup taken before any seed or data-integrity migration that mutates live data.
+- [ ] `npm run migrate:data-integrity` dry run reviewed and apply completed if needed.
 - [ ] `SEC-001` is triaged and either fixed or explicitly accepted before admitting real uploads.
 - [ ] Rollback plan identified.

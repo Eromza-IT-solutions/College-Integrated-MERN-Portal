@@ -3,8 +3,10 @@ import env from './config/env.js'
 import { connectDatabase, disconnectDatabase } from './config/db.js'
 import { describeEmailMode } from './services/emailService.js'
 import { startSchedulers } from './jobs/scheduler.js'
+import { getGateway } from './services/payment/index.js'
 
 async function start() {
+  getGateway()
   await connectDatabase()
   const scheduler = startSchedulers()
 

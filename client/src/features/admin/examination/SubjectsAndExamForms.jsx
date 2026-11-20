@@ -146,7 +146,7 @@ export default function SubjectsAndExamForms() {
         formDisplayName(form),
         formEnrollment(form),
         activeExam?.name || "",
-        form.subjectIds?.length ?? 0,
+        form.subjects?.length ?? 0,
         formatPaise(form.feeAmountPaise),
         form.status,
         form.submittedAt,
@@ -168,7 +168,7 @@ export default function SubjectsAndExamForms() {
     {
       key: "subjects",
       header: "Papers",
-      render: (form) => <span className="font-bold text-[#14264B]">{form.subjectIds?.length ?? 0}</span>,
+      render: (form) => <span className="font-bold text-[#14264B]">{form.subjects?.length ?? 0}</span>,
     },
     {
       key: "fee",
@@ -446,7 +446,7 @@ export default function SubjectsAndExamForms() {
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
               <Badge variant={getStatusVariant(selectedForm.status)}>{formatStatus(selectedForm.status)}</Badge>
-              <Badge variant="neutral">{selectedForm.subjectIds?.length ?? 0} papers</Badge>
+              <Badge variant="neutral">{selectedForm.subjects?.length ?? 0} papers</Badge>
               <Badge variant="info">{formatPaise(selectedForm.feeAmountPaise)}</Badge>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">

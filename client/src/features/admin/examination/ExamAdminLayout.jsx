@@ -13,7 +13,7 @@ const navItems = [
   { label: "Exam Timetables", path: "/exam-admin/timetables", icon: CalendarClock },
   { label: "Subjects & Forms", path: "/exam-admin/subjects", icon: BookOpen },
   { label: "Hall Tickets", path: "/exam-admin/hall-tickets", icon: Ticket },
-  { label: "Marks & Results", path: "/exam-admin/results", icon: ChartNoAxesCombined },
+  { label: "Marks & Results", path: "/exam-admin/marks", icon: ChartNoAxesCombined },
 ];
 
 export default function ExamAdminLayout() {
