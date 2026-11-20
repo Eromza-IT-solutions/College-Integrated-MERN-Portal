@@ -30,10 +30,22 @@ async function getScope(role, resource, action) {
   return map.get(`${role}|${resource}|${action}`) || null;
 }
 
+/** Every rule of one role as a list: [{ resource, action, scope }]. The browser may use it to show or hide
+ *  buttons; the server still checks every request itself. */
+async function getPermissionsForRole(role) {
+  const map = await ready();
+  const list = [];
+  for (const [key, scope] of map) {
+    const [roleKey, resource, action] = key.split('|');
+    if (roleKey === role) list.push({ resource, action, scope });
+  }
+  return list.sort((a, b) => a.resource.localeCompare(b.resource) || a.action.localeCompare(b.action));
+}
+
 /** Forget the loaded rules (used by tests and after changing rules). */
 function clearPermissionCache() {
   rules = null;
   loadedAt = 0;
 }
 
-export { getScope, clearPermissionCache };
+export { getScope, getPermissionsForRole, clearPermissionCache };

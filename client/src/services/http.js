@@ -8,9 +8,21 @@ const http = axios.create({
   },
 });
 
+let onUnauthorized = null;
+export function setUnauthorizedHandler(handler) {
+  onUnauthorized = handler;
+}
+
+// Auth endpoints answer 401 for ordinary reasons (wrong password, no session yet), not "session expired".
+const isAuthEndpoint = (url = "") => url.includes("/auth/");
+
 http.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response?.status === 401 && !isAuthEndpoint(error.config?.url)) {
+      onUnauthorized?.();
+    }
+
     const message =
       error.response?.data?.error?.message ??
       error.response?.data?.message ??

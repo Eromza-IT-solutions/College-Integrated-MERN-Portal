@@ -1,13 +1,19 @@
 // Loads the approved permission matrix into the `permissions` collection.
 //
-// Run:  npm run seed:permissions            (adds new rules, updates changed scopes)
-//       npm run seed:permissions -- --prune (also removes rules that are no longer in the matrix)
+// Run:  npm run seed:permissions            (INSERT-ONLY: adds rules that are missing, changes nothing else)
+//       npm run seed:permissions -- --prune (also DELETES rules that are not in the matrix. See the warning below.)
 //
 // - The matrix lives in scripts/data/permission-matrix.json (one row = role + resource + action + scope).
-//   To change a rule, edit that file (after the team agrees) and run this command again.
-// - Safe to run again: unchanged rules are left alone.
+// - Insert-only: a rule that already exists is never touched, not even its scope or its updatedAt. So scopes
+//   changed by the Super Admin through the API survive a re-run, and rules the Super Admin added are kept.
+// - A rule that was revoked (deleted) is restored with the matrix scope, because the seeder cannot tell "revoked"
+//   from "never seeded".
+// - If the team changes a scope inside the matrix file, existing databases do NOT pick it up from this command.
+// - Safe to run again, and safe to run twice at the same time: the unique index (roleKey + resource + action)
+//   means there can never be two copies of a rule.
 // - Permissions are reference data, not demo data, so this also runs outside development.
-// - Nothing is deleted unless you pass --prune.
+// - WARNING: --prune deletes every rule in the database that is not in the matrix, including rules the Super Admin
+//   added through the API. Without --prune nothing is ever deleted.
 import { readFileSync } from 'fs';
 import mongoose from 'mongoose';
 import { pathToFileURL } from 'url';
@@ -34,23 +40,51 @@ function validateMatrix(rows) {
   return rows;
 }
 
+const DUPLICATE_KEY = 11000;
+const keyOf = (r) => `${r.roleKey}|${r.resource}|${r.action}`;
+
+// Inserts the missing rules. Returns how many this call really inserted.
+// Two seeders running together can both try to insert the same rule; the unique index lets one win and
+// reports a duplicate-key error (11000) to the other. Exactly that error is expected and ignored.
+// Any other database error is thrown.
+async function insertMissing(rows) {
+  const operations = rows.map((r) => ({
+    updateOne: {
+      filter: { roleKey: r.roleKey, resource: r.resource, action: r.action },
+      update: { $setOnInsert: { scope: r.scope } }, // only used when the rule does not exist yet
+      upsert: true,
+      timestamps: false, // an existing rule must not even get a new updatedAt
+    },
+  }));
+  // timestamps: false also stops Mongoose from filling createdAt/updatedAt on INSERT, so set them here.
+  const now = new Date();
+  operations.forEach((op) => { op.updateOne.update.$setOnInsert.createdAt = now; op.updateOne.update.$setOnInsert.updatedAt = now; });
+
+  try {
+    const result = await Permission.bulkWrite(operations, { ordered: false });
+    return result.upsertedCount;
+  } catch (err) {
+    const writeErrors = [].concat(err.writeErrors ?? []);
+    const onlyDuplicates = writeErrors.length > 0 && writeErrors.every((e) => (e.code ?? e.err?.code) === DUPLICATE_KEY);
+    if (!onlyDuplicates) throw err;
+    return err.result?.upsertedCount ?? err.result?.result?.nUpserted ?? 0;
+  }
+}
+
 async function seedPermissions({ prune = false, rows = matrix } = {}) {
   validateMatrix(rows);
 
-  const result = await Permission.bulkWrite(
-    rows.map((r) => ({
-      updateOne: {
-        filter: { roleKey: r.roleKey, resource: r.resource, action: r.action },
-        update: { $set: { scope: r.scope } },
-        upsert: true,
-      },
-    }))
-  );
-  const added = result.upsertedCount;
-  const changed = result.modifiedCount;
-  const summary = { total: rows.length, added, changed, unchanged: rows.length - added - changed, removed: 0 };
+  const added = await insertMissing(rows);
 
-  // Rules in the database that the matrix does not contain (for example from an older matrix).
+  // Read-only comparison, to report rules whose scope was customised (they are never changed).
+  const stored = await Permission.find({ $or: rows.map((r) => ({ roleKey: r.roleKey, resource: r.resource, action: r.action })) })
+    .select('roleKey resource action scope').lean();
+  const storedScope = new Map(stored.map((s) => [keyOf(s), s.scope]));
+  const customised = rows.filter((r) => storedScope.get(keyOf(r)) !== r.scope).length;
+
+  const summary = { total: rows.length, added, preserved: rows.length - added, customised, removed: 0 };
+
+  // Rules in the database that the matrix does not contain (added through the API, or from an older matrix).
   const keep = rows.map((r) => ({ roleKey: r.roleKey, resource: r.resource, action: r.action }));
   const extraFilter = { $nor: keep };
   summary.extra = await Permission.countDocuments(extraFilter);
@@ -68,9 +102,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const prune = process.argv.includes('--prune');
     await mongoose.connect(env.mongodbUri, { serverSelectionTimeoutMS: 10000 });
     try {
+      if (prune) console.log('WARNING: --prune deletes every permission rule that is not in the matrix, including rules added through the Super Admin API.');
       const s = await seedPermissions({ prune });
-      console.log(`Permissions: ${s.total} in matrix. Added ${s.added}, changed ${s.changed}, unchanged ${s.unchanged}, removed ${s.removed}.`);
-      if (s.extra > 0) console.log(`${s.extra} rule(s) in the database are not in the matrix. Run with --prune to remove them.`);
+      console.log(`Permissions: ${s.total} in matrix. Added ${s.added}, already present (left untouched) ${s.preserved}, removed ${s.removed}.`);
+      if (s.customised > 0) console.log(`${s.customised} existing rule(s) have a scope that differs from the matrix. They were kept as they are.`);
+      if (s.extra > 0) console.log(`${s.extra} rule(s) in the database are not in the matrix and were kept. Run with --prune to delete them (this cannot be undone).`);
       // Leftover from the earlier 9-role design.
       const old = await mongoose.connection.collection('users').countDocuments({ role: 'accountsAdmin' });
       if (old > 0) console.log(`Note: ${old} user(s) still have the removed role "accountsAdmin". Move them to another role or delete them.`);

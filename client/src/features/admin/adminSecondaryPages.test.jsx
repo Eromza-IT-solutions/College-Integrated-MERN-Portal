@@ -1,6 +1,12 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../services/adminApi", async () => {
+  const { createAdminApiMock } = await import("../../test/adminApiFixture");
+  return createAdminApiMock();
+});
+
 import AdmissionStatus from "./admission/AdmissionStatus";
 import VerifyDocuments from "./admission/VerifyDocuments";
 import ExamTimetables from "./examination/ExamTimetables";
@@ -22,7 +28,7 @@ describe("secondary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Departments & Courses" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Department directory")).toBeInTheDocument();
+    expect(screen.getByText("Academic Overview")).toBeInTheDocument();
     expect(screen.getByText("Computer Science")).toBeInTheDocument();
   });
 
@@ -31,8 +37,8 @@ describe("secondary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Faculty Profiles" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Faculty directory")).toBeInTheDocument();
-    expect(screen.getByText("Dr. Sana Patel")).toBeInTheDocument();
+    expect(screen.getByText("Faculty Members")).toBeInTheDocument();
+    expect(screen.getByText("Dr. Rahul Sharma")).toBeInTheDocument();
   });
 
   it("renders website gallery and documents", () => {
@@ -40,54 +46,59 @@ describe("secondary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Gallery & Documents" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Media library")).toBeInTheDocument();
-    expect(screen.getByText("Annual Sports Meet 2026")).toBeInTheDocument();
+    expect(screen.getByText("Media Library")).toBeInTheDocument();
+    expect(screen.getByText("No Images Available")).toBeInTheDocument();
   });
 
   it("renders admission document verification", () => {
     renderPage(<VerifyDocuments />);
     expect(
-      screen.getByRole("heading", { name: "Verify Documents" }),
+      screen.getByRole("heading", { name: "Verify Student Documents" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Document verification queue")).toBeInTheDocument();
-    expect(screen.getByText("Rida Khan")).toBeInTheDocument();
+    expect(
+      screen.getByText("Document Verification Overview"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Aarav Sharma")).toBeInTheDocument();
   });
 
   it("renders admission status board", () => {
     renderPage(<AdmissionStatus />);
     expect(
-      screen.getByRole("heading", { name: "Admission Status" }),
+      screen.getByRole("heading", { name: "Admission Status Tracking" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Applicant status board")).toBeInTheDocument();
-    expect(screen.getByText("Rida Khan")).toBeInTheDocument();
+    expect(screen.getByText("Admission Overview")).toBeInTheDocument();
+    expect(screen.getByText("Aarav Sharma")).toBeInTheDocument();
   });
 
-  it("renders examination subjects and exam forms", () => {
+  it("renders examination subjects and exam forms", async () => {
     renderPage(<SubjectsAndExamForms />);
     expect(
       screen.getByRole("heading", { name: "Subjects & Exam Forms" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Subject and exam form register"),
+      screen.getByText("Subject & exam form register"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Data Structures")).toBeInTheDocument();
+    await waitFor(
+      () => expect(screen.getByText(/Data Structures/)).toBeInTheDocument(),
+      { timeout: 2000 },
+    );
   });
 
-  it("renders examination timetables", () => {
+  it("renders examination timetables", async () => {
     renderPage(<ExamTimetables />);
     expect(
       screen.getByRole("heading", { name: "Exam Timetables" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Examination timetable")).toBeInTheDocument();
-    expect(screen.getByText("Advanced Accounting")).toBeInTheDocument();
+    expect(screen.getByText("Examination Schedule")).toBeInTheDocument();
+    expect(await screen.findByText(/Advanced Accounting/)).toBeInTheDocument();
   });
 
-  it("renders examination hall tickets", () => {
+  it("renders examination hall tickets", async () => {
     renderPage(<HallTickets />);
     expect(
       screen.getByRole("heading", { name: "Hall Tickets" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Hall ticket register")).toBeInTheDocument();
-    expect(screen.getByText("Fatima Khan")).toBeInTheDocument();
+    expect(screen.getByText("Hall Ticket Register")).toBeInTheDocument();
+    expect(await screen.findByText("Fatima Khan")).toBeInTheDocument();
   });
 });

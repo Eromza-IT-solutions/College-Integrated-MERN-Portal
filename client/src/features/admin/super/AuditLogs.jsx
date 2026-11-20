@@ -1,757 +1,495 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { fetchAllAuditLogs } from "../../../services/auditService";
 import {
-  Activity,
-  Bell,
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronsUpDown,
-  Copy,
-  Download,
-  FileText,
-  LogIn,
-  LogOut,
-  Pencil,
+  Activity, Users, LogIn, LogOut, Pencil, UserPlus, FileText, Download, Trash2,
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown, Search, X,
   Radio,
-  Search,
-  Trash2,
-  UserPlus,
-  Users,
-  X,
 } from "lucide-react";
 
-/* -------------------------------------------------------------------------
-   Audit Logs – styled to match the Reports & Analytics page
-   - Works out of the box with sample data ("Demo data" pill).
-   - Real data: <AuditLogs apiUrl="/api/audit-logs" />  (refreshes every 30s,
-     pill switches to "Live"). Each log: { _id, user, action, module, ip, createdAt }.
-     If your fields differ, edit `normalize` below.
-   - Needs: Tailwind CSS + lucide-react. No chart library required.
--------------------------------------------------------------------------- */
-
-const SAMPLE_LOGS = [
-  { id: 1, user: "Super Admin", action: "Logged In", module: "System", ip: "192.168.1.10", at: "2026-11-06T15:15:00" },
-  { id: 2, user: "Iqra Shaikh", action: "Updated Settings", module: "Settings", ip: "192.168.1.25", at: "2026-11-06T14:40:00" },
-  { id: 3, user: "Admin", action: "Added User", module: "Users", ip: "192.168.1.18", at: "2026-11-06T13:22:00" },
-  { id: 4, user: "Ayesha Khan", action: "Generated Report", module: "Reports", ip: "192.168.1.20", at: "2026-11-05T17:10:00" },
-  { id: 5, user: "Super Admin", action: "Logged Out", module: "System", ip: "192.168.1.10", at: "2026-11-05T16:35:00" },
-  { id: 6, user: "Admin", action: "Deleted User", module: "Users", ip: "192.168.1.18", at: "2026-11-05T11:02:00" },
-  { id: 7, user: "Iqra Shaikh", action: "Logged In", module: "System", ip: "192.168.1.25", at: "2026-11-05T09:48:00" },
-  { id: 8, user: "Ayesha Khan", action: "Updated Settings", module: "Settings", ip: "192.168.1.20", at: "2026-11-04T18:20:00" },
-  { id: 9, user: "Super Admin", action: "Generated Report", module: "Reports", ip: "192.168.1.10", at: "2026-11-04T15:05:00" },
-  { id: 10, user: "Admin", action: "Logged Out", module: "System", ip: "192.168.1.18", at: "2026-11-04T12:30:00" },
-  { id: 11, user: "Iqra Shaikh", action: "Added User", module: "Users", ip: "192.168.1.25", at: "2026-11-03T10:15:00" },
-  { id: 12, user: "Ayesha Khan", action: "Logged In", module: "System", ip: "192.168.1.20", at: "2026-11-03T09:02:00" },
+/* ---------- API data -> screen rows ---------- */
+const PALETTE = [
+  ["#1b2d6b", "#e8ecfb"], ["#d99a06", "#fdf1d6"], ["#12915a", "#e1f5ec"], ["#a50d22", "#fbe6ea"],
+  ["#4b3bb5", "#e8e4fb"], ["#0e7490", "#dff4f8"], ["#9a3412", "#fdeadd"], ["#475569", "#e9edf2"],
 ];
+const hashOf = (str) => [...String(str)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+const colorOf = (m) => PALETTE[hashOf(m) % PALETTE.length][0];
+const tintOf = (m) => PALETTE[hashOf(m) % PALETTE.length][1];
 
-const normalize = (l, i) => ({
-  id: l._id ?? l.id ?? i,
-  user: l.user?.name ?? l.user ?? "Unknown",
-  action: l.action ?? "",
-  module: l.module ?? "System",
-  ip: l.ip ?? l.ipAddress ?? "",
-  at: l.createdAt ?? l.timestamp ?? l.at,
-});
+// "refundRequested" -> "Refund Requested"
+const humanize = (s) =>
+  String(s || "System").replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 
-const COLUMNS = [
-  { key: "at", label: "Date & Time" },
-  { key: "user", label: "User" },
-  { key: "action", label: "Action" },
-  { key: "module", label: "Module" },
-  { key: "ip", label: "IP Address" },
-];
-
-const MODULES = ["All", "System", "Settings", "Users", "Reports"];
-
-const MODULE_COLOR = { System: "#5B48D9", Settings: "#F0862A", Users: "#1F9D88", Reports: "#3B82F6" };
-const MODULE_BADGE = {
-  System: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  Settings: "bg-orange-50 text-orange-700 ring-orange-200",
-  Users: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  Reports: "bg-sky-50 text-sky-700 ring-sky-200",
+const iconFor = (raw = "") => {
+  if (/logout/i.test(raw)) return LogOut;
+  if (/login/i.test(raw)) return LogIn;
+  if (/export/i.test(raw)) return Download;
+  if (/delete|remove/i.test(raw)) return Trash2;
+  if (/report/i.test(raw)) return FileText;
+  if (/creat|add|regist/i.test(raw)) return UserPlus;
+  if (/updat|chang|approv|publish|verif|request|decid|mark|result/i.test(raw)) return Pencil;
+  return Activity;
 };
 
-const AVATAR_STYLE = [
-  "bg-indigo-100 text-indigo-700",
-  "bg-violet-100 text-violet-700",
-  "bg-rose-100 text-rose-700",
-  "bg-teal-100 text-teal-700",
-  "bg-amber-100 text-amber-700",
-];
-
-const TONES = {
-  lavender: { card: "bg-[#ECE8F8]", deco: "bg-[#DDD6F3]", icon: "text-[#5B48D9]" },
-  mint: { card: "bg-[#E3F3EA]", deco: "bg-[#CFEBD9]", icon: "text-emerald-600" },
-  blue: { card: "bg-[#E4EEFB]", deco: "bg-[#D2E3F9]", icon: "text-blue-600" },
-  peach: { card: "bg-[#FCE8D7]", deco: "bg-[#F9D9BC]", icon: "text-orange-500" },
-};
-
-function actionMeta(action = "") {
-  const a = action.toLowerCase();
-  if (a.includes("logged in")) return { Icon: LogIn, tint: "bg-emerald-50 text-emerald-600" };
-  if (a.includes("logged out")) return { Icon: LogOut, tint: "bg-slate-100 text-slate-500" };
-  if (a.includes("delete")) return { Icon: Trash2, tint: "bg-rose-50 text-rose-600" };
-  if (a.includes("add") || a.includes("creat")) return { Icon: UserPlus, tint: "bg-indigo-50 text-indigo-600" };
-  if (a.includes("report")) return { Icon: FileText, tint: "bg-sky-50 text-sky-600" };
-  return { Icon: Pencil, tint: "bg-amber-50 text-amber-600" };
+function toEvent(row) {
+  const raw = row.action || "";
+  return {
+    id: row._id,
+    time: new Date(row.createdAt).getTime(),
+    user: row.user?.name || "System",
+    raw,
+    action: humanize(raw),
+    module: humanize(row.module || "System"),
+    ip: row.ip || "-",
+    outcome: row.outcome,
+    kind: /^login/i.test(raw) ? "signin" : /logout/i.test(raw) ? "other"
+      : /updat|chang|creat|delete|approv|publish|verif|request|decid|mark|result|refund|payment/i.test(raw) ? "change" : "other",
+  };
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/* ---------- helpers ---------- */
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const pad = (n) => String(n).padStart(2, "0");
+const fmtDate = (t) => {
+  const x = new Date(t), h = x.getHours();
+  return `${pad(x.getDate())} ${MON[x.getMonth()]} ${x.getFullYear()}, ${pad(h % 12 || 12)}:${pad(x.getMinutes())} ${h < 12 ? "AM" : "PM"}`;
+};
+const initials = (n) => n.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
-function formatDate(value) {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  const h = d.getHours() % 12 || 12;
-  const ampm = d.getHours() >= 12 ? "PM" : "AM";
-  return `${pad(d.getDate())} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
-}
-
-const initials = (name) =>
-  name.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-
-const avatarStyle = (name) =>
-  AVATAR_STYLE[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_STYLE.length];
-
-function pageList(cur, total) {
-  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
-  const list = [...new Set([1, total, cur - 1, cur, cur + 1])]
-    .filter((p) => p >= 1 && p <= total)
-    .sort((a, b) => a - b);
-  const out = [];
-  list.forEach((p, i) => {
-    if (i && p - list[i - 1] > 1) out.push(`gap-${p}`);
-    out.push(p);
-  });
-  return out;
-}
-
-function useCountUp(target, duration = 700) {
-  const [value, setValue] = useState(0);
+function useCountUp(target, duration = 800) {
+  const [val, setVal] = useState(0);
+  const prev = useRef(0);
   useEffect(() => {
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      setValue(target);
-      return undefined;
-    }
+    const from = prev.current, start = performance.now();
     let raf;
-    let t0;
-    const step = (t) => {
-      if (t0 === undefined) t0 = t;
-      const p = Math.min((t - t0) / duration, 1);
-      setValue(Math.round(target * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf = requestAnimationFrame(step);
+    const tick = (now) => {
+      const p = Math.min((now - start) / duration, 1);
+      setVal(Math.round(from + (target - from) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick); else prev.current = target;
     };
-    raf = requestAnimationFrame(step);
+    raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [target, duration]);
-  return value;
+  return val;
 }
 
-function StatCard({ tone, Icon, label, value, caption }) {
-  const t = TONES[tone];
-  const shown = useCountUp(value);
+/* ---------- components ---------- */
+function StatCard({ icon: Icon, label, value, caption, tone, delay }) {
+  const n = useCountUp(value);
   return (
-    <div className={`relative overflow-hidden rounded-3xl px-6 py-6 text-center shadow-[0_4px_20px_rgba(30,30,80,0.06)] ${t.card}`}>
-      <span aria-hidden="true" className={`absolute -right-7 -top-7 h-28 w-28 rounded-full ${t.deco}`} />
-      <span className="relative mx-auto grid h-14 w-14 place-items-center rounded-full bg-white shadow-sm">
-        <Icon size={22} className={t.icon} />
-      </span>
-      <p className="relative mt-4 text-[15px] text-slate-600">{label}</p>
-      <p className="relative mt-1 text-4xl font-bold tabular-nums tracking-tight text-[#14214B]">{shown.toLocaleString()}</p>
-      <p className="relative mt-2 text-xs font-semibold text-slate-500">{caption}</p>
+    <div className={`stat tone-${tone}`} style={{ animationDelay: `${delay}ms` }}>
+      <div className="stat-icon"><Icon size={22} /></div>
+      <div>
+        <div className="stat-label">{label}</div>
+        <div className="stat-val">{n}</div>
+        <div className="stat-cap">{caption}</div>
+      </div>
     </div>
   );
 }
 
-function Donut({ counts, total, active, hovered, onHover, onPick }) {
-  const R = 76;
-  const C = 2 * Math.PI * R;
-  const mods = Object.keys(MODULE_COLOR).filter((m) => counts[m] > 0);
-  let offset = 0;
-  const centerValue = active === "All" ? total : counts[active] ?? 0;
-  const centerLabel = active === "All" ? "Events" : active;
+function Avatar({ name, size = 36 }) {
+  const [bg, fg] = [tintOf(name), colorOf(name)];
+  return <span className="av" style={{ width: size, height: size, background: bg, color: fg }}>{initials(name)}</span>;
+}
 
+function Donut({ modules, counts, total, active, onPick }) {
+  const [hov, setHov] = useState(null);
+  const R = 78, SW = 28, C = 2 * Math.PI * R, GAP = 4;
+  let cum = 0;
+  const segs = modules.map((m) => {
+    const frac = total ? counts[m] / total : 0;
+    const s = { m, len: Math.max(frac * C - GAP, 0), off: -cum * C, pct: Math.round(frac * 100) };
+    cum += frac;
+    return s;
+  });
+  const focus = hov || active;
   return (
-    <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center lg:flex-col xl:flex-row">
-      <div className="relative h-[210px] w-[210px] shrink-0">
-        <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90" role="img" aria-label="Events by module">
-          <circle cx="100" cy="100" r={R} fill="none" stroke="#F1F1F7" strokeWidth="26" />
-          {mods.map((m) => {
-            const len = (counts[m] / total) * C;
-            const seg = Math.max(len - 3, 0);
-            const el = (
-              <circle
-                key={m}
-                cx="100"
-                cy="100"
-                r={R}
-                fill="none"
-                stroke={MODULE_COLOR[m]}
-                strokeWidth={hovered === m || active === m ? 32 : 26}
-                strokeDasharray={`${seg} ${C - seg}`}
-                strokeDashoffset={-offset}
-                opacity={active !== "All" && active !== m ? 0.3 : 1}
-                style={{ transition: "stroke-width .2s, opacity .2s", cursor: "pointer" }}
-                onMouseEnter={() => onHover(m)}
-                onMouseLeave={() => onHover("")}
-                onClick={() => onPick(m)}
-              />
-            );
-            offset += len;
-            return el;
-          })}
+    <div className="donut-wrap">
+      <div className="donut">
+        <svg viewBox="0 0 200 200" role="img" aria-label="Events by module">
+          <circle cx="100" cy="100" r={R} fill="none" stroke="#eef0f7" strokeWidth={SW} />
+          <g transform="rotate(-90 100 100)">
+            {segs.map((s) => (
+              <circle key={s.m} cx="100" cy="100" r={R} fill="none" stroke={colorOf(s.m)}
+                strokeWidth={focus === s.m ? SW + 6 : SW} strokeDasharray={`${s.len} ${C - s.len}`}
+                strokeDashoffset={s.off} opacity={focus && focus !== s.m ? 0.35 : 1} className="seg"
+                onMouseEnter={() => setHov(s.m)} onMouseLeave={() => setHov(null)} onClick={() => onPick(s.m)} />
+            ))}
+          </g>
         </svg>
-        <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
-          <div>
-            <p className="text-3xl font-bold tabular-nums text-[#14214B]">{centerValue}</p>
-            <p className="text-sm text-slate-500">{centerLabel}</p>
-          </div>
+        <div className="donut-center">
+          <b>{focus ? counts[focus] : total}</b>
+          <span>{focus || "Events"}</span>
         </div>
       </div>
-
-      <ul className="w-full max-w-[230px] space-y-1">
-        {Object.keys(MODULE_COLOR).map((m) => {
-          const pct = total ? Math.round(((counts[m] ?? 0) / total) * 100) : 0;
-          const selected = active === m;
-          return (
-            <li key={m}>
-              <button
-                type="button"
-                aria-pressed={selected}
-                onClick={() => onPick(m)}
-                onMouseEnter={() => onHover(m)}
-                onMouseLeave={() => onHover("")}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[15px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                  selected ? "bg-indigo-50 font-semibold text-[#14214B]" : "text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: MODULE_COLOR[m] }} />
-                <span className="flex-1">{m}</span>
-                <span className="tabular-nums text-slate-600">{pct}%</span>
-              </button>
-            </li>
-          );
-        })}
+      <ul className="legend">
+        {segs.map((s) => (
+          <li key={s.m}>
+            <button className={active && active !== s.m ? "dim" : ""} onClick={() => onPick(s.m)}
+              onMouseEnter={() => setHov(s.m)} onMouseLeave={() => setHov(null)} aria-pressed={active === s.m}>
+              <i style={{ background: colorOf(s.m) }} />
+              <span>{s.m}</span><b>{s.pct}%</b>
+            </button>
+          </li>
+        ))}
       </ul>
     </div>
   );
 }
 
-export default function AuditLogs({ logs, apiUrl, pollMs = 30000, currentUser = { name: "Super Admin" } }) {
-  const [data, setData] = useState(() => (logs ?? SAMPLE_LOGS).map(normalize));
-  const [loading, setLoading] = useState(Boolean(apiUrl));
-  const [error, setError] = useState("");
-
-  const [query, setQuery] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("All");
-  const [hoverMod, setHoverMod] = useState("");
-  const [sort, setSort] = useState({ key: "at", dir: "desc" });
-  const [pageSize, setPageSize] = useState(5);
-  const [page, setPage] = useState(1);
-  const [copiedIp, setCopiedIp] = useState("");
-
-  // Optional: load (and refresh) from your API
-  const load = useCallback(
-    async (signal) => {
-      try {
-        const r = await fetch(apiUrl, { credentials: "include", signal });
-        if (!r.ok) throw new Error(`Request failed (${r.status})`);
-        const json = await r.json();
-        const list = Array.isArray(json) ? json : json.logs ?? [];
-        setData(list.map(normalize));
-        setError("");
-      } catch (e) {
-        if (e.name !== "AbortError") setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [apiUrl]
+function SortTh({ label, k, sort, setSort }) {
+  const on = sort.key === k;
+  const Icon = !on ? ArrowUpDown : sort.dir === "asc" ? ChevronUp : ChevronDown;
+  return (
+    <th aria-sort={on ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button onClick={() => setSort({ key: k, dir: on && sort.dir === "desc" ? "asc" : "desc" })} className={on ? "on" : ""}>
+        {label} <Icon size={13} />
+      </button>
+    </th>
   );
+}
+
+/* ---------- page ---------- */
+export default function AuditLogs() {
+  const [module, setModule] = useState("All");
+  const [userF, setUserF] = useState(null);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState({ key: "time", dir: "desc" });
+  const [page, setPage] = useState(1);
+  const [per, setPer] = useState(5);
+  const [mounted, setMounted] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!apiUrl) return undefined;
-    const ctrl = new AbortController();
+    let active = true;
     setLoading(true);
-    load(ctrl.signal);
-    const id = pollMs > 0 ? setInterval(() => load(ctrl.signal), pollMs) : null;
-    return () => {
-      ctrl.abort();
-      if (id) clearInterval(id);
-    };
-  }, [apiUrl, pollMs, load]);
+    setError("");
+    fetchAllAuditLogs()
+      .then((rows) => { if (active) setEvents(rows.map(toEvent)); })
+      .catch((err) => { if (active) setError(err.message || "Could not load audit logs"); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [reloadKey]);
 
-  const counts = useMemo(() => {
-    const c = {};
-    data.forEach((l) => {
-      c[l.module] = (c[l.module] || 0) + 1;
-    });
-    return c;
-  }, [data]);
+  useEffect(() => { const t = setTimeout(() => setMounted(true), 150); return () => clearTimeout(t); }, []);
 
-  const stats = useMemo(() => {
-    const has = (l, s) => l.action.toLowerCase().includes(s);
-    return {
-      total: data.length,
-      users: new Set(data.map((l) => l.user)).size,
-      logins: data.filter((l) => has(l, "logged in")).length,
-      changes: data.filter((l) => has(l, "updat") || has(l, "add") || has(l, "delet") || has(l, "creat")).length,
-      latest: data.reduce((m, l) => Math.max(m, new Date(l.at).getTime() || 0), 0),
-    };
-  }, [data]);
+  /* stats (all data) */
+  const stats = useMemo(() => ({
+    total: events.length,
+    users: new Set(events.map((e) => e.user)).size,
+    signins: events.filter((e) => e.kind === "signin").length,
+    changes: events.filter((e) => e.kind === "change").length,
+  }), [events]);
+  const MODULES = useMemo(() => [...new Set(events.map((e) => e.module))].sort(), [events]);
+  const modCounts = useMemo(() => Object.fromEntries(MODULES.map((m) => [m, events.filter((e) => e.module === m).length])), [MODULES, events]);
+  const userCounts = useMemo(() => {
+    const map = {};
+    events.forEach((e) => (map[e.user] = (map[e.user] || 0) + 1));
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }, [events]);
+  const latest = events.length ? Math.max(...events.map((e) => e.time)) : null;
 
-  const topUsers = useMemo(() => {
-    const c = {};
-    data.forEach((l) => {
-      c[l.user] = (c[l.user] || 0) + 1;
-    });
-    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 4);
-  }, [data]);
-
+  /* filter + sort + paginate */
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filtered = data.filter((l) => {
-      if (moduleFilter !== "All" && l.module !== moduleFilter) return false;
-      if (!q) return true;
-      return [l.user, l.action, l.module, l.ip].some((v) => String(v).toLowerCase().includes(q));
-    });
+    const s = q.trim().toLowerCase();
+    const list = events.filter((e) =>
+      (module === "All" || e.module === module) && (!userF || e.user === userF) &&
+      (!s || [e.user, e.action, e.ip, e.module].some((v) => v.toLowerCase().includes(s))));
     const dir = sort.dir === "asc" ? 1 : -1;
-    return [...filtered].sort((a, b) => {
-      if (sort.key === "at") return (new Date(a.at) - new Date(b.at)) * dir;
-      return String(a[sort.key]).localeCompare(String(b[sort.key]), undefined, { numeric: true }) * dir;
+    return list.sort((a, b) => {
+      const x = a[sort.key], y = b[sort.key];
+      return (typeof x === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * dir;
     });
-  }, [data, query, moduleFilter, sort]);
+  }, [events, module, userF, q, sort]);
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  const pageRows = rows.slice(start, start + pageSize);
-  const filtersActive = query !== "" || moduleFilter !== "All";
+  const pages = Math.max(1, Math.ceil(rows.length / per));
+  const cur = Math.min(page, pages);
+  const slice = rows.slice((cur - 1) * per, cur * per);
+  const from = rows.length ? (cur - 1) * per + 1 : 0;
 
-  const pickModule = (m) => {
-    setModuleFilter((cur) => (cur === m ? "All" : m));
-    setPage(1);
-  };
-
-  const toggleSort = (key) => {
-    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "at" ? "desc" : "asc" }));
-    setPage(1);
-  };
-
-  const clearFilters = () => {
-    setQuery("");
-    setModuleFilter("All");
-    setPage(1);
-  };
-
-  const copyIp = async (ip) => {
-    try {
-      await navigator.clipboard.writeText(ip);
-      setCopiedIp(ip);
-      setTimeout(() => setCopiedIp(""), 1400);
-    } catch {
-      /* clipboard unavailable */
-    }
-  };
+  const pickModule = (m) => { setModule((p) => (p === m ? "All" : m)); setPage(1); };
+  const pickUser = (u) => { setUserF((p) => (p === u ? null : u)); setPage(1); };
+  const tabs = ["All", ...MODULES];
 
   const exportCsv = () => {
-    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
-    const lines = [
-      COLUMNS.map((c) => esc(c.label)).join(","),
-      ...rows.map((l) => [formatDate(l.at), l.user, l.action, l.module, l.ip].map(esc).join(",")),
-    ];
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+    const csv = "Date & Time,User,Action,Module,IP Address\n" +
+      rows.map((r) => [fmtDate(r.time), r.user, r.action, r.module, r.ip].map((v) => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a");
-    a.href = url;
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = "audit-logs.csv";
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
   };
 
-  const live = Boolean(apiUrl);
-  const card = "rounded-3xl bg-white shadow-[0_4px_24px_rgba(30,30,80,0.06)]";
+  const pageNums = Array.from({ length: pages }, (_, i) => i + 1)
+    .filter((n) => pages <= 7 || n === 1 || n === pages || Math.abs(n - cur) <= 1);
 
   return (
-    <div
-      className="min-h-full w-full px-4 py-6 sm:px-8"
-      style={{
-        backgroundColor: "#FAF6F3",
-        backgroundImage:
-          "radial-gradient(700px 320px at 100% 0%, rgba(246,205,210,.55), transparent 70%), radial-gradient(320px 520px at 0% 65%, rgba(214,226,245,.55), transparent 70%)",
-      }}
-    >
-      <style>{`
-        @keyframes auditRowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-        .audit-row { animation: auditRowIn .28s ease-out both; }
-        @media (prefers-reduced-motion: reduce) { .audit-row { animation: none; } }
-      `}</style>
+    <div className="al">
+      <style>{CSS}</style>
 
-      <div className="mx-auto max-w-[1400px]">
-        {/* Header */}
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#14214B]">Audit Logs</h1>
-            <p className="mt-1 text-sm text-slate-600">Track every action, user and module across the portal.</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span
-              className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold ${
-                live ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"
-              }`}
-            >
-              <span className="relative flex h-2 w-2">
-                {live && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 motion-safe:animate-ping" />}
-                <span className={`relative inline-flex h-2 w-2 rounded-full ${live ? "bg-emerald-500" : "bg-amber-500"}`} />
-              </span>
-              {live ? "Live" : "Demo data"}
-            </span>
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="relative grid h-11 w-11 place-items-center rounded-full bg-white text-slate-700 shadow-[0_2px_12px_rgba(30,30,80,0.08)] transition hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            >
-              <Bell size={19} />
-              <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-2.5 rounded-full bg-white py-1.5 pl-1.5 pr-4 shadow-[0_2px_12px_rgba(30,30,80,0.08)] transition hover:shadow-[0_4px_16px_rgba(30,30,80,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            >
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#3b1f5e] to-[#9b2c4a] text-xs font-bold text-white">
-                {initials(currentUser.name)}
-              </span>
-              <span className="text-sm font-semibold text-[#14214B]">{currentUser.name}</span>
-              <ChevronDown size={16} className="text-slate-500" />
-            </button>
-          </div>
-        </header>
-
-        {/* Summary cards */}
-        <section aria-label="Summary" className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard tone="lavender" Icon={Activity} label="Total Events" value={stats.total} caption="Across all modules" />
-          <StatCard tone="mint" Icon={Users} label="Active Users" value={stats.users} caption="Unique accounts" />
-          <StatCard tone="blue" Icon={LogIn} label="Sign-ins" value={stats.logins} caption="Logins recorded" />
-          <StatCard tone="peach" Icon={Pencil} label="Changes Made" value={stats.changes} caption="Updates, adds and deletes" />
-        </section>
-
-        {/* Main row */}
-        <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          {/* Log table card */}
-          <section className={`${card} p-5 sm:p-7`}>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-[#14214B]">Activity Log</h2>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
-                    {loading ? "Loading…" : `${rows.length} of ${data.length} events`}
-                  </span>
-                  {stats.latest > 0 && <span>latest · {formatDate(stats.latest)}</span>}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex max-w-full overflow-x-auto rounded-xl border border-indigo-100 bg-indigo-50/60 p-1" role="group" aria-label="Filter by module">
-                  {MODULES.map((m) => {
-                    const on = moduleFilter === m;
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => {
-                          setModuleFilter(m);
-                          setPage(1);
-                        }}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                          on ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-indigo-700"
-                        }`}
-                      >
-                        {m}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={exportCsv}
-                  disabled={!rows.length}
-                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-[#14214B] transition hover:border-indigo-200 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Download size={16} />
-                  Export
-                </button>
-              </div>
-            </div>
-
-            <div className="relative mt-5 w-full sm:max-w-sm">
-              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search user, action or IP"
-                aria-label="Search audit logs"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-2 pl-9 pr-9 text-sm text-slate-800 placeholder:text-slate-400 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-100"
-              />
-              {query && (
-                <button
-                  type="button"
-                  aria-label="Clear search"
-                  onClick={() => {
-                    setQuery("");
-                    setPage(1);
-                  }}
-                  className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            {error && (
-              <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                Couldn’t load audit logs: {error}. Check that the API is running and try again.
-              </p>
-            )}
-
-            <div className="-mx-2 mt-4 overflow-x-auto px-2">
-              <table className="w-full min-w-[720px] border-separate border-spacing-0 text-left">
-                <thead>
-                  <tr>
-                    {COLUMNS.map((c, i) => {
-                      const on = sort.key === c.key;
-                      const SortIcon = !on ? ChevronsUpDown : sort.dir === "asc" ? ChevronUp : ChevronDown;
-                      return (
-                        <th
-                          key={c.key}
-                          scope="col"
-                          aria-sort={on ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
-                          className={`bg-slate-50 py-3 text-sm font-semibold text-slate-700 ${i === 0 ? "rounded-l-xl pl-4" : ""} ${
-                            i === COLUMNS.length - 1 ? "rounded-r-xl pr-4" : ""
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => toggleSort(c.key)}
-                            className="group flex items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                          >
-                            {c.label}
-                            <SortIcon size={14} className={on ? "text-indigo-600" : "text-slate-300 transition group-hover:text-slate-500"} />
-                          </button>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {loading &&
-                    Array.from({ length: pageSize }).map((_, i) => (
-                      <tr key={`sk-${i}`}>
-                        {COLUMNS.map((c) => (
-                          <td key={c.key} className="border-b border-slate-100 py-4 pl-4">
-                            <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-
-                  {!loading &&
-                    pageRows.map((l, i) => {
-                      const { Icon, tint } = actionMeta(l.action);
-                      return (
-                        <tr
-                          key={`${l.id}-${safePage}-${sort.key}-${sort.dir}-${moduleFilter}`}
-                          className="audit-row group transition-colors hover:bg-indigo-50/50"
-                          style={{ animationDelay: `${i * 35}ms` }}
-                        >
-                          <td className="whitespace-nowrap border-b border-slate-100 py-3.5 pl-4 pr-4 text-sm tabular-nums text-slate-600">
-                            {formatDate(l.at)}
-                          </td>
-                          <td className="border-b border-slate-100 py-3.5 pr-4">
-                            <div className="flex items-center gap-2.5">
-                              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-semibold ${avatarStyle(l.user)}`}>
-                                {initials(l.user)}
-                              </span>
-                              <span className="text-sm font-semibold text-[#14214B]">{l.user}</span>
-                            </div>
-                          </td>
-                          <td className="border-b border-slate-100 py-3.5 pr-4">
-                            <div className="flex items-center gap-2.5">
-                              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${tint}`}>
-                                <Icon size={15} />
-                              </span>
-                              <span className="text-sm text-slate-700">{l.action}</span>
-                            </div>
-                          </td>
-                          <td className="border-b border-slate-100 py-3.5 pr-4">
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${
-                                MODULE_BADGE[l.module] ?? MODULE_BADGE.System
-                              }`}
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full" style={{ background: MODULE_COLOR[l.module] ?? MODULE_COLOR.System }} />
-                              {l.module}
-                            </span>
-                          </td>
-                          <td className="border-b border-slate-100 py-3.5 pr-4">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm tabular-nums text-slate-600">{l.ip}</span>
-                              <button
-                                type="button"
-                                onClick={() => copyIp(l.ip)}
-                                aria-label={`Copy IP address ${l.ip}`}
-                                className="grid h-7 w-7 place-items-center rounded-md text-slate-400 opacity-0 transition hover:bg-white hover:text-indigo-600 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 group-hover:opacity-100"
-                              >
-                                {copiedIp === l.ip ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-
-              {!loading && rows.length === 0 && (
-                <div className="grid place-items-center px-4 py-14 text-center">
-                  <span className="grid h-12 w-12 place-items-center rounded-full bg-indigo-50 text-indigo-500">
-                    <Search size={20} />
-                  </span>
-                  <p className="mt-3 text-sm font-semibold text-slate-800">No matching logs</p>
-                  <p className="mt-1 text-sm text-slate-500">Try a different search or clear the filters.</p>
-                  {filtersActive && (
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-                    >
-                      Clear filters
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <footer className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3 text-sm text-slate-500">
-                <span className="tabular-nums">
-                  {rows.length === 0 ? "0 results" : `Showing ${start + 1}–${Math.min(start + pageSize, rows.length)} of ${rows.length}`}
-                </span>
-                <label className="flex items-center gap-2">
-                  <span className="sr-only">Rows per page</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPage(1);
-                    }}
-                    className="rounded-lg border border-slate-200 bg-white py-1 pl-2 pr-6 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
-                  >
-                    {[5, 10, 20].map((n) => (
-                      <option key={n} value={n}>
-                        {n} per page
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <nav aria-label="Pagination" className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  aria-label="Previous page"
-                  disabled={safePage === 1}
-                  onClick={() => setPage(safePage - 1)}
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                {pageList(safePage, totalPages).map((p) =>
-                  typeof p === "string" ? (
-                    <span key={p} className="px-1 text-slate-400">
-                      …
-                    </span>
-                  ) : (
-                    <button
-                      key={p}
-                      type="button"
-                      aria-label={`Page ${p}`}
-                      aria-current={p === safePage ? "page" : undefined}
-                      onClick={() => setPage(p)}
-                      className={`h-9 min-w-9 rounded-lg px-2 text-sm font-semibold tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                        p === safePage
-                          ? "bg-indigo-600 text-white shadow-sm shadow-indigo-300"
-                          : "border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  )
-                )}
-                <button
-                  type="button"
-                  aria-label="Next page"
-                  disabled={safePage === totalPages}
-                  onClick={() => setPage(safePage + 1)}
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </nav>
-            </footer>
-          </section>
-
-          {/* Events by module card */}
-          <section className={`${card} flex flex-col p-5 sm:p-7`}>
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-[#14214B]">
-                Events by Module
-                <Radio size={14} className="text-emerald-600" aria-hidden="true" />
-              </h2>
-              <span className="pt-1.5 text-xs text-slate-400">Click legend to filter</span>
-            </div>
-
-            <div className="flex flex-1 items-center justify-center py-6">
-              {data.length > 0 ? (
-                <Donut counts={counts} total={data.length} active={moduleFilter} hovered={hoverMod} onHover={setHoverMod} onPick={pickModule} />
-              ) : (
-                <p className="text-sm text-slate-500">No events yet.</p>
-              )}
-            </div>
-
-            {topUsers.length > 0 && (
-              <div className="border-t border-slate-100 pt-5">
-                <h3 className="text-sm font-semibold text-[#14214B]">Most active users</h3>
-                <ul className="mt-3 space-y-3">
-                  {topUsers.map(([name, n]) => (
-                    <li key={name} className="flex items-center gap-3">
-                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-semibold ${avatarStyle(name)}`}>
-                        {initials(name)}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="truncate font-medium text-slate-700">{name}</span>
-                          <span className="tabular-nums text-slate-500">{n}</span>
-                        </div>
-                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full bg-[#5B48D9] transition-[width] duration-500" style={{ width: `${(n / topUsers[0][1]) * 100}%` }} />
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
+      {error && (
+        <div className="empty" role="alert" style={{ marginBottom: 16, border: "1px solid #f3c1c9", borderRadius: 16, background: "#fff5f6" }}>
+          <b>Audit logs load nahi hue</b>
+          <span>{error}</span>
+          <button className="export" onClick={() => setReloadKey((k) => k + 1)}>Retry</button>
         </div>
-      </div>
+      )}
+      {loading && <div className="sub" style={{ marginBottom: 12 }}>Loading audit logs...</div>}
+
+      <section className="stats">
+        <StatCard icon={Activity} label="Total Events" value={stats.total} caption="Across all modules" tone="navy" delay={0} />
+        <StatCard icon={Users} label="Active Users" value={stats.users} caption="Unique accounts" tone="emerald" delay={70} />
+        <StatCard icon={LogIn} label="Sign-ins" value={stats.signins} caption="Logins recorded" tone="maroon" delay={140} />
+        <StatCard icon={Pencil} label="Changes Made" value={stats.changes} caption="Updates, adds and deletes" tone="gold" delay={210} />
+      </section>
+
+      <section className="layout">
+        {/* activity log */}
+        <div className="box">
+          <div className="box-head">
+            <div>
+              <h2>Activity Log</h2>
+              <div className="sub">
+                <span className="chip">{rows.length} of {events.length} events</span>
+                {latest && <span>latest · {fmtDate(latest)}</span>}
+              </div>
+            </div>
+            <div className="head-actions">
+              <div className="seg-ctl" style={{ "--i": tabs.indexOf(module), "--n": tabs.length }}>
+                <span className="pill" />
+                {tabs.map((t) => (
+                  <button key={t} className={module === t ? "on" : ""} onClick={() => { setModule(t); setPage(1); }}>{t}</button>
+                ))}
+              </div>
+              <button className="export" onClick={exportCsv}><Download size={15} /> Export</button>
+            </div>
+          </div>
+
+          <div className="filters">
+            <div className="search">
+              <Search size={16} />
+              <input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Search user, action or IP" />
+              {q && <button onClick={() => setQ("")} aria-label="Clear search"><X size={14} /></button>}
+            </div>
+            {userF && (
+              <button className="user-chip" onClick={() => setUserF(null)}>
+                <Avatar name={userF} size={22} /> {userF} <X size={13} />
+              </button>
+            )}
+          </div>
+
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <SortTh label="Date & Time" k="time" sort={sort} setSort={setSort} />
+                  <SortTh label="User" k="user" sort={sort} setSort={setSort} />
+                  <SortTh label="Action" k="action" sort={sort} setSort={setSort} />
+                  <SortTh label="Module" k="module" sort={sort} setSort={setSort} />
+                  <SortTh label="IP Address" k="ip" sort={sort} setSort={setSort} />
+                </tr>
+              </thead>
+              <tbody key={`${cur}-${module}-${userF}-${q}-${sort.key}-${sort.dir}-${per}`}>
+                {slice.map((r, i) => {
+                  const Icon = iconFor(r.raw);
+                  return (
+                    <tr key={r.id} style={{ animationDelay: `${i * 45}ms` }}>
+                      <td className="muted">{fmtDate(r.time)}</td>
+                      <td><span className="user-cell"><Avatar name={r.user} /><b>{r.user}</b></span></td>
+                      <td><span className="act"><span className="act-ic"><Icon size={16} /></span>{r.action}</span></td>
+                      <td>
+                        <span className="badge" style={{ background: tintOf(r.module), color: colorOf(r.module) }}>
+                          <i style={{ background: colorOf(r.module) }} />{r.module}
+                        </span>
+                      </td>
+                      <td className="muted mono">{r.ip}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {rows.length === 0 && (
+              <div className="empty">
+                <b>No events match</b>
+                <span>Clear the search or switch the module filter back to All.</span>
+              </div>
+            )}
+          </div>
+
+          <div className="pager">
+            <div className="showing">
+              Showing {from}–{Math.min(cur * per, rows.length)} of {rows.length}
+              <label className="per">
+                <select value={per} onChange={(e) => { setPer(Number(e.target.value)); setPage(1); }} aria-label="Rows per page">
+                  {[5, 10, 20].map((n) => <option key={n} value={n}>{n} per page</option>)}
+                </select>
+                <ChevronDown size={14} />
+              </label>
+            </div>
+            <nav className="pages" aria-label="Pagination">
+              <button onClick={() => setPage(cur - 1)} disabled={cur === 1} aria-label="Previous page"><ChevronLeft size={16} /></button>
+              {pageNums.map((n, i) => (
+                <span key={n} className="pg">
+                  {i > 0 && n - pageNums[i - 1] > 1 && <span className="gap">…</span>}
+                  <button className={n === cur ? "on" : ""} onClick={() => setPage(n)} aria-current={n === cur ? "page" : undefined}>{n}</button>
+                </span>
+              ))}
+              <button onClick={() => setPage(cur + 1)} disabled={cur === pages} aria-label="Next page"><ChevronRight size={16} /></button>
+            </nav>
+          </div>
+        </div>
+
+        {/* side column */}
+        <div className="box side">
+          <div className="box-head">
+            <h2>Events by Module <Radio size={13} className="radio" /></h2>
+            <span className="hint">Click legend to filter</span>
+          </div>
+          <Donut modules={MODULES} counts={modCounts} total={events.length} active={module === "All" ? null : module} onPick={pickModule} />
+
+          <div className="active-users">
+            <h3>Most active users</h3>
+            {userCounts.map(([u, c]) => (
+              <button key={u} className={`au ${userF === u ? "sel" : ""} ${userF && userF !== u ? "dim" : ""}`} onClick={() => pickUser(u)}>
+                <Avatar name={u} size={32} />
+                <span className="au-main">
+                  <span className="au-row"><span>{u}</span><b>{c}</b></span>
+                  <span className="track"><i style={{ width: mounted ? `${(c / (userCounts[0]?.[1] || 1)) * 100}%` : "0%" }} /></span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
+
+/* ---------- styles ---------- */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600&display=swap');
+
+.al{--navy:#14214f;--navy2:#1b2d6b;--maroon:#8a0b1c;--maroon2:#a50d22;--gold:#e8b923;--muted:#5d6785;--line:#e4e7f0;--bg:#f6f4f2;font-style:normal;
+  min-height:100vh;padding:32px clamp(16px,4vw,44px) 44px;font-family:'Poppins',system-ui,sans-serif;color:var(--navy);
+  background:radial-gradient(900px 420px at 100% -10%,rgba(138,11,28,.10),transparent 60%),radial-gradient(800px 420px at -10% 0%,rgba(27,45,107,.10),transparent 60%),var(--bg)}
+.al *{box-sizing:border-box;font-style:normal}
+.al button{font-family:inherit;cursor:pointer}
+.al :focus-visible{outline:3px solid rgba(232,185,35,.7);outline-offset:2px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;margin-bottom:24px}
+.stat{--c:#1b2d6b;--ct:#e8ecfb;position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;padding:20px 22px;border-radius:20px;background:#fff;border:1px solid var(--line);
+  box-shadow:0 16px 30px -26px rgba(20,33,79,.7);transition:transform .25s,box-shadow .25s,border-color .25s;animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+.stat::after{content:"";position:absolute;left:22px;right:22px;top:0;height:3px;border-radius:0 0 4px 4px;background:var(--c);transform:scaleX(.18);transform-origin:left;transition:transform .45s cubic-bezier(.3,.9,.3,1)}
+.stat:hover{transform:translateY(-4px);border-color:var(--c);box-shadow:0 26px 36px -26px var(--c)}
+.stat:hover::after{transform:scaleX(1)}
+.stat-icon{flex-shrink:0;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;color:var(--c);background:var(--ct);transition:transform .3s}
+.stat:hover .stat-icon{transform:rotate(-8deg) scale(1.08)}
+.stat-label{font-size:13.5px;color:var(--muted)}
+.stat-val{font-family:'Playfair Display',serif;font-size:34px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat-cap{font-size:12px;color:#8a93ad;margin-top:2px}
+.tone-emerald{--c:#12915a;--ct:#e1f5ec}.tone-maroon{--c:#a50d22;--ct:#fbe6ea}.tone-gold{--c:#c98a06;--ct:#fdf1d6}
+
+/* layout */
+.layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:22px;align-items:start}
+.box{padding:24px 26px 20px;border-radius:24px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 40px -32px rgba(20,33,79,.6);animation:rise .6s .2s cubic-bezier(.2,.8,.2,1) both}
+.box-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.box h2{display:flex;align-items:center;gap:8px;margin:0;font-family:'Playfair Display',serif;font-size:22px}
+.radio{color:#12915a;animation:blink 1.6s infinite}
+.sub{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.chip{padding:3px 10px;border-radius:999px;background:#e1f5ec;color:#0f7a4b;font-weight:600}
+.hint{font-size:12px;color:var(--muted);padding-top:6px}
+.head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.seg-ctl{--i:0;--n:5;max-width:100%;overflow-x:auto;position:relative;display:grid;grid-template-columns:repeat(var(--n),1fr);padding:4px;border-radius:12px;background:#eef0f8}
+.pill{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/var(--n));border-radius:9px;background:var(--navy);transform:translateX(calc(var(--i)*100%));transition:transform .28s cubic-bezier(.3,.9,.3,1)}
+.seg-ctl button{position:relative;z-index:1;border:0;background:none;padding:7px 14px;font-size:12.5px;font-weight:500;color:var(--muted);white-space:nowrap;transition:color .2s}
+.seg-ctl button.on{color:#fff}
+.export{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:12.5px;font-weight:600;transition:all .2s}
+.export:hover{border-color:var(--maroon);color:var(--maroon);transform:translateY(-1px)}
+
+/* filters */
+.filters{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.search{display:flex;align-items:center;gap:10px;width:min(100%,380px);height:44px;padding:0 12px 0 14px;border-radius:12px;background:#eef2fd;border:1px solid var(--line);color:var(--muted);transition:border-color .2s,box-shadow .2s,background .2s}
+.search:focus-within{border-color:var(--navy2);background:#fff;box-shadow:0 0 0 4px rgba(27,45,107,.1)}
+.search input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:14px;color:var(--navy)}
+.search button{display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:50%;background:#dfe4f4;color:var(--navy)}
+.user-chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border-radius:999px;border:1px solid var(--maroon2);background:#fbe6ea;color:var(--maroon);font-size:12.5px;font-weight:600;animation:pop .2s}
+
+/* table */
+.table-wrap{overflow-x:auto;border-radius:14px}
+table{width:100%;min-width:720px;border-collapse:collapse;font-size:14px}
+thead tr{background:#f6f7fc}
+th{padding:0;text-align:left;font-size:13px}
+th:first-child button{padding-left:16px}
+th button{display:inline-flex;align-items:center;gap:6px;width:100%;padding:14px 10px;border:0;background:none;font-size:13px;font-weight:600;color:var(--navy)}
+th button svg{color:#9aa3bd;transition:color .2s}
+th button:hover svg,th button.on svg{color:var(--maroon)}
+thead th:first-child{border-radius:12px 0 0 12px}thead th:last-child{border-radius:0 12px 12px 0}
+td{padding:14px 10px;border-bottom:1px solid #eef0f6;vertical-align:middle}
+td:first-child{padding-left:16px}
+tbody tr{animation:fade .35s ease-out both;transition:background .2s}
+tbody tr:hover{background:#f8f9fd}
+tbody tr:last-child td{border-bottom:0}
+.muted{color:var(--muted)}.mono{font-variant-numeric:tabular-nums}
+.user-cell{display:inline-flex;align-items:center;gap:12px}
+.av{display:inline-grid;place-items:center;flex-shrink:0;border-radius:50%;font-size:11.5px;font-weight:600}
+.act{display:inline-flex;align-items:center;gap:12px;white-space:nowrap}
+.act-ic{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#eef2fd;color:var(--navy2);transition:transform .2s,background .2s,color .2s}
+tbody tr:hover .act-ic{background:var(--navy2);color:#fff;transform:scale(1.08)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600}
+.badge i{width:6px;height:6px;border-radius:50%}
+.empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:44px 16px;font-size:14px;color:var(--muted)}
+.empty b{color:var(--navy);font-size:16px}
+
+/* pager */
+.pager{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:16px;border-top:1px solid #eef0f6}
+.showing{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.per{position:relative}
+.per select{appearance:none;-webkit-appearance:none;height:38px;padding:0 34px 0 14px;border-radius:10px;border:1px solid var(--line);background:#fff;font:inherit;font-size:13px;color:var(--navy);cursor:pointer}
+.per svg{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none}
+.pages{display:flex;align-items:center;gap:6px}
+.pg{display:inline-flex;align-items:center;gap:6px}
+.gap{color:var(--muted)}
+.pages button{min-width:38px;height:38px;padding:0 6px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:13.5px;font-weight:600;display:grid;place-items:center;transition:all .18s}
+.pages button:hover:not(:disabled):not(.on){border-color:var(--maroon);color:var(--maroon)}
+.pages button.on{border-color:transparent;color:#fff;background:linear-gradient(180deg,var(--maroon2),var(--maroon));box-shadow:0 8px 16px -8px rgba(138,11,28,.7)}
+.pages button:disabled{opacity:.4;cursor:not-allowed}
+
+/* donut */
+.donut-wrap{display:flex;align-items:center;justify-content:center;gap:clamp(14px,2.5vw,30px);flex-wrap:wrap;padding:10px 0 20px}
+.donut{position:relative;width:190px;height:190px;flex-shrink:0}
+.donut svg{width:100%;height:100%;overflow:visible}
+.seg{transition:stroke-width .2s,opacity .2s;cursor:pointer}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.donut-center b{font-family:'Playfair Display',serif;font-size:36px;line-height:1}
+.donut-center span{margin-top:4px;font-size:12.5px;color:var(--muted)}
+.legend{list-style:none;margin:0;padding:0;min-width:150px}
+.legend button{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:10px;width:100%;padding:9px 12px;border:0;border-radius:10px;background:none;font-size:14px;color:var(--navy);text-align:left;transition:background .2s,opacity .2s}
+.legend button:hover{background:#f3f5fb}.legend button.dim{opacity:.45}
+.legend i{width:12px;height:12px;border-radius:50%}
+
+/* active users */
+.active-users{padding-top:18px;border-top:1px solid #eef0f6}
+.active-users h3{margin:0 0 10px;font-size:14px;font-weight:600}
+.au{display:flex;align-items:center;gap:12px;width:100%;padding:8px 10px;margin-bottom:2px;border:0;border-radius:12px;background:none;text-align:left;color:var(--navy);transition:background .2s,opacity .2s}
+.au:hover{background:#f3f5fb}.au.sel{background:#fbe6ea}.au.dim{opacity:.45}
+.au-main{flex:1;min-width:0}
+.au-row{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px}
+.au-row b{font-weight:600}
+.track{display:block;height:7px;border-radius:7px;background:#e8ebf6;overflow:hidden}
+.track i{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,var(--navy2),var(--maroon2));transition:width 1s cubic-bezier(.3,.9,.3,1)}
+
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes blink{50%{opacity:.3}}
+
+@media (max-width:1060px){.layout{grid-template-columns:1fr}}
+@media (max-width:640px){.head-actions{width:100%}.seg-ctl{overflow-x:auto;max-width:100%}}
+@media (prefers-reduced-motion:reduce){.al *{animation:none!important;transition:none!important}}
+`;

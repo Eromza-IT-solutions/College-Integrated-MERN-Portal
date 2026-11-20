@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import * as C from '../utils/constants.js';
+import { requiredDocuments } from '../utils/documentRules.js';
 
 // One uploaded file of an application: Aadhaar, address proof, L.C., marksheets, photo or signature.
 // The file itself lives in file storage (decided later); this record keeps its details and review state.
@@ -34,10 +35,29 @@ admissionDocumentSchema.pre('validate', function checkImageSize() {
   }
 });
 
-/** Which required documents an application still lacks. */
-admissionDocumentSchema.statics.missingRequired = async function missingRequired(applicationId) {
-  const have = await this.find({ applicationId }).distinct('type');
-  return C.REQUIRED_DOCUMENT_TYPES.filter((t) => !have.includes(t));
+/** The documents this application must have, worked out from its category (see utils/documentRules.js). */
+admissionDocumentSchema.statics.requiredFor = async function requiredFor(applicationId, { session } = {}) {
+  const app = await this.db.model('Application').findById(applicationId).select('feesCategory student.casteCategory lastExam.hasGap').session(session || null);
+  if (!app) return [];
+  return requiredDocuments({
+    casteCategory: app.student && app.student.casteCategory,
+    feesCategory: app.feesCategory,
+    hasGap: !!(app.lastExam && app.lastExam.hasGap),
+  });
+};
+
+/** Which required documents an application still lacks (list of document types). */
+admissionDocumentSchema.statics.missingRequired = async function missingRequired(applicationId, { session } = {}) {
+  const required = await this.requiredFor(applicationId, { session });
+  const have = await this.find({ applicationId }).session(session || null).distinct('type');
+  return required.map((d) => d.type).filter((t) => !have.includes(t));
+};
+
+/** Required documents that are uploaded but not verified yet by the admission office (or were rejected). */
+admissionDocumentSchema.statics.notVerified = async function notVerified(applicationId, { session } = {}) {
+  const required = (await this.requiredFor(applicationId, { session })).map((d) => d.type);
+  const docs = await this.find({ applicationId, type: { $in: required } }).session(session || null);
+  return docs.filter((d) => d.status !== C.DOCUMENT_STATUS.VERIFIED).map((d) => d.type);
 };
 
 export default mongoose.model('AdmissionDocument', admissionDocumentSchema);

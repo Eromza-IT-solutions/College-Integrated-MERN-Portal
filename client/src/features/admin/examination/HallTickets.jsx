@@ -1,387 +1,472 @@
 import { useMemo, useState } from "react";
 import {
+  Award,
+  CalendarDays,
   CheckCircle2,
-  Clock3,
   Download,
-  Eye,
+  Pencil,
   Printer,
-  ShieldAlert,
-  Ticket,
+  RefreshCw,
+  Sparkles,
+  Users,
 } from "lucide-react";
+
 import Badge from "../../../components/ui/Badge";
 import Button from "../../../components/ui/Button";
-import Card, { CardHeader } from "../../../components/ui/Card";
 import DataTable from "../../../components/ui/Table";
+import ErrorState from "../../../components/ui/ErrorState";
+import Input from "../../../components/ui/Input";
+import Loader from "../../../components/ui/Loader";
 import Modal from "../../../components/ui/Modal";
-import PageHeader from "../../../components/ui/PageHeader";
-import Pagination from "../../../components/ui/Pagination";
 import SearchInput from "../../../components/ui/SearchInput";
 import Select from "../../../components/ui/Select";
-import StatCard from "../../../components/ui/StatCard";
-import { examHallTickets } from "../../../mocks/examAdminData";
+import {
+  downloadAdminHallTicketPdf,
+  fetchExamTickets,
+  fetchExams,
+  generateHallTickets,
+  updateHallTicket,
+} from "../../../services/adminApi";
+import { useApiData } from "../../../hooks/useApiData";
 import { downloadCsv } from "../../../utils/csv";
+import { formatDateTime } from "../../../utils/examAdmin";
+import { formatDate } from "../../../utils/format";
 import { formatStatus, getStatusVariant } from "../../../utils/status";
 
-const PAGE_SIZE = 6;
+import "../../../assets/styles/aisc-premium.css";
+
+const EMPTY_EDIT = {
+  seatNo: "",
+  room: "",
+  status: "issued",
+};
 
 export default function HallTickets() {
-  const [rows, setRows] = useState(examHallTickets);
+  const exams = useApiData(() => fetchExams());
+  const [selectedExamId, setSelectedExamId] = useState("");
   const [query, setQuery] = useState("");
-  const [sessionFilter, setSessionFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [overwrite, setOverwrite] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [editForm, setEditForm] = useState(EMPTY_EDIT);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  const sessions = useMemo(
-    () => [...new Set(rows.map((row) => row.session))],
-    [rows],
+  const rows = exams.data ?? [];
+  const activeExam =
+    rows.find((exam) => String(exam._id) === String(selectedExamId)) || rows[0];
+  const tickets = useApiData(
+    () => (activeExam ? fetchExamTickets(activeExam._id) : Promise.resolve([])),
+    activeExam?._id || "none",
   );
 
-  const filteredRows = useMemo(() => {
+  const ticketRows = useMemo(() => {
+    const list = tickets.data ?? [];
     const search = query.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesSearch =
-        !search ||
-        row.student.toLowerCase().includes(search) ||
-        row.rollNo.toLowerCase().includes(search) ||
-        row.seatNo.toLowerCase().includes(search);
-      const matchesSession =
-        sessionFilter === "all" || row.session === sessionFilter;
-      const matchesStatus =
-        statusFilter === "all" || row.status === statusFilter;
-
-      return matchesSearch && matchesSession && matchesStatus;
-    });
-  }, [query, rows, sessionFilter, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = filteredRows.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
+    if (!search) return list;
+    return list.filter((ticket) =>
+      [ticket.studentName, ticket.enrollmentNumber, ticket.seatNo, ticket.room]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [query, tickets.data]);
 
   const counts = {
-    issued: rows.filter((row) => row.status === "issued").length,
-    pending: rows.filter((row) => row.status === "pending").length,
-    blocked: rows.filter((row) => row.status === "blocked").length,
-    total: rows.length,
+    total: (tickets.data ?? []).length,
+    issued: (tickets.data ?? []).filter((ticket) => ticket.status === "issued").length,
+    pending: (tickets.data ?? []).filter((ticket) => ticket.status === "pending").length,
+    blocked: (tickets.data ?? []).filter((ticket) => ticket.status === "blocked").length,
+  };
+
+  const openEdit = (ticket) => {
+    setEditing(ticket);
+    setEditForm({
+      seatNo: ticket.seatNo || "",
+      room: ticket.room || "",
+      status: ticket.status || "issued",
+    });
+    setError("");
+    setEditOpen(true);
+  };
+
+  const closeEdit = () => {
+    setEditOpen(false);
+    setEditing(null);
+    setEditForm(EMPTY_EDIT);
+    setError("");
+  };
+
+  const handleGenerate = async () => {
+    if (!activeExam) return;
+    setGenerating(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await generateHallTickets(activeExam._id, { overwrite });
+      setMessage(
+        `Generated ${result.generated ?? result.tickets?.length ?? 0} hall ticket(s).`,
+      );
+      setGenerateOpen(false);
+      setOverwrite(false);
+      tickets.reload();
+      exams.reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editing) return;
+    if (!editForm.seatNo.trim() || !editForm.room.trim()) {
+      setError("Seat number and room are required.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await updateHallTicket(editing._id, {
+        seatNo: editForm.seatNo.trim(),
+        room: editForm.room.trim(),
+        status: editForm.status,
+      });
+      setMessage("Hall ticket updated.");
+      closeEdit();
+      tickets.reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleExport = () => {
-    downloadCsv("eromza-hall-tickets.csv", [
-      ["Ticket", "Student", "Roll number", "Program", "Session", "Seat", "Room", "Status"],
-      ...filteredRows.map((row) => [
-        row.id,
-        row.student,
-        row.rollNo,
-        row.program,
-        row.session,
-        row.seatNo,
-        row.room,
-        row.status,
+    downloadCsv("aisc-hall-tickets.csv", [
+      ["Student", "Enrollment", "Seat", "Room", "Status", "Issued"],
+      ...ticketRows.map((ticket) => [
+        ticket.studentName,
+        ticket.enrollmentNumber,
+        ticket.seatNo,
+        ticket.room,
+        ticket.status,
+        ticket.issuedAt,
       ]),
     ]);
-  };
-
-  const issueTicket = (ticket) => {
-    setRows((current) =>
-      current.map((row) =>
-        row.id === ticket.id
-          ? { ...row, status: "issued", issuedOn: "Today" }
-          : row,
-      ),
-    );
-    setSelectedTicket((current) =>
-      current ? { ...current, status: "issued", issuedOn: "Today" } : current,
-    );
-  };
-
-  const generatePendingTickets = () => {
-    setRows((current) =>
-      current.map((row) =>
-        row.status === "pending"
-          ? { ...row, status: "issued", issuedOn: "Today" }
-          : row,
-      ),
-    );
   };
 
   const columns = [
     {
       key: "student",
       header: "Student",
-      render: (row) => (
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-eromza-text">
-            {row.student}
-          </p>
-          <p className="mt-1 text-[11px] text-eromza-subtle">{row.rollNo}</p>
+      render: (ticket) => (
+        <div>
+          <div className="aisc-table-primary">{ticket.studentName}</div>
+          <div className="aisc-table-secondary">{ticket.enrollmentNumber}</div>
         </div>
       ),
     },
     {
-      key: "program",
-      header: "Program",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.program}</span>
+      key: "exam",
+      header: "Examination",
+      render: (ticket) => (
+        <div>
+          <div className="text-xs font-semibold text-[#14264B]">{ticket.examName}</div>
+          <div className="aisc-table-secondary">
+            {ticket.programName || "Program"} · Semester {ticket.semester}
+          </div>
+        </div>
       ),
     },
     {
-      key: "session",
-      header: "Exam session",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.session}</span>
+      key: "seat",
+      header: "Seat / Room",
+      render: (ticket) => (
+        <div>
+          <div className="font-bold text-[#14264B]">{ticket.seatNo || "Not allotted"}</div>
+          <div className="aisc-table-secondary">{ticket.room || "Room not set"}</div>
+        </div>
       ),
     },
     {
-      key: "seatNo",
-      header: "Seat",
-      render: (row) => (
-        <span className="text-xs font-medium text-eromza-text">{row.seatNo}</span>
-      ),
-    },
-    {
-      key: "room",
-      header: "Room",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.room}</span>
+      key: "issued",
+      header: "Issued",
+      render: (ticket) => (
+        <span className="text-xs text-slate-600">
+          {ticket.issuedAt ? formatDate(ticket.issuedAt) : "—"}
+        </span>
       ),
     },
     {
       key: "status",
       header: "Status",
-      render: (row) => (
-        <Badge variant={getStatusVariant(row.status)}>
-          {formatStatus(row.status)}
-        </Badge>
-      ),
-    },
-    {
-      key: "issuedOn",
-      header: "Issued on",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.issuedOn}</span>
+      render: (ticket) => (
+        <Badge variant={getStatusVariant(ticket.status)}>{formatStatus(ticket.status)}</Badge>
       ),
     },
     {
       key: "actions",
-      header: "",
-      className: "text-right",
-      cellClassName: "text-right",
-      render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSelectedTicket(row)}
-          className="text-eromza-accent hover:bg-rose-50"
-        >
-          <Eye size={14} />
-          View
-        </Button>
+      header: "Actions",
+      render: (ticket) => (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            title="Download hall ticket"
+            className="aisc-action-btn"
+            onClick={() => downloadAdminHallTicketPdf(ticket)}
+          >
+            <Download size={14} />
+          </button>
+          <button
+            type="button"
+            title="Edit seating"
+            className="aisc-action-btn"
+            onClick={() => openEdit(ticket)}
+          >
+            <Pencil size={14} />
+          </button>
+        </div>
       ),
     },
   ];
 
+  const stats = [
+    { label: "Total Tickets", value: counts.total, icon: Users, color: "#315FCE", soft: "#EEF3FF" },
+    { label: "Issued", value: counts.issued, icon: CheckCircle2, color: "#2C9271", soft: "#EAF7F1" },
+    { label: "Pending", value: counts.pending, icon: CalendarDays, color: "#B58A16", soft: "#FFF7DF" },
+    { label: "Blocked", value: counts.blocked, icon: Award, color: "#A8212F", soft: "#F9ECEE" },
+  ];
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Examination administration"
-        title="Hall Tickets"
-        description="Generate, review, and issue examination hall tickets with seat and room allocations."
-        actions={
-          <>
-            <Button variant="secondary" onClick={handleExport}>
-              <Download size={16} />
-              Export hall tickets
-            </Button>
-            <Button onClick={generatePendingTickets}>
-              <Printer size={16} />
-              Generate pending
-            </Button>
-          </>
-        }
-      />
+    <div className="aisc-premium space-y-6">
+      <section className="aisc-page-head">
+        <div>
+          <div className="aisc-eyebrow"><Sparkles size={13} /> Examination Cell</div>
+          <h1 className="aisc-page-title">Hall Tickets</h1>
+          <p className="aisc-page-subtitle">
+            Generate and manage hall tickets for approved examination forms.
+          </p>
+        </div>
+        <div className="aisc-date-chip"><CalendarDays size={14} /> {formatDate(activeExam?.formClosesAt)}</div>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Issued"
-          value={String(counts.issued)}
-          icon={CheckCircle2}
-          tone="success"
-        />
-        <StatCard
-          label="Pending"
-          value={String(counts.pending)}
-          icon={Clock3}
-          tone="warning"
-        />
-        <StatCard
-          label="Blocked"
-          value={String(counts.blocked)}
-          icon={ShieldAlert}
-          tone="accent"
-        />
-        <StatCard
-          label="Total Tickets"
-          value={String(counts.total)}
-          icon={Ticket}
-          tone="info"
-        />
-      </div>
-
-      <Card>
-        <CardHeader
-          title="Hall ticket register"
-          description="Student-wise hall ticket status for active examination sessions"
-        />
-
-        <div className="flex flex-col gap-3 border-b border-eromza-border p-4 sm:flex-row sm:items-center sm:justify-between">
-          <SearchInput
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by student, roll number, or seat..."
-            className="w-full sm:max-w-xs"
-          />
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Select
-              value={sessionFilter}
-              onChange={(event) => {
-                setSessionFilter(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter hall tickets by session"
-              className="min-w-[190px]"
+      <section className="aisc-hero">
+        <div className="aisc-hero-copy">
+          <div className="aisc-hero-kicker"><Printer size={12} /> EXAMINATION OPERATIONS</div>
+          <h2 className="aisc-hero-title">Hall Ticket Register</h2>
+          <p className="aisc-hero-text">
+            Generate tickets from approved forms and a complete timetable. Seat numbers are unique per examination and can be adjusted here.
+          </p>
+          <div className="aisc-hero-actions">
+            <button
+              type="button"
+              className="aisc-btn aisc-btn-primary"
+              onClick={() => setGenerateOpen(true)}
+              disabled={!activeExam}
             >
-              <option value="all">All sessions</option>
-              {sessions.map((session) => (
-                <option key={session} value={session}>
-                  {session}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter hall tickets by status"
-              className="min-w-[150px]"
-            >
-              <option value="all">All status</option>
-              <option value="issued">Issued</option>
-              <option value="pending">Pending</option>
-              <option value="blocked">Blocked</option>
-            </Select>
+              <RefreshCw size={15} /> Generate hall tickets
+            </button>
+            <button type="button" className="aisc-btn aisc-btn-glass" onClick={handleExport}>
+              <Download size={15} /> Export register
+            </button>
           </div>
         </div>
+        <div className="aisc-hero-seal"><Award size={76} strokeWidth={1.1} /></div>
+      </section>
 
-        <DataTable
-          columns={columns}
-          rows={pageRows}
-          emptyTitle="No hall tickets found"
-          emptyDescription="Try adjusting the search or filters."
-        />
+      <section className="aisc-grid aisc-kpis">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <article
+              className="aisc-kpi"
+              key={stat.label}
+              style={{ "--kpi-color": stat.color, "--kpi-soft": stat.soft, "--progress": counts.total ? `${(stat.value / counts.total) * 100}%` : "0%" }}
+            >
+              <div className="aisc-kpi-top"><div className="aisc-kpi-icon"><Icon size={19} /></div></div>
+              <div className="aisc-kpi-label">{stat.label}</div>
+              <div className="aisc-kpi-value">{stat.value}</div>
+              <div className="aisc-kpi-note">Current examination session</div>
+              <div className="aisc-kpi-track"><span /></div>
+            </article>
+          );
+        })}
+      </section>
 
-        <div className="flex flex-col gap-3 border-t border-eromza-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-eromza-subtle">
-            Showing {pageRows.length} of {filteredRows.length} hall tickets
-          </p>
-          <Pagination
-            page={currentPage}
-            totalPages={totalPages}
-            onPageChange={setPage}
+      <section className="aisc-panel">
+        <div className="aisc-panel-head">
+          <div>
+            <h3 className="aisc-panel-title">Issued Hall Tickets</h3>
+            <p className="aisc-panel-sub">Issued tickets and seating for the selected session</p>
+          </div>
+          <Select
+            value={activeExam?._id || ""}
+            onChange={(event) => {
+              setSelectedExamId(event.target.value);
+              setMessage("");
+              setError("");
+            }}
+            aria-label="Choose examination session"
+            className="min-w-[260px]"
+            disabled={!rows.length}
+          >
+            {rows.length === 0 ? <option value="">No sessions available</option> : null}
+            {rows.map((exam) => (
+              <option key={exam._id} value={exam._id}>
+                {exam.name} · Semester {exam.semester}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="border-b border-slate-100 bg-[#FBF6EE] p-4">
+          <SearchInput
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search student, enrollment, seat or room..."
+            className="max-w-md"
           />
         </div>
-      </Card>
+
+        {exams.loading || tickets.loading ? (
+          <Loader label="Loading hall tickets..." />
+        ) : exams.error || tickets.error ? (
+          <ErrorState
+            title="Could not load hall tickets"
+            description={exams.error?.message || tickets.error?.message}
+            onRetry={() => {
+              exams.reload();
+              tickets.reload();
+            }}
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={ticketRows}
+            getRowKey={(ticket) => ticket._id}
+            emptyTitle="No hall tickets found"
+            emptyDescription="Generate tickets once exam forms are approved and the timetable is complete."
+          />
+        )}
+
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs font-medium">
+            {message ? (
+              <span className="inline-flex items-center gap-1.5 text-emerald-700">
+                <CheckCircle2 size={14} /> {message}
+              </span>
+            ) : null}
+            {error ? <span className="text-red-600">{error}</span> : null}
+            {!message && !error ? (
+              <span className="text-slate-500">
+                {ticketRows.length} ticket{ticketRows.length === 1 ? "" : "s"} shown
+              </span>
+            ) : null}
+          </div>
+          <Badge variant="neutral">
+            {activeExam ? formatDateTime(activeExam.formOpensAt) : "No session"}
+          </Badge>
+        </div>
+      </section>
 
       <Modal
-        open={Boolean(selectedTicket)}
-        onClose={() => setSelectedTicket(null)}
-        title="Hall ticket preview"
-        description={selectedTicket?.id}
-        size="lg"
+        open={generateOpen}
+        onClose={() => setGenerateOpen(false)}
+        title="Generate Hall Tickets"
+        description={activeExam ? `${activeExam.name} · Semester ${activeExam.semester}` : undefined}
         footer={
           <>
-            {selectedTicket?.status === "pending" ? (
-              <Button onClick={() => issueTicket(selectedTicket)}>
-                <Printer size={14} />
-                Issue hall ticket
-              </Button>
-            ) : null}
-            <Button variant="secondary" onClick={() => setSelectedTicket(null)}>
-              Close
+            <Button variant="secondary" onClick={() => setGenerateOpen(false)}>Cancel</Button>
+            <Button onClick={handleGenerate} disabled={generating}>
+              {generating ? "Generating..." : "Generate tickets"}
             </Button>
           </>
         }
       >
-        {selectedTicket ? (
-          <div className="space-y-4">
-            <div className="rounded-xl bg-eromza-sidebar p-5 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">
-                Examination hall ticket
-              </p>
-              <p className="mt-2 text-xl font-semibold">{selectedTicket.student}</p>
-              <p className="mt-1 text-xs text-white/70">
-                {selectedTicket.rollNo} · {selectedTicket.program}
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Badge variant={getStatusVariant(selectedTicket.status)}>
-                  {formatStatus(selectedTicket.status)}
-                </Badge>
-                <Badge variant="neutral">{selectedTicket.session}</Badge>
-              </div>
+        <div className="space-y-4">
+          {error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+              {error}
             </div>
+          ) : null}
+          <p className="text-sm leading-6 text-slate-600">
+            Tickets are generated for approved forms. Every form subject must have a paper in the timetable.
+          </p>
+          <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <input
+              type="checkbox"
+              checked={overwrite}
+              onChange={(event) => setOverwrite(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#A8212F]"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-[#14264B]">Replace existing tickets</span>
+              <span className="mt-1 block text-xs leading-5 text-slate-500">
+                Rebuild seats and rooms for every approved form in this session.
+              </span>
+            </span>
+          </label>
+        </div>
+      </Modal>
 
-            <dl className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Seat number
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedTicket.seatNo}
-                </dd>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Examination room
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedTicket.room}
-                </dd>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Issued on
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedTicket.issuedOn}
-                </dd>
-              </div>
-              <div className="rounded-lg bg-eromza-bg p-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-                  Ticket reference
-                </dt>
-                <dd className="mt-1 text-sm font-semibold text-eromza-text">
-                  {selectedTicket.id}
-                </dd>
-              </div>
-            </dl>
-
-            <div className="rounded-lg bg-eromza-bg p-3 text-xs leading-5 text-eromza-muted">
-              Candidates must carry a printed hall ticket and a valid college ID
-              to the examination hall. Report at least 30 minutes before the exam
-              begins.
+      <Modal
+        open={editOpen}
+        onClose={closeEdit}
+        title="Edit Hall Ticket"
+        description={editing ? `${editing.studentName} · ${editing.enrollmentNumber}` : undefined}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeEdit}>Cancel</Button>
+            <Button onClick={handleUpdate} disabled={saving}>
+              {saving ? "Saving..." : "Save ticket"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+              {error}
             </div>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Seat number *"
+              value={editForm.seatNo}
+              onChange={(event) => {
+                setEditForm((current) => ({ ...current, seatNo: event.target.value }));
+                setError("");
+              }}
+            />
+            <Input
+              label="Room *"
+              value={editForm.room}
+              onChange={(event) => {
+                setEditForm((current) => ({ ...current, room: event.target.value }));
+                setError("");
+              }}
+            />
           </div>
-        ) : null}
+
+          <Select
+            label="Status"
+            value={editForm.status}
+            onChange={(event) => {
+              setEditForm((current) => ({ ...current, status: event.target.value }));
+              setError("");
+            }}
+          >
+            <option value="pending">Pending</option>
+            <option value="issued">Issued</option>
+            <option value="blocked">Blocked</option>
+          </Select>
+        </div>
       </Modal>
     </div>
   );

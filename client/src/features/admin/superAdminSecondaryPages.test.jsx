@@ -1,11 +1,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
-import AdminPanels from "./super/AdminPanels";
+import ManageAdminPanels from "./super/ManageAdminPanels";
 import AuditLogs from "./super/AuditLogs";
-import Reports from "./super/Reports";
-import Settings from "./super/Settings";
-import Users from "./super/Users";
+import ReportsAnalytics from "./super/ReportsAnalytics";
+import SystemSettings from "./super/SystemSettings";
+import ManageUsers from "./super/ManageUsers";
 
 afterEach(cleanup);
 
@@ -14,52 +14,42 @@ function renderPage(page) {
 }
 
 describe("super admin secondary pages", () => {
-  it("renders user management", () => {
-    renderPage(<Users />);
-    expect(screen.getByRole("heading", { name: "Users" })).toBeInTheDocument();
-    expect(screen.getByText("Iqra Shaikh")).toBeInTheDocument();
+  it("renders user management", async () => {
+    renderPage(<ManageUsers />);
+    expect(screen.getByText("Total Users")).toBeInTheDocument();
+    expect(await screen.findByText("Iqra Shaikh")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /add user/i }),
     ).toBeInTheDocument();
   });
 
   it("renders admin panels", () => {
-    renderPage(<AdminPanels />);
-    expect(
-      screen.getByRole("heading", { name: "Admin Panels" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "College Website Admin" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Access overview")).toBeInTheDocument();
+    renderPage(<ManageAdminPanels />);
+    expect(screen.getByText("Total panels")).toBeInTheDocument();
+    expect(screen.getByText("College Admin")).toBeInTheDocument();
+    expect(screen.getByText("Create new panel")).toBeInTheDocument();
   });
 
   it("renders reports and analytics", () => {
-    renderPage(<Reports />);
+    renderPage(<ReportsAnalytics />);
     expect(
-      screen.getByRole("heading", { name: "Reports & Analytics" }),
+      screen.getByRole("heading", { name: "User Growth" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Monthly admission summary")).toBeInTheDocument();
-    expect(screen.getByText("Accounts by role")).toBeInTheDocument();
+    expect(screen.getByText(/Report Types/)).toBeInTheDocument();
   });
 
   it("renders audit logs", () => {
     renderPage(<AuditLogs />);
     expect(
-      screen.getByRole("heading", { name: "Audit Logs" }),
+      screen.getByRole("heading", { name: "Activity Log" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Updated institution notification settings"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Total events")).toBeInTheDocument();
+    expect(screen.getByText("Total Events")).toBeInTheDocument();
   });
 
   it("renders system settings", () => {
-    renderPage(<Settings />);
-    expect(
-      screen.getByRole("heading", { name: "System Settings" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Institution profile")).toBeInTheDocument();
-    expect(screen.getByText("Notification preferences")).toBeInTheDocument();
+    renderPage(<SystemSettings />);
+    expect(screen.getByText("College Name")).toBeInTheDocument();
+    expect(screen.getByText("Default Role")).toBeInTheDocument();
+    expect(screen.getByText("Academic Year")).toBeInTheDocument();
   });
 });

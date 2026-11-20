@@ -1,12 +1,25 @@
 import { useState } from "react";
-import { GraduationCap, Mail, MapPin, Pencil, Phone, UserRound } from "lucide-react";
+import {
+  GraduationCap,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+} from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card, { CardBody, CardHeader } from "../../components/ui/Card";
+import ErrorState from "../../components/ui/ErrorState";
 import Input from "../../components/ui/Input";
+import Loader from "../../components/ui/Loader";
 import Modal from "../../components/ui/Modal";
 import PageHeader from "../../components/ui/PageHeader";
-import { studentProfile } from "../../mocks/studentData";
+import { useAuth } from "../../hooks/useAuth";
+import { useApiData } from "../../hooks/useApiData";
+import {
+  fetchStudentOverview,
+  updateStudentMobile,
+} from "../../services/studentApi";
 import { formatStatus, getStatusVariant } from "../../utils/status";
 
 function Detail({ label, value }) {
@@ -21,27 +34,57 @@ function Detail({ label, value }) {
 }
 
 export default function Profile() {
-  const [profile, setProfile] = useState(studentProfile);
+  const { user: authUser } = useAuth();
+  const { data, loading, error, reload } = useApiData(fetchStudentOverview);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({
-    phone: studentProfile.phone,
-    address: studentProfile.address,
-  });
+  const [form, setForm] = useState({ mobile: "" });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
-  const initials = profile.name
+  const student = data?.student;
+  const program = data?.program;
+  const department = data?.department;
+  const user = data?.user;
+  const admissionYear = data?.admissionYear;
+
+  const name = user?.fullName || authUser?.name || "Student";
+  const email = user?.email || authUser?.email || "Not set";
+  const phone = user?.mobile || "Not provided";
+  const aadhaar = user?.aadhaarLast4
+    ? `XXXX XXXX ${user.aadhaarLast4}`
+    : "Not set";
+  const status = student?.status || authUser?.status || "active";
+  const initials = name
     .split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2);
 
-  const handleSave = (event) => {
+  const openEditor = () => {
+    setForm({ mobile: user?.mobile || "" });
+    setSaveError("");
+    setModalOpen(true);
+  };
+
+  const handleSave = async (event) => {
     event.preventDefault();
-    setProfile((current) => ({
-      ...current,
-      phone: form.phone.trim() || current.phone,
-      address: form.address.trim() || current.address,
-    }));
-    setModalOpen(false);
+    const mobile = form.mobile.trim();
+    if (!/^\d{10}$/.test(mobile)) {
+      setSaveError("Enter a 10-digit mobile number.");
+      return;
+    }
+
+    setSaving(true);
+    setSaveError("");
+    try {
+      await updateStudentMobile(student._id, mobile);
+      setModalOpen(false);
+      reload();
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -51,137 +94,169 @@ export default function Profile() {
         title="Profile"
         description="Review your personal, academic, and contact information."
         actions={
-          <Button onClick={() => setModalOpen(true)}>
+          <Button onClick={openEditor} disabled={!student}>
             <Pencil size={16} />
             Edit profile
           </Button>
         }
       />
 
-      <Card>
-        <CardBody className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-eromza-sidebar text-xl font-semibold text-white">
-            {initials}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-semibold tracking-tight text-eromza-text">
-                {profile.name}
-              </h2>
-              <Badge variant={getStatusVariant(profile.status)}>
-                {formatStatus(profile.status)}
-              </Badge>
-            </div>
-            <p className="mt-1 text-sm text-eromza-muted">
-              {profile.rollNo} · {profile.program}
-            </p>
-            <p className="mt-1 text-xs text-eromza-subtle">
-              Semester {profile.semester} · Division {profile.division} ·{" "}
-              {profile.department}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="info">
-              <GraduationCap size={12} />
-              Batch {profile.admissionYear}
-            </Badge>
-            <Badge variant="neutral">
-              <UserRound size={12} />
-              {profile.gender ?? "Student"}
-            </Badge>
-          </div>
-        </CardBody>
-      </Card>
-
-      <div className="grid gap-5 xl:grid-cols-2">
+      {loading ? (
         <Card>
-          <CardHeader
-            title="Contact information"
-            description="How the college can reach you"
-          />
-          <CardBody className="grid gap-3 sm:grid-cols-2">
-            <Detail label="Email address" value={profile.email} />
-            <Detail label="Phone number" value={profile.phone} />
-            <div className="sm:col-span-2">
-              <Detail label="Residential address" value={profile.address} />
-            </div>
-            <Detail label="Guardian" value={profile.guardian} />
-            <Detail label="Guardian phone" value={profile.guardianPhone} />
-          </CardBody>
+          <Loader label="Loading profile..." />
         </Card>
-
+      ) : error ? (
         <Card>
-          <CardHeader
-            title="Academic information"
-            description="Your current programme and enrolment"
+          <ErrorState
+            title="Could not load profile"
+            description={error.message}
+            onRetry={reload}
           />
-          <CardBody className="grid gap-3 sm:grid-cols-2">
-            <Detail label="Programme" value={profile.program} />
-            <Detail label="Department" value={profile.department} />
-            <Detail label="Semester" value={profile.semester} />
-            <Detail label="Division" value={profile.division} />
-            <Detail label="Roll number" value={profile.rollNo} />
-            <Detail label="Admission year" value={profile.admissionYear} />
-          </CardBody>
         </Card>
-      </div>
+      ) : (
+        <>
+          <Card>
+            <CardBody className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-eromza-sidebar text-xl font-semibold text-white">
+                {initials}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-semibold tracking-tight text-eromza-text">
+                    {name}
+                  </h2>
+                  <Badge variant={getStatusVariant(status)}>
+                    {formatStatus(status)}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-sm text-eromza-muted">
+                  {student?.enrollmentNumber || "Enrollment number not set"} -{" "}
+                  {program?.name || "Programme not set"}
+                </p>
+                <p className="mt-1 text-xs text-eromza-subtle">
+                  Semester {student?.currentSemester ?? "Not set"} - Division{" "}
+                  {student?.division || "Not set"} -{" "}
+                  {department?.name || "Department not set"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="info">
+                  <GraduationCap size={12} />
+                  Batch {admissionYear?.label || "Not set"}
+                </Badge>
+                <Badge variant="neutral">{program?.level || "Student"}</Badge>
+              </div>
+            </CardBody>
+          </Card>
 
-      <Card>
-        <CardHeader
-          title="Account contacts"
-          description="Primary channels used by the college"
-        />
-        <CardBody className="grid gap-3 md:grid-cols-3">
-          <div className="flex items-center gap-3 rounded-xl border border-eromza-border p-4">
-            <Mail size={16} className="text-eromza-subtle" />
-            <span className="text-xs text-eromza-muted">{profile.email}</span>
+          <div className="grid gap-5 xl:grid-cols-2">
+            <Card>
+              <CardHeader
+                title="Contact information"
+                description="How the college can reach you"
+              />
+              <CardBody className="grid gap-3 sm:grid-cols-2">
+                <Detail label="Email address" value={email} />
+                <Detail label="Phone number" value={phone} />
+                <Detail label="Aadhaar number" value={aadhaar} />
+                <Detail
+                  label="Admission year"
+                  value={admissionYear?.label || "Not set"}
+                />
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Academic information"
+                description="Your current programme and enrolment"
+              />
+              <CardBody className="grid gap-3 sm:grid-cols-2">
+                <Detail label="Programme" value={program?.name || "Not set"} />
+                <Detail
+                  label="Department"
+                  value={department?.name || "Not set"}
+                />
+                <Detail
+                  label="Semester"
+                  value={String(student?.currentSemester ?? "Not set")}
+                />
+                <Detail label="Division" value={student?.division || "Not set"} />
+                <Detail
+                  label="Roll number"
+                  value={student?.enrollmentNumber || "Not set"}
+                />
+                <Detail
+                  label="Year of study"
+                  value={String(student?.yearOfStudy ?? "Not set")}
+                />
+              </CardBody>
+            </Card>
           </div>
-          <div className="flex items-center gap-3 rounded-xl border border-eromza-border p-4">
-            <Phone size={16} className="text-eromza-subtle" />
-            <span className="text-xs text-eromza-muted">{profile.phone}</span>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl border border-eromza-border p-4">
-            <MapPin size={16} className="text-eromza-subtle" />
-            <span className="text-xs text-eromza-muted">
-              {profile.department} Department
-            </span>
-          </div>
-        </CardBody>
-      </Card>
+
+          <Card>
+            <CardHeader
+              title="Account contacts"
+              description="Primary channels used by the college"
+            />
+            <CardBody className="grid gap-3 md:grid-cols-3">
+              <div className="flex items-center gap-3 rounded-xl border border-eromza-border p-4">
+                <Mail size={16} className="text-eromza-subtle" />
+                <span className="text-xs text-eromza-muted">{email}</span>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-eromza-border p-4">
+                <Phone size={16} className="text-eromza-subtle" />
+                <span className="text-xs text-eromza-muted">{phone}</span>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-eromza-border p-4">
+                <MapPin size={16} className="text-eromza-subtle" />
+                <span className="text-xs text-eromza-muted">
+                  {department?.name || "Department not set"}
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        </>
+      )}
 
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Edit profile"
-        description="Update your contact details. Academic records are managed by the college."
+        description="Update your mobile number. Academic records are managed by the college."
         footer={
           <>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" form="student-profile-form">
-              Save changes
+            <Button
+              type="submit"
+              form="student-profile-form"
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save changes"}
             </Button>
           </>
         }
       >
-        <form id="student-profile-form" className="space-y-4" onSubmit={handleSave}>
+        <form
+          id="student-profile-form"
+          className="space-y-4"
+          onSubmit={handleSave}
+        >
           <Input
-            label="Phone number"
-            value={form.phone}
+            label="Mobile number"
+            inputMode="numeric"
+            maxLength={10}
+            value={form.mobile}
             onChange={(event) =>
-              setForm((current) => ({ ...current, phone: event.target.value }))
+              setForm({ mobile: event.target.value.replace(/\D/g, "") })
             }
             required
           />
-          <Input
-            label="Residential address"
-            value={form.address}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, address: event.target.value }))
-            }
-            required
-          />
+          {saveError ? (
+            <p className="text-xs text-eromza-error">{saveError}</p>
+          ) : null}
         </form>
       </Modal>
     </div>

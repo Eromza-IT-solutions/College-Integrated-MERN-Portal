@@ -1,6 +1,7 @@
 
 import { NavLink, useNavigate } from "react-router-dom";
 import logo from "../../assets/images/image.png";
+import { useAuth } from "../../hooks/useAuth";
 import {
   LayoutDashboard,
   FileText,
@@ -13,6 +14,7 @@ import {
 
 function CSidebar() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const menuItems = [
     {
@@ -48,8 +50,9 @@ function CSidebar() {
     },
   ];
 
-  const handleLogout = () => {
-    navigate("/login");
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
   };
 
   return (
