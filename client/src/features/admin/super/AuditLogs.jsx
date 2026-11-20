@@ -1,38 +1,51 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { fetchAllAuditLogs } from "../../../services/auditService";
 import {
   Activity, Users, LogIn, LogOut, Pencil, UserPlus, FileText, Download, Trash2,
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown, Search, X,
   Radio,
 } from "lucide-react";
 
-/* ---------- demo data (replace with your API) ---------- */
-const d = (day, h, m) => new Date(2026, 10, day, h, m).getTime();
-const EVENTS = [
-  { id: 1, time: d(6, 15, 15), user: "Super Admin", action: "Logged In", module: "System", ip: "192.168.1.10", kind: "signin" },
-  { id: 2, time: d(6, 14, 40), user: "Iqra Shaikh", action: "Updated Settings", module: "Settings", ip: "192.168.1.25", kind: "change" },
-  { id: 3, time: d(6, 13, 22), user: "Admin", action: "Added User", module: "Users", ip: "192.168.1.18", kind: "change" },
-  { id: 4, time: d(5, 17, 10), user: "Ayesha Khan", action: "Generated Report", module: "Reports", ip: "192.168.1.20", kind: "other" },
-  { id: 5, time: d(5, 16, 35), user: "Super Admin", action: "Logged Out", module: "System", ip: "192.168.1.10", kind: "other" },
-  { id: 6, time: d(5, 11, 5), user: "Iqra Shaikh", action: "Logged In", module: "System", ip: "192.168.1.25", kind: "signin" },
-  { id: 7, time: d(5, 10, 20), user: "Admin", action: "Updated User", module: "Users", ip: "192.168.1.18", kind: "change" },
-  { id: 8, time: d(4, 16, 50), user: "Ayesha Khan", action: "Exported Report", module: "Reports", ip: "192.168.1.20", kind: "other" },
-  { id: 9, time: d(4, 15, 30), user: "Super Admin", action: "Updated Settings", module: "Settings", ip: "192.168.1.10", kind: "change" },
-  { id: 10, time: d(4, 13, 15), user: "Admin", action: "Logged In", module: "System", ip: "192.168.1.18", kind: "signin" },
-  { id: 11, time: d(4, 10, 45), user: "Iqra Shaikh", action: "Deleted User", module: "Users", ip: "192.168.1.25", kind: "change" },
-  { id: 12, time: d(3, 9, 30), user: "Ayesha Khan", action: "Logged Out", module: "System", ip: "192.168.1.20", kind: "other" },
+/* ---------- API data -> screen rows ---------- */
+const PALETTE = [
+  ["#1b2d6b", "#e8ecfb"], ["#d99a06", "#fdf1d6"], ["#12915a", "#e1f5ec"], ["#a50d22", "#fbe6ea"],
+  ["#4b3bb5", "#e8e4fb"], ["#0e7490", "#dff4f8"], ["#9a3412", "#fdeadd"], ["#475569", "#e9edf2"],
 ];
+const hashOf = (str) => [...String(str)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+const colorOf = (m) => PALETTE[hashOf(m) % PALETTE.length][0];
+const tintOf = (m) => PALETTE[hashOf(m) % PALETTE.length][1];
 
-const MODULES = ["System", "Settings", "Users", "Reports"];
-const MOD_COLOR = { System: "#1b2d6b", Settings: "#d99a06", Users: "#12915a", Reports: "#a50d22" };
-const MOD_TINT = { System: "#e8ecfb", Settings: "#fdf1d6", Users: "#e1f5ec", Reports: "#fbe6ea" };
-const ACTION_ICON = {
-  "Logged In": LogIn, "Logged Out": LogOut, "Updated Settings": Pencil, "Updated User": Pencil,
-  "Added User": UserPlus, "Generated Report": FileText, "Exported Report": Download, "Deleted User": Trash2,
+// "refundRequested" -> "Refund Requested"
+const humanize = (s) =>
+  String(s || "System").replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+const iconFor = (raw = "") => {
+  if (/logout/i.test(raw)) return LogOut;
+  if (/login/i.test(raw)) return LogIn;
+  if (/export/i.test(raw)) return Download;
+  if (/delete|remove/i.test(raw)) return Trash2;
+  if (/report/i.test(raw)) return FileText;
+  if (/creat|add|regist/i.test(raw)) return UserPlus;
+  if (/updat|chang|approv|publish|verif|request|decid|mark|result/i.test(raw)) return Pencil;
+  return Activity;
 };
-const USER_TINT = {
-  "Super Admin": ["#d6f5ea", "#0f7a4b"], "Iqra Shaikh": ["#fdecc8", "#a87203"],
-  Admin: ["#fdf1d6", "#a87203"], "Ayesha Khan": ["#e8e4fb", "#4b3bb5"],
-};
+
+function toEvent(row) {
+  const raw = row.action || "";
+  return {
+    id: row._id,
+    time: new Date(row.createdAt).getTime(),
+    user: row.user?.name || "System",
+    raw,
+    action: humanize(raw),
+    module: humanize(row.module || "System"),
+    ip: row.ip || "-",
+    outcome: row.outcome,
+    kind: /^login/i.test(raw) ? "signin" : /logout/i.test(raw) ? "other"
+      : /updat|chang|creat|delete|approv|publish|verif|request|decid|mark|result|refund|payment/i.test(raw) ? "change" : "other",
+  };
+}
 
 /* ---------- helpers ---------- */
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -76,16 +89,16 @@ function StatCard({ icon: Icon, label, value, caption, tone, delay }) {
 }
 
 function Avatar({ name, size = 36 }) {
-  const [bg, fg] = USER_TINT[name] || ["#e8ecfb", "#1b2d6b"];
+  const [bg, fg] = [tintOf(name), colorOf(name)];
   return <span className="av" style={{ width: size, height: size, background: bg, color: fg }}>{initials(name)}</span>;
 }
 
-function Donut({ counts, total, active, onPick }) {
+function Donut({ modules, counts, total, active, onPick }) {
   const [hov, setHov] = useState(null);
   const R = 78, SW = 28, C = 2 * Math.PI * R, GAP = 4;
   let cum = 0;
-  const segs = MODULES.map((m) => {
-    const frac = counts[m] / total;
+  const segs = modules.map((m) => {
+    const frac = total ? counts[m] / total : 0;
     const s = { m, len: Math.max(frac * C - GAP, 0), off: -cum * C, pct: Math.round(frac * 100) };
     cum += frac;
     return s;
@@ -98,7 +111,7 @@ function Donut({ counts, total, active, onPick }) {
           <circle cx="100" cy="100" r={R} fill="none" stroke="#eef0f7" strokeWidth={SW} />
           <g transform="rotate(-90 100 100)">
             {segs.map((s) => (
-              <circle key={s.m} cx="100" cy="100" r={R} fill="none" stroke={MOD_COLOR[s.m]}
+              <circle key={s.m} cx="100" cy="100" r={R} fill="none" stroke={colorOf(s.m)}
                 strokeWidth={focus === s.m ? SW + 6 : SW} strokeDasharray={`${s.len} ${C - s.len}`}
                 strokeDashoffset={s.off} opacity={focus && focus !== s.m ? 0.35 : 1} className="seg"
                 onMouseEnter={() => setHov(s.m)} onMouseLeave={() => setHov(null)} onClick={() => onPick(s.m)} />
@@ -115,7 +128,7 @@ function Donut({ counts, total, active, onPick }) {
           <li key={s.m}>
             <button className={active && active !== s.m ? "dim" : ""} onClick={() => onPick(s.m)}
               onMouseEnter={() => setHov(s.m)} onMouseLeave={() => setHov(null)} aria-pressed={active === s.m}>
-              <i style={{ background: MOD_COLOR[s.m] }} />
+              <i style={{ background: colorOf(s.m) }} />
               <span>{s.m}</span><b>{s.pct}%</b>
             </button>
           </li>
@@ -146,28 +159,44 @@ export default function AuditLogs() {
   const [page, setPage] = useState(1);
   const [per, setPer] = useState(5);
   const [mounted, setMounted] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    fetchAllAuditLogs()
+      .then((rows) => { if (active) setEvents(rows.map(toEvent)); })
+      .catch((err) => { if (active) setError(err.message || "Could not load audit logs"); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [reloadKey]);
 
   useEffect(() => { const t = setTimeout(() => setMounted(true), 150); return () => clearTimeout(t); }, []);
 
   /* stats (all data) */
   const stats = useMemo(() => ({
-    total: EVENTS.length,
-    users: new Set(EVENTS.map((e) => e.user)).size,
-    signins: EVENTS.filter((e) => e.kind === "signin").length,
-    changes: EVENTS.filter((e) => e.kind === "change").length,
-  }), []);
-  const modCounts = useMemo(() => Object.fromEntries(MODULES.map((m) => [m, EVENTS.filter((e) => e.module === m).length])), []);
+    total: events.length,
+    users: new Set(events.map((e) => e.user)).size,
+    signins: events.filter((e) => e.kind === "signin").length,
+    changes: events.filter((e) => e.kind === "change").length,
+  }), [events]);
+  const MODULES = useMemo(() => [...new Set(events.map((e) => e.module))].sort(), [events]);
+  const modCounts = useMemo(() => Object.fromEntries(MODULES.map((m) => [m, events.filter((e) => e.module === m).length])), [MODULES, events]);
   const userCounts = useMemo(() => {
     const map = {};
-    EVENTS.forEach((e) => (map[e.user] = (map[e.user] || 0) + 1));
+    events.forEach((e) => (map[e.user] = (map[e.user] || 0) + 1));
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
-  }, []);
-  const latest = Math.max(...EVENTS.map((e) => e.time));
+  }, [events]);
+  const latest = events.length ? Math.max(...events.map((e) => e.time)) : null;
 
   /* filter + sort + paginate */
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const list = EVENTS.filter((e) =>
+    const list = events.filter((e) =>
       (module === "All" || e.module === module) && (!userF || e.user === userF) &&
       (!s || [e.user, e.action, e.ip, e.module].some((v) => v.toLowerCase().includes(s))));
     const dir = sort.dir === "asc" ? 1 : -1;
@@ -175,7 +204,7 @@ export default function AuditLogs() {
       const x = a[sort.key], y = b[sort.key];
       return (typeof x === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * dir;
     });
-  }, [module, userF, q, sort]);
+  }, [events, module, userF, q, sort]);
 
   const pages = Math.max(1, Math.ceil(rows.length / per));
   const cur = Math.min(page, pages);
@@ -203,6 +232,15 @@ export default function AuditLogs() {
     <div className="al">
       <style>{CSS}</style>
 
+      {error && (
+        <div className="empty" role="alert" style={{ marginBottom: 16, border: "1px solid #f3c1c9", borderRadius: 16, background: "#fff5f6" }}>
+          <b>Audit logs load nahi hue</b>
+          <span>{error}</span>
+          <button className="export" onClick={() => setReloadKey((k) => k + 1)}>Retry</button>
+        </div>
+      )}
+      {loading && <div className="sub" style={{ marginBottom: 12 }}>Loading audit logs...</div>}
+
       <section className="stats">
         <StatCard icon={Activity} label="Total Events" value={stats.total} caption="Across all modules" tone="navy" delay={0} />
         <StatCard icon={Users} label="Active Users" value={stats.users} caption="Unique accounts" tone="emerald" delay={70} />
@@ -217,8 +255,8 @@ export default function AuditLogs() {
             <div>
               <h2>Activity Log</h2>
               <div className="sub">
-                <span className="chip">{rows.length} of {EVENTS.length} events</span>
-                <span>latest · {fmtDate(latest)}</span>
+                <span className="chip">{rows.length} of {events.length} events</span>
+                {latest && <span>latest · {fmtDate(latest)}</span>}
               </div>
             </div>
             <div className="head-actions">
@@ -258,15 +296,15 @@ export default function AuditLogs() {
               </thead>
               <tbody key={`${cur}-${module}-${userF}-${q}-${sort.key}-${sort.dir}-${per}`}>
                 {slice.map((r, i) => {
-                  const Icon = ACTION_ICON[r.action] || Activity;
+                  const Icon = iconFor(r.raw);
                   return (
                     <tr key={r.id} style={{ animationDelay: `${i * 45}ms` }}>
                       <td className="muted">{fmtDate(r.time)}</td>
                       <td><span className="user-cell"><Avatar name={r.user} /><b>{r.user}</b></span></td>
                       <td><span className="act"><span className="act-ic"><Icon size={16} /></span>{r.action}</span></td>
                       <td>
-                        <span className="badge" style={{ background: MOD_TINT[r.module], color: MOD_COLOR[r.module] }}>
-                          <i style={{ background: MOD_COLOR[r.module] }} />{r.module}
+                        <span className="badge" style={{ background: tintOf(r.module), color: colorOf(r.module) }}>
+                          <i style={{ background: colorOf(r.module) }} />{r.module}
                         </span>
                       </td>
                       <td className="muted mono">{r.ip}</td>
@@ -312,7 +350,7 @@ export default function AuditLogs() {
             <h2>Events by Module <Radio size={13} className="radio" /></h2>
             <span className="hint">Click legend to filter</span>
           </div>
-          <Donut counts={modCounts} total={EVENTS.length} active={module === "All" ? null : module} onPick={pickModule} />
+          <Donut modules={MODULES} counts={modCounts} total={events.length} active={module === "All" ? null : module} onPick={pickModule} />
 
           <div className="active-users">
             <h3>Most active users</h3>
@@ -321,7 +359,7 @@ export default function AuditLogs() {
                 <Avatar name={u} size={32} />
                 <span className="au-main">
                   <span className="au-row"><span>{u}</span><b>{c}</b></span>
-                  <span className="track"><i style={{ width: mounted ? `${(c / userCounts[0][1]) * 100}%` : "0%" }} /></span>
+                  <span className="track"><i style={{ width: mounted ? `${(c / (userCounts[0]?.[1] || 1)) * 100}%` : "0%" }} /></span>
                 </span>
               </button>
             ))}
@@ -367,7 +405,7 @@ const CSS = `
 .chip{padding:3px 10px;border-radius:999px;background:#e1f5ec;color:#0f7a4b;font-weight:600}
 .hint{font-size:12px;color:var(--muted);padding-top:6px}
 .head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.seg-ctl{--i:0;--n:5;position:relative;display:grid;grid-template-columns:repeat(var(--n),1fr);padding:4px;border-radius:12px;background:#eef0f8}
+.seg-ctl{--i:0;--n:5;max-width:100%;overflow-x:auto;position:relative;display:grid;grid-template-columns:repeat(var(--n),1fr);padding:4px;border-radius:12px;background:#eef0f8}
 .pill{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/var(--n));border-radius:9px;background:var(--navy);transform:translateX(calc(var(--i)*100%));transition:transform .28s cubic-bezier(.3,.9,.3,1)}
 .seg-ctl button{position:relative;z-index:1;border:0;background:none;padding:7px 14px;font-size:12.5px;font-weight:500;color:var(--muted);white-space:nowrap;transition:color .2s}
 .seg-ctl button.on{color:#fff}
