@@ -56,7 +56,7 @@ const navigation = [
       },
       {
         name: "Marks & Results",
-        path: "/exam-admin/results",
+        path: "/exam-admin/marks",
         icon: ClipboardList,
       },
     ],
@@ -69,7 +69,7 @@ const pageNames = {
   "/exam-admin/timetables": "Exam Timetables",
   "/exam-admin/subjects": "Subjects & Forms",
   "/exam-admin/hall-tickets": "Hall Tickets",
-  "/exam-admin/results": "Marks & Results",
+  "/exam-admin/marks": "Marks & Results",
 };
 
 export default function ExamAdminLayout() {

@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { useApiData } from "../../../hooks/useApiData";
 import { fetchContentStats } from "../../../services/websiteApi";
@@ -12,10 +11,7 @@ import {
   ArrowRight,
   Pencil,
   CalendarDays,
-  TrendingUp,
-  Globe,
   Sparkles,
-  Eye,
   CheckCircle2,
 } from "lucide-react";
 
@@ -108,16 +104,13 @@ function WebsiteAdminDashboard() {
 
   return (
     <div className="flex w-full flex-col gap-6 pb-5">
-
       {/* Welcome Banner */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#101D3A] via-[#172E55] to-[#8E0018] px-6 py-8 text-white shadow-xl md:px-9 md:py-10">
-
         {/* Decorative Background */}
         <div className="pointer-events-none absolute -right-12 -top-24 h-72 w-72 rounded-full border-[35px] border-white/5" />
         <div className="pointer-events-none absolute -bottom-28 right-1/3 h-64 w-64 rounded-full bg-[#D4AF37]/10 blur-3xl" />
 
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
-
           <div className="max-w-2xl">
             <div className="mb-4 flex w-fit items-center gap-2 rounded-full border border-[#D4AF37]/40 bg-white/10 px-3 py-1.5">
               <Sparkles size={14} className="text-[#FFD76A]" />
@@ -157,9 +150,7 @@ function WebsiteAdminDashboard() {
               <span className="text-xs font-semibold">TODAY'S DATE</span>
             </div>
 
-            <p className="text-xl font-bold text-white">
-              {today}
-            </p>
+            <p className="text-xl font-bold text-white">{today}</p>
 
             <div className="h-px bg-white/20" />
 
@@ -170,7 +161,6 @@ function WebsiteAdminDashboard() {
               </span>
             </div>
           </div>
-
         </div>
       </section>
 
@@ -236,10 +226,8 @@ function WebsiteAdminDashboard() {
 
       {/* Main Content */}
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-
         {/* College Overview */}
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-lg xl:col-span-2">
-
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <div>
               <h3 className="text-lg font-extrabold text-[#142B50]">
@@ -256,7 +244,6 @@ function WebsiteAdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 gap-5 p-5 md:grid-cols-2">
-
             {/* Campus Image */}
             <div className="group relative min-h-[250px] overflow-hidden rounded-2xl">
               <img
@@ -298,8 +285,8 @@ function WebsiteAdminDashboard() {
 
               <p className="mt-3 text-sm leading-7 text-gray-500">
                 Manage and maintain your college website from one place.
-                Keep students, faculty and visitors informed about the
-                latest academic updates, events and announcements.
+                Keep students, faculty and visitors informed about the latest
+                academic updates, events and announcements.
               </p>
 
               <div className="mt-5 space-y-3">
@@ -327,13 +314,11 @@ function WebsiteAdminDashboard() {
                 <ArrowRight size={17} />
               </button>
             </div>
-
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-lg">
-
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-extrabold text-[#142B50]">
@@ -382,10 +367,6 @@ function WebsiteAdminDashboard() {
           </div>
         </div>
       </section>
-
-      
-      
-
     </div>
   );
 }

@@ -98,11 +98,29 @@ describe('RATE_LIMIT_HASH_SECRET configuration (env.js)', () => {
   const serverDir = fileURLToPath(new URL('..', import.meta.url));
   const FAKE_SESSION_SECRET = 'fake-session-secret-for-this-test-only-0123456789';
   const FAKE_HASH_SECRET = 'fake-hash-secret-for-this-test-only-0123456789abc';
+  const FAKE_LOGIN_HASH_SECRET = 'fake-login-hash-secret-for-tests';
+  const VALID_PRODUCTION_PAYMENT_ENV = {
+    PAYMENT_GATEWAY: 'razorpay',
+    PAYMENT_KEY_ID: 'rzp_test_validkey',
+    PAYMENT_KEY_SECRET: 'valid-payment-key-secret',
+    PAYMENT_WEBHOOK_SECRET: 'valid-webhook-secret',
+  };
+  const VALID_DEVELOPMENT_PAYMENT_ENV = { PAYMENT_GATEWAY: 'fake' };
 
   function loadEnvIn(vars) {
     const childEnv = { ...process.env, DOTENV_CONFIG_PATH: 'no-such-file.env', MONGODB_URI: 'mongodb://127.0.0.1:1/unused', SESSION_SECRET: FAKE_SESSION_SECRET };
-    delete childEnv.RATE_LIMIT_HASH_SECRET; // never inherit the real one
+    delete childEnv.RATE_LIMIT_HASH_SECRET;
+    delete childEnv.LOGIN_ID_HASH_SECRET;
+    delete childEnv.PAYMENT_GATEWAY;
+    delete childEnv.PAYMENT_KEY_ID;
+    delete childEnv.PAYMENT_KEY_SECRET;
+    delete childEnv.PAYMENT_WEBHOOK_SECRET;
     Object.assign(childEnv, vars);
+    const defaultPaymentEnv = childEnv.NODE_ENV === 'production' ? VALID_PRODUCTION_PAYMENT_ENV : VALID_DEVELOPMENT_PAYMENT_ENV;
+    for (const [key, value] of Object.entries(defaultPaymentEnv)) {
+      if (childEnv[key] === undefined) childEnv[key] = value;
+    }
+    if (childEnv.LOGIN_ID_HASH_SECRET === undefined) childEnv.LOGIN_ID_HASH_SECRET = FAKE_LOGIN_HASH_SECRET;
     for (const k of Object.keys(childEnv)) if (childEnv[k] === undefined) delete childEnv[k];
     try {
       const stdout = execFileSync(

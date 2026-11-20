@@ -156,6 +156,7 @@ describe('exam routes', () => {
     const list = await request(examAdmin()).get(`/exams/${examId}/forms`);
     expect(list.status).toBe(200);
     expect(list.body.meta.total).toBe(1);
+    expect(list.body.data[0].subjects).toHaveLength(1);
 
     expect((await request(examAdmin()).post(`/exam-forms/${formId}/decision`).send({ approve: true })).status).toBe(409);
 
