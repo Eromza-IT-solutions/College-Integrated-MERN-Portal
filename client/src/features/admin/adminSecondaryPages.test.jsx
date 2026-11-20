@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -82,6 +82,8 @@ describe("secondary admin pages", () => {
       () => expect(screen.getByText(/Data Structures/)).toBeInTheDocument(),
       { timeout: 2000 },
     );
+    fireEvent.click(await screen.findByTitle("View exam form"));
+    expect(await screen.findByText("2 papers")).toBeInTheDocument();
   });
 
   it("renders examination timetables", async () => {
@@ -100,5 +102,6 @@ describe("secondary admin pages", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Hall Ticket Register")).toBeInTheDocument();
     expect(await screen.findByText("Fatima Khan")).toBeInTheDocument();
+    expect(screen.getByText("S-001")).toBeInTheDocument();
   });
 });

@@ -58,8 +58,8 @@ Hall tickets snapshot `examName`, `programName`, `enrollmentNumber`, `fullName`,
 
 | Model | Purpose | Key relationships |
 | --- | --- | --- |
-| `Payment` | Gateway order/payment and receipt state | `payerUserId -> User`; `academicYearId`; `feeStructureId`; `applicationId`; `examFormId` |
-| `Refund` | Refund request and decision | `paymentId -> Payment`; `requestedByUserId`, `decidedByUserId -> User` |
+| `Payment` | Gateway order/payment and receipt state | `payerUserId -> User`; `academicYearId`; `feeStructureId`; `applicationId`; `examFormId -> ExamForm` |
+| `Refund` | Refund request, decision, and gateway payout state | `paymentId -> Payment`; `requestedByUserId`, `decidedByUserId -> User`; `gatewayRefundId`, `processedAt`, `processingAt` |
 
 Payments use `purpose: admission | exam`. Resource-level permissions are derived from purpose (`admissionPayments`/`examPayments`, `admissionRefunds`/`examRefunds`). Gateway configuration uses the `PAYMENT_*` names listed at the top of this document.
 
@@ -123,7 +123,9 @@ erDiagram
 
 - One active `AcademicYear` may have `status: current`.
 - `server/scripts/data/college-programs.json` contains 60 programs; `server/tests/college-alignment.test.js` enforces that count.
-- A student cannot have two active enrollments for the same `(studentId, subjectId, semester)`.
+- A student cannot have two active enrollments for the same `(studentId, subjectId, semester)`. Dropped rows are kept as history; the unique index is partial on `status: enrolled` (`uniq_enrollment_active`).
+- `Payment.examFormId` references `ExamForm`; `scripts/migrate-data-integrity.js` repairs missing links and reports disagreements with `ExamForm.paymentId`.
+- An approved `Refund` without `gatewayRefundId` has not been paid out. The migration script recovers historical IDs from append-only `AuditLog.details.gatewayRefundId`.
 - A student cannot have two exam forms for the same `(examId, studentId)`.
 - `Exam.schedule` cannot repeat a subject and must have `endTime > startTime`.
 - `HallTicket.seatNumber` is unique per `examId`; seat numbers are allocated as `S-001`, `S-002`, etc.

@@ -226,9 +226,13 @@ describe('gateway layer', () => {
   });
 
   test('buildGateway refuses a bad setup at start-up', () => {
-    expect(() => buildGateway({ gateway: 'razorpay', keyId: '', keySecret: '', webhookSecret: '' })).toThrow(/missing/);
-    expect(() => buildGateway({ gateway: 'razorpay', keyId: 'rzp_live_x', keySecret: 's', webhookSecret: 'w' })).toThrow(/TEST keys/);
-    expect(() => buildGateway({ gateway: 'paypal' })).toThrow(/Unknown PAYMENT_GATEWAY/);
+    expect(() => buildGateway({ gateway: 'razorpay', keyId: '', keySecret: '', webhookSecret: '' }))
+      .toThrow(/PAYMENT_KEY_ID, PAYMENT_KEY_SECRET, PAYMENT_WEBHOOK_SECRET/);
+    expect(() => buildGateway({ gateway: 'razorpay', keyId: 'rzp_live_x', keySecret: 's', webhookSecret: 'w' }))
+      .toThrow(/PAYMENT_KEY_ID must start with rzp_test_/);
+    expect(() => buildGateway({ gateway: 'paypal' })).toThrow(/PAYMENT_GATEWAY must be one of: fake, razorpay/);
+    expect(() => buildGateway({ gateway: 'fake' }, 'production'))
+      .toThrow(/PAYMENT_GATEWAY=fake is not allowed when NODE_ENV=production/);
     expect(buildGateway({ gateway: 'razorpay', keyId: 'rzp_test_x', keySecret: 's', webhookSecret: 'w' }).name).toBe('razorpay');
     expect(buildGateway({ gateway: 'fake' }).name).toBe('fake');
   });
