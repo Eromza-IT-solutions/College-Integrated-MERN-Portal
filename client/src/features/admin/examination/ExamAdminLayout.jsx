@@ -1,3 +1,4 @@
+import "../../../assets/styles/aisc-superadmin-reference.css";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
@@ -5,7 +6,6 @@ import {
   ChartNoAxesCombined, Menu, X, ExternalLink, Bell
 } from "lucide-react";
 const logo = "/aisc-logo.png";
-import "../../../assets/styles/aisc-premium.css";
 
 const navItems = [
   { label: "Dashboard", path: "/exam-admin/dashboard", icon: LayoutDashboard },
@@ -13,7 +13,7 @@ const navItems = [
   { label: "Exam Timetables", path: "/exam-admin/timetables", icon: CalendarClock },
   { label: "Subjects & Forms", path: "/exam-admin/subjects", icon: BookOpen },
   { label: "Hall Tickets", path: "/exam-admin/hall-tickets", icon: Ticket },
-  { label: "Marks & Results", path: "/exam-admin/results", icon: ChartNoAxesCombined },
+  { label: "Marks & Results", path: "/exam-admin/marks", icon: ChartNoAxesCombined },
 ];
 
 export default function ExamAdminLayout() {

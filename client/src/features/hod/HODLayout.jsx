@@ -1,3 +1,4 @@
+import "../../assets/styles/aisc-superadmin-reference.css";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {

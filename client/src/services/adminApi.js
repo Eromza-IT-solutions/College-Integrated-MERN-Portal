@@ -96,3 +96,42 @@ export function downloadAdminExamFormPdf(form) {
     `exam-form-${form.details?.enrollmentNumber || form._id}.pdf`,
   );
 }
+
+export async function fetchResults(params = {}) {
+  const response = await http.get("/results", {
+    params: { limit: 100, ...params },
+  });
+  return dataOf(response);
+}
+
+export async function openResult(examFormId) {
+  const response = await http.post("/results/open", { examFormId });
+  return dataOf(response);
+}
+
+export async function enterMarks(resultId, entries) {
+  const response = await http.put(`/results/${resultId}/marks`, { entries });
+  return dataOf(response);
+}
+
+export async function publishResult(resultId) {
+  const response = await http.post(`/results/${resultId}/publish`);
+  return dataOf(response);
+}
+
+export async function publishExamResults(examId) {
+  const response = await http.post("/results/publish-exam", { examId });
+  return dataOf(response);
+}
+
+export async function unpublishResult(resultId, reason) {
+  const response = await http.post(`/results/${resultId}/unpublish`, { reason });
+  return dataOf(response);
+}
+
+export function downloadAdminResultPdf(result) {
+  return downloadFile(
+    `/results/${result._id}/pdf`,
+    `result-${result.enrollmentNumber || result._id}.pdf`,
+  );
+}

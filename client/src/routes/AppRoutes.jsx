@@ -22,6 +22,30 @@ const ROLE_LAYOUTS = {
 };
 
 const HomePage = lazy(() => import("../features/public-website/HomePage"));
+const AboutPage = lazy(
+  () => import("../features/public-website/pages/About")
+);
+const ExaminationPage = lazy(
+  () => import("../features/public-website/pages/Examination")
+);
+const ProspectusPage = lazy(
+  () => import("../features/public-website/pages/Prospectus")
+);
+const StudentInstructionsPage = lazy(
+  () => import("../features/admissions/StudentRegisterFlow")
+);
+const ArtsDepartmentsPage = lazy(
+  () => import("../features/public-website/pages/ArtsDepartments")
+);
+
+const CommerceDepartmentsPage = lazy(
+  () => import("../features/public-website/pages/CommerceDepartments")
+);
+
+const ScienceDepartmentsPage = lazy(
+  () => import("../features/public-website/pages/ScienceDepartments")
+);
+
 const LoginRoute = lazy(() => import("./LoginRoute"));
 const ForgotPassword = lazy(() => import("../features/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("../features/auth/ResetPassword"));
@@ -171,6 +195,18 @@ const ApplicantProfile = lazy(
   () => import("../features/applicant/Profile"),
 );
 
+const NAACPage = lazy(
+  () => import("../features/public-website/pages/NAACPage")
+);
+
+const NIRFPage = lazy(
+  () => import("../features/public-website/pages/NIRFPage")
+);
+
+const ContactPage = lazy(
+  () => import("../features/public-website/pages/ContactPage")
+);
+
 const ROLE_PAGES = {
   superAdmin: {
     users: Users,
@@ -275,6 +311,13 @@ export default function AppRoutes() {
     >
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/examination" element={<ExaminationPage />} />
+        <Route path="/prospectus" element={<ProspectusPage />} />
+        <Route
+  path="/student-instructions"
+  element={<StudentInstructionsPage />}
+/>
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -283,6 +326,12 @@ export default function AppRoutes() {
         <Route path="/teacher-register" element={<TeacherRegistration />} />
         <Route path="/app" element={<RoleRedirect />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/departments/arts" element={<ArtsDepartmentsPage />} />
+<Route path="/departments/commerce" element={<CommerceDepartmentsPage />} />
+<Route path="/departments/science" element={<ScienceDepartmentsPage />} />
+<Route path="/iqac/naac" element={<NAACPage />} />
+<Route path="/iqac/nirf" element={<NIRFPage />} />
+<Route path="/contact" element={<ContactPage />} />
 
         {ROLE_ROUTES.map(({ role, path, dashboard: Dashboard }) => {
           const navItems = navigationByRole[role] ?? [];

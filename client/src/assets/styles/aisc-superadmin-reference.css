@@ -1,0 +1,292 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap');
+
+:root {
+  --sa-navy: #14234b;
+  --sa-maroon: #8f0014;
+  --sa-gold: #f2c200;
+  --sa-cream: #f7f3ef;
+  --sa-text: #26344d;
+  --sa-muted: #8993a5;
+  --sa-border: #ece8e2;
+  --sa-shadow: 0 8px 28px rgba(20,35,75,.07);
+}
+
+.aisc-content,
+.hod-content {
+  background: var(--sa-cream) !important;
+  color: var(--sa-text);
+  font-family: 'Poppins', sans-serif !important;
+}
+
+.aisc-premium,
+.aisc-premium *,
+.hod-content,
+.hod-content * {
+  box-sizing: border-box;
+}
+
+.aisc-page-title,
+.aisc-premium h1,
+.aisc-premium h2,
+.aisc-premium h3,
+.hod-content h1,
+.hod-content h2,
+.hod-content h3 {
+  color: var(--sa-navy);
+  font-family: 'Playfair Display', serif !important;
+  font-weight: 700;
+}
+
+.aisc-page-title {
+  font-size: 27px;
+}
+
+.aisc-page-subtitle {
+  color: var(--sa-muted);
+  font-size: 12px;
+}
+
+.aisc-hero,
+.hod-content .hod-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 205px;
+  margin-bottom: 25px;
+  padding: 30px 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  overflow: hidden;
+  color: #fff !important;
+  background:
+    radial-gradient(circle at 85% 15%,rgba(242,194,0,.16),transparent 25%),
+    radial-gradient(circle at 100% 100%,rgba(143,0,20,.32),transparent 35%),
+    linear-gradient(110deg,#14234b,#203b70 58%,#393d70) !important;
+  border-radius: 18px;
+  box-shadow: 0 15px 35px rgba(20,35,75,.15);
+}
+
+.aisc-hero::before,
+.aisc-hero::after,
+.hod-content .hod-hero::before,
+.hod-content .hod-hero::after {
+  position: absolute;
+  z-index: -1;
+  content: "";
+  border: 1px solid rgba(242,194,0,.25);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.aisc-hero::before,
+.hod-content .hod-hero::before {
+  width: 300px;
+  height: 300px;
+  top: -175px;
+  right: 100px;
+}
+
+.aisc-hero::after,
+.hod-content .hod-hero::after {
+  width: 230px;
+  height: 230px;
+  right: -65px;
+  bottom: -155px;
+}
+
+.aisc-hero-title {
+  color: #fff !important;
+  font-family: 'Playfair Display',serif !important;
+  font-size: clamp(25px,3vw,34px);
+  font-weight: 700;
+}
+
+.aisc-hero-text {
+  color: rgba(255,255,255,.82) !important;
+  font-size: 11px;
+  line-height: 1.9;
+}
+
+.aisc-hero-kicker {
+  color: #f5d86e !important;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(242,194,0,.28);
+  border-radius: 30px;
+  padding: 7px 12px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+}
+
+.aisc-kpi,
+.hod-content .hod-kpi-card {
+  position: relative;
+  padding: 20px;
+  background: #fff !important;
+  border: 1px solid var(--sa-border) !important;
+  border-radius: 15px !important;
+  box-shadow: var(--sa-shadow) !important;
+  transition: transform .22s ease,box-shadow .22s ease;
+}
+
+.aisc-kpi:hover,
+.hod-content .hod-kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(20,35,75,.13) !important;
+}
+
+.aisc-kpi-value,
+.hod-content .hod-kpi-value {
+  color: var(--sa-navy) !important;
+  font-family: 'Playfair Display',serif !important;
+  font-size: 29px;
+  font-weight: 700;
+}
+
+.aisc-panel,
+.hod-content .hod-panel,
+.hod-content .hod-card {
+  position: relative;
+  min-width: 0;
+  padding: 23px;
+  overflow: hidden;
+  background: #fff !important;
+  border: 1px solid var(--sa-border) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--sa-shadow) !important;
+}
+
+.aisc-panel::before,
+.hod-content .hod-panel::before,
+.hod-content .hod-card::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  content: "";
+  background: linear-gradient(90deg,#8f0014,#f2c200,#8f0014);
+}
+
+.aisc-panel-title,
+.hod-content .hod-panel-title {
+  color: var(--sa-navy) !important;
+  font-family: 'Playfair Display',serif !important;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.aisc-table-wrap,
+.hod-content .hod-table-wrapper {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid var(--sa-border);
+  border-radius: 12px;
+}
+
+.aisc-table,
+.hod-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Poppins',sans-serif;
+}
+
+.aisc-table thead,
+.hod-content table thead {
+  background: #f8f5ef;
+}
+
+.aisc-table th,
+.hod-content table th {
+  padding: 14px;
+  color: #65718a;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.aisc-table td,
+.hod-content table td {
+  padding: 14px;
+  color: #35425a;
+  border-bottom: 1px solid #f0ede8;
+  font-size: 11px;
+}
+
+.aisc-table tbody tr:hover,
+.hod-content table tbody tr:hover {
+  background: #fcf9f3;
+}
+
+.aisc-premium input,
+.aisc-premium select,
+.aisc-premium textarea,
+.hod-content input,
+.hod-content select,
+.hod-content textarea {
+  border: 1px solid #e5e2dc;
+  border-radius: 8px;
+  font-family: 'Poppins',sans-serif;
+  font-size: 11px;
+}
+
+.aisc-premium input:focus,
+.aisc-premium select:focus,
+.aisc-premium textarea:focus,
+.hod-content input:focus,
+.hod-content select:focus,
+.hod-content textarea:focus {
+  border-color: #c9a52b;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(242,194,0,.13);
+}
+
+.aisc-btn-primary {
+  color: #fff !important;
+  background: linear-gradient(110deg,#8f0014,#a8212f) !important;
+  border: 1px solid #8f0014 !important;
+  border-radius: 8px;
+}
+
+.aisc-btn-primary:hover {
+  background: #740010 !important;
+  transform: translateY(-2px);
+}
+
+@keyframes saRise {
+  from { opacity: 0; transform: translateY(13px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.aisc-premium .aisc-hero,
+.aisc-premium .aisc-kpi,
+.aisc-premium .aisc-panel,
+.hod-content .hod-hero,
+.hod-content .hod-panel,
+.hod-content .hod-kpi-card {
+  animation: saRise .45s ease both;
+}
+
+@media(max-width: 760px) {
+  .aisc-hero,
+  .hod-content .hod-hero {
+    padding: 22px 18px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .aisc-panel,
+  .hod-content .hod-panel {
+    padding: 16px;
+  }
+}
+
+@media(prefers-reduced-motion: reduce) {
+  .aisc-premium *,
+  .hod-content * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

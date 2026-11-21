@@ -7,7 +7,24 @@ import { requirePermission, getActor } from '../../middleware/requirePermission.
 import { ensureAuthenticated } from '../../middleware/authenticate.js';
 import { requirePasswordChange } from '../../middleware/requirePasswordChange.js';
 import { scopeFilter, isInScope } from '../../utils/scope.js';
-import { adminView, audit, createContent, getVisible, isType, listForEditor, listVisible, removeContent, resourceFor, updateContent } from './website.service.js';
+import multer from 'multer';
+import AuditLog from '../../models/AuditLog.js';
+import { AUDIT_OUTCOME, WEBSITE_LIMITS } from '../../utils/constants.js';
+import { adminView, audit, contentStats, createContent, getVisible, isType, listForEditor, listVisible, removeContent, resourceFor, updateContent } from './website.service.js';
+import { readWebsiteFile, saveWebsiteFile } from './website.files.js';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: WEBSITE_LIMITS.uploadMaxBytes, files: 1 } });
+
+function uploadOne(req, res, next) {
+  upload.single('file')(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      const message = err.code === 'LIMIT_FILE_SIZE' ? `File is too large (at most ${WEBSITE_LIMITS.uploadMaxBytes / (1024 * 1024)} MB)` : 'Could not read the uploaded file';
+      return next(new AppError(message, 400, [{ field: 'file', message }], 'VALIDATION_ERROR'));
+    }
+    return next(err);
+  });
+}
 
 /**
  * Website content, mounted at /api/v1/website.
@@ -54,9 +71,37 @@ function buildRouter() {
   router.get('/public', asyncHandler(async (req, res) => ok(res, await listVisible({ type: req.query.type, query: req.query }))));
   router.get('/public/:type/:slug', asyncHandler(async (req, res) => ok(res, await getVisible({ type: req.params.type, slug: req.params.slug }))));
 
+  // Uploaded website pictures and documents. Public, because published pages link to them; names are random and unguessable.
+  router.get('/files/:name', asyncHandler(async (req, res) => {
+    const file = await readWebsiteFile(req.params.name);
+    if (!file) throw new AppError('File not found', 404);
+    res.set('Content-Type', file.mime);
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.set('Content-Disposition', file.inline ? 'inline' : `attachment; filename="${req.params.name}"`);
+    if (!file.inline) res.set('Content-Security-Policy', "default-src 'none'; sandbox");
+    res.send(file.data);
+  }));
+
   // ---- signed in ----
   router.use('/members', ensureAuthenticated, requirePasswordChange);
   router.use('/content', ensureAuthenticated, requirePasswordChange);
+  router.use('/uploads', ensureAuthenticated, requirePasswordChange);
+
+  // Upload one picture or document (multipart field "file"). Returns { url, name, mimeType, sizeBytes, kind } to put on content.
+  router.post('/uploads', requirePermission('publicPages', 'create'), uploadOne, asyncHandler(async (req, res) => {
+    const saved = await saveWebsiteFile(req.file);
+    Promise.resolve(AuditLog.record({
+      actorUserId: req.user.id, action: 'websiteFileUploaded', entityType: 'websiteFile', outcome: AUDIT_OUTCOME.SUCCESS, ip: req.ip,
+      details: { name: saved.name, url: saved.url, mimeType: saved.mimeType, sizeBytes: saved.sizeBytes },
+    })).catch(() => {});
+    ok(res, saved, 201);
+  }));
+
+  // Dashboard counts per type and status (website admin and super admin).
+  router.get('/content/stats', requirePermission('publicPages', 'update'), asyncHandler(async (req, res) => {
+    ok(res, await contentStats({ scopeFilter: scopeFilter(req, opts) }));
+  }));
 
   router.get('/members/notices', requirePermission('notices', 'view'), asyncHandler(async (req, res) => {
     ok(res, await listVisible({ type: 'notice', includeMembersOnly: true, query: req.query }));

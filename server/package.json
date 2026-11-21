@@ -11,6 +11,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "lint": "eslint .",
+    "openapi:check": "node scripts/validate-openapi.js",
     "seed": "node scripts/seed-demo-data.js",
     "seed:programs": "node scripts/seed-college-programs.js",
     "seed:fees": "node scripts/seed-college-fees.js",
@@ -21,6 +22,7 @@
     "seed:permissions": "node scripts/seed-permissions.js",
     "job:admission-deadlines": "node scripts/run-admission-deadlines.js",
     "job:payment-reconciliation": "node scripts/run-payment-reconciliation.js",
+    "migrate:data-integrity": "node scripts/migrate-data-integrity.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "seed:demo-student": "node scripts/seed-demo-student.js",
@@ -50,6 +52,7 @@
     "eslint": "^9.18.0",
     "globals": "^15.14.0",
     "jest": "^29.7.0",
+    "js-yaml": "^4.1.0",
     "mongodb-memory-server": "^10.1.4",
     "nodemon": "^3.1.9",
     "supertest": "^7.0.0"
