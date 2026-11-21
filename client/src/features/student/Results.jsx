@@ -1,38 +1,83 @@
-import { useEffect, useMemo, useState } from "react";
-import { Award, Download, GraduationCap, Percent } from "lucide-react";
+import { Award, BookOpen, Download, TrendingUp } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
-import Card, { CardHeader } from "../../components/ui/Card";
+import Card, { CardBody, CardHeader } from "../../components/ui/Card";
 import DataTable from "../../components/ui/Table";
+import ErrorState from "../../components/ui/ErrorState";
+import Loader from "../../components/ui/Loader";
 import PageHeader from "../../components/ui/PageHeader";
-import Select from "../../components/ui/Select";
 import StatCard from "../../components/ui/StatCard";
-import { downloadResultPdf, listResults } from "../../services/marksService";
+import { useApiData } from "../../hooks/useApiData";
+import { fetchResults } from "../../services/studentApi";
+import { formatPercent } from "../../utils/format";
+import { downloadCsv } from "../../utils/csv";
+import { formatStatus, getStatusVariant } from "../../utils/status";
 
-const show = (v) => (v === null || v === undefined ? "-" : v);
+function numberOr(value, fallback) {
+  return value == null || Number.isNaN(Number(value)) ? fallback : value;
+}
 
 export default function Results() {
-  const [results, setResults] = useState([]);
-  const [id, setId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data, loading, error, reload } = useApiData(fetchResults);
+  const results = Array.isArray(data) ? data : [];
+  const latest = results[0] ?? null;
+  const lines = latest?.lines ?? [];
 
-  useEffect(() => {
-    listResults()
-      .then((r) => { setResults(r); if (r[0]) setId(r[0]._id); })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const result = useMemo(() => results.find((r) => r._id === id), [results, id]);
+  const handleExport = () => {
+    downloadCsv("eromza-student-results.csv", [
+      ["Subject", "Code", "Marks", "Grade", "Status"],
+      ...lines.map((line) => [
+        line.name,
+        line.code,
+        `${line.total ?? ""}/${line.max ?? ""}`,
+        line.grade ?? "",
+        line.status ?? "",
+      ]),
+    ]);
+  };
 
   const columns = [
-    { key: "subject", header: "Subject", render: (l) => <span className="text-xs font-semibold text-eromza-text">{l.name} ({l.code})</span> },
-    { key: "int", header: "Internal", render: (l) => <span className="text-xs text-eromza-muted">{l.absent ? "AB" : show(l.internalMarks)}/{l.maxInternal}</span> },
-    { key: "ext", header: "External", render: (l) => <span className="text-xs text-eromza-muted">{l.absent ? "AB" : show(l.externalMarks)}/{l.maxExternal}</span> },
-    { key: "total", header: "Total", render: (l) => <span className="text-xs text-eromza-muted">{show(l.total)}/{l.max}</span> },
-    { key: "grade", header: "Grade", render: (l) => <Badge variant={l.status === "pass" ? "success" : "warning"}>{show(l.grade)}</Badge> },
-    { key: "status", header: "Result", render: (l) => <span className="text-xs text-eromza-muted">{show(l.status)}</span> },
+    {
+      key: "subject",
+      header: "Subject",
+      render: (row) => (
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-eromza-text">
+            {row.name || "Subject"}
+          </p>
+          <p className="mt-1 text-[11px] text-eromza-subtle">
+            {row.code || "Code not set"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "marks",
+      header: "Marks",
+      render: (row) => (
+        <span className="text-xs text-eromza-muted">
+          {row.total ?? "Not set"} / {row.max ?? "Not set"}
+        </span>
+      ),
+    },
+    {
+      key: "grade",
+      header: "Grade",
+      render: (row) => (
+        <Badge variant={row.grade === "F" ? "error" : "info"}>
+          {row.grade || "Not set"}
+        </Badge>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (row) => (
+        <Badge variant={getStatusVariant(row.status)}>
+          {formatStatus(row.status || "pending")}
+        </Badge>
+      ),
+    },
   ];
 
   return (
@@ -40,36 +85,118 @@ export default function Results() {
       <PageHeader
         eyebrow="Student workspace"
         title="Results"
-        description="Published examination results with grades and SGPA."
+        description="Review published examination results and semester performance."
         actions={
-          <Button variant="secondary" disabled={!result} onClick={() => downloadResultPdf(result._id, result.enrollmentNumber).catch((e) => setError(e.message))}>
-            <Download size={16} /> Download PDF
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            disabled={lines.length === 0}
+          >
+            <Download size={16} />
+            Export results
           </Button>
         }
       />
-      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {!loading && !results.length && (
-        <div className="rounded-lg bg-eromza-bg p-4 text-sm text-eromza-muted">No results are published for you yet.</div>
-      )}
-      {result && (
+
+      {loading ? (
+        <Card>
+          <Loader label="Loading results..." />
+        </Card>
+      ) : error ? (
+        <Card>
+          <ErrorState
+            title="Could not load results"
+            description={error.message}
+            onRetry={reload}
+          />
+        </Card>
+      ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="SGPA" value={String(show(result.sgpa))} tone="success" icon={Award} />
-            <StatCard label="Percentage" value={`${show(result.percentage)}%`} tone="info" icon={Percent} />
-            <StatCard label="Outcome" value={String(show(result.outcome))} tone="accent" icon={GraduationCap} />
-            <StatCard label="Credits earned" value={`${show(result.creditsEarned)}/${show(result.creditsTotal)}`} tone="warning" icon={Award} />
+            <StatCard
+              label="SGPA"
+              value={
+                latest?.sgpa == null ? "Not set" : Number(latest.sgpa).toFixed(2)
+              }
+              tone="success"
+              icon={Award}
+            />
+            <StatCard
+              label="Credits earned"
+              value={`${numberOr(latest?.creditsEarned, 0)} / ${numberOr(latest?.creditsTotal, 0)}`}
+              tone="info"
+              icon={BookOpen}
+            />
+            <StatCard
+              label="Percentage"
+              value={formatPercent(latest?.percentage)}
+              tone="accent"
+              icon={TrendingUp}
+            />
+            <StatCard
+              label="Outcome"
+              value={latest?.outcome ? formatStatus(latest.outcome) : "Not set"}
+              tone={latest?.outcome === "fail" ? "warning" : "success"}
+              icon={TrendingUp}
+            />
           </div>
+
           <Card>
             <CardHeader
-              title={`Semester ${result.semester} result`}
-              description={`${result.fullName || ""} · ${result.enrollmentNumber || ""}`}
-              action={results.length > 1 && (
-                <Select aria-label="Choose result" value={id} onChange={(e) => setId(e.target.value)}>
-                  {results.map((r) => <option key={r._id} value={r._id}>Semester {r.semester}</option>)}
-                </Select>
-              )}
+              title={
+                latest?.semester
+                  ? `Semester ${latest.semester} results`
+                  : "Latest results"
+              }
+              description="Published examination results"
+              action={
+                latest ? (
+                  <Badge variant={getStatusVariant(latest.outcome)}>
+                    {formatStatus(latest.outcome || "published")}
+                  </Badge>
+                ) : null
+              }
             />
-            <DataTable columns={columns} rows={result.lines || []} getRowKey={(l) => String(l.subjectId)} emptyTitle="No subjects" />
+            <DataTable
+              columns={columns}
+              rows={lines}
+              getRowKey={(row) => String(row.subjectId)}
+              emptyTitle="No results published"
+              emptyDescription="Published results will appear here after the examination office releases them."
+            />
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Performance summary"
+              description="Summary of your latest published result"
+            />
+            <CardBody className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl bg-eromza-bg p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
+                  Subjects
+                </p>
+                <p className="mt-1 text-sm font-semibold text-eromza-text">
+                  {lines.length} completed
+                </p>
+              </div>
+              <div className="rounded-xl bg-eromza-bg p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
+                  Failed subjects
+                </p>
+                <p className="mt-1 text-sm font-semibold text-eromza-text">
+                  {numberOr(latest?.failedSubjects, 0)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-eromza-bg p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
+                  Final grade
+                </p>
+                <p className="mt-1 text-sm font-semibold text-eromza-text">
+                  {latest?.finalGrade || "Not set"}
+                </p>
+              </div>
+            </CardBody>
           </Card>
         </>
       )}

@@ -8,6 +8,11 @@ const dateTime = (value) => {
   if (Number.isNaN(date.getTime())) return dash(value);
   return `${date.toISOString().slice(0, 10)} ${date.toISOString().slice(11, 19)} UTC`;
 };
+const dateOnly = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? dash(value) : date.toISOString().slice(0, 10);
+};
 const readable = (value) => {
   if (value == null || value === '') return '-';
   if (Array.isArray(value)) return value.map(readable).join(', ');
@@ -61,6 +66,33 @@ function examFormPdf(form) {
         : ['No subjects selected.']),
       '',
       'This is a sample examination form for demonstration purposes.',
+    ],
+  });
+}
+
+function hallTicketPdf(ticket) {
+  const schedule = ticket.schedule || [];
+  return buildPdf({
+    title: 'Hall ticket',
+    subtitle: 'SAMPLE / NOT AN OFFICIAL COLLEGE DOCUMENT - HALL TICKET',
+    lines: [
+      `Exam: ${dash(ticket.examName)}`,
+      `Enrollment number: ${dash(ticket.enrollmentNumber)}`,
+      `Student name: ${dash(ticket.fullName)}`,
+      `Program: ${dash(ticket.programName)}`,
+      `Semester: ${dash(ticket.semester)}`,
+      `Seat number: ${dash(ticket.seatNumber)}`,
+      `Room: ${dash(ticket.room)}`,
+      `Status: ${dash(ticket.status)}`,
+      `Issued at: ${dateTime(ticket.issuedAt)}`,
+      '',
+      'Paper schedule:',
+      ...(schedule.length
+        ? schedule.map((item) => `${dateOnly(item.date)}  ${dash(item.startTime)}-${dash(item.endTime)}  ${dash(item.code)} ${dash(item.name)}  Room ${dash(item.room)}`)
+        : ['No papers scheduled.']),
+      '',
+      'Carry this ticket and a photo identity card to every paper.',
+      'This is a sample hall ticket for demonstration purposes.',
     ],
   });
 }
@@ -137,4 +169,4 @@ function reportPdf(report) {
   });
 }
 
-export { receiptPdf, examFormPdf, resultPdf, applicationPdf, reportPdf };
+export { receiptPdf, examFormPdf, hallTicketPdf, resultPdf, applicationPdf, reportPdf };

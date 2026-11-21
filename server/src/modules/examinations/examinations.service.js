@@ -3,6 +3,7 @@ import Exam from '../../models/Exam.js';
 import ExamForm from '../../models/ExamForm.js';
 import Program from '../../models/Program.js';
 import AcademicYear from '../../models/AcademicYear.js';
+import Subject from '../../models/Subject.js';
 import { getActor } from '../../middleware/requirePermission.js';
 import { isInScope } from '../../utils/scope.js';
 import { auditSafe } from '../../services/auditService.js';
@@ -29,6 +30,44 @@ async function examScopeFilter(req) {
   return { _id: { $in: [] } };
 }
 
+async function programScopeFilter(req) {
+  if (req.permission?.scope === 'all') return {};
+  if (req.permission?.scope === 'department' && getActor(req).departmentId) {
+    return { departmentId: getActor(req).departmentId };
+  }
+  return { _id: { $in: [] } };
+}
+
+async function referenceData(req, query) {
+  const programs = await Program.find(await programScopeFilter(req))
+    .select('name code level departmentId')
+    .sort({ name: 1 })
+    .lean();
+  const allowedProgramIds = programs.map((program) => program._id);
+  const subjects = await Subject.find(both(
+    clean({ programId: query.programId, semester: query.semester }),
+    { programId: { $in: allowedProgramIds } },
+  ))
+    .select('code name programId semester credits')
+    .sort({ code: 1 })
+    .limit(200)
+    .lean();
+  const academicYears = await AcademicYear.find()
+    .select('label status startDate endDate')
+    .sort({ startDate: -1 })
+    .lean();
+  return { academicYears, programs, subjects };
+}
+
+async function assertScheduleSubjects(programId, semester, schedule) {
+  if (!schedule || schedule.length === 0) return;
+  const ids = schedule.map((item) => String(item.subjectId));
+  const subjects = await Subject.find({ _id: { $in: ids }, programId, semester }).select('_id').lean();
+  if (subjects.length !== new Set(ids).size) {
+    throw new AppError('Every scheduled subject must belong to this program and semester', 400, undefined, 'SCHEDULE_SUBJECT_INVALID');
+  }
+}
+
 async function createExam(req, body) {
   const [year, program] = await Promise.all([
     AcademicYear.findById(body.academicYearId),
@@ -36,6 +75,7 @@ async function createExam(req, body) {
   ]);
   if (!year) throw new AppError('Academic year not found', 404);
   if (!isInScope(req, { departmentId: program.departmentId })) throw new AppError('This program belongs to another department', 403);
+  await assertScheduleSubjects(body.programId, body.semester, body.schedule);
 
   const exam = await Exam.create(body);
   await auditSafe(req, {
@@ -73,6 +113,7 @@ async function getExam(req, id) {
 
 async function updateExam(req, id, body) {
   const exam = await getExam(req, id);
+  if (body.schedule) await assertScheduleSubjects(body.programId || exam.programId, body.semester || exam.semester, body.schedule);
   Object.assign(exam, body);
   await exam.save();
   await auditSafe(req, {
@@ -211,6 +252,7 @@ export {
   listExams,
   getExam,
   updateExam,
+  referenceData,
   availableExams,
   startForm,
   getForm,

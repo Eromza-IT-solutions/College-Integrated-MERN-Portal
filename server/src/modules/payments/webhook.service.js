@@ -54,6 +54,18 @@ async function handleWebhook(req, { rawBody, signature, eventId }) {
     return { handled: false };
   }
 
+  // Razorpay retries a delivery until it gets a 2xx. Remember the gateway's event id so a repeat is a no-op.
+  if (eventId && (payment.gatewayEventIds || []).includes(eventId)) {
+    await auditSafe(req, {
+      action: 'paymentWebhookReceived', entityType: 'payment', entityId: payment._id,
+      details: { ...received, handled: false, duplicate: true, reason: 'event already handled' },
+    });
+    return { handled: false, duplicate: true };
+  }
+  const rememberEvent = async () => {
+    if (eventId) await Payment.updateOne({ _id: payment._id }, { $addToSet: { gatewayEventIds: eventId } });
+  };
+
   if (PAID_EVENTS.includes(name)) {
     if (entity.amount !== payment.amountPaise) {
       await auditSafe(req, {
@@ -71,6 +83,7 @@ async function handleWebhook(req, { rawBody, signature, eventId }) {
       return { handled: false };
     }
     const { alreadyPaid } = await settlePaid(req, payment, entity.id, { source: 'webhook', method: entity.method });
+    await rememberEvent();
     await auditSafe(req, {
       action: 'paymentWebhookReceived', entityType: 'payment', entityId: payment._id,
       details: { ...received, handled: !alreadyPaid, duplicate: alreadyPaid },
@@ -85,6 +98,7 @@ async function handleWebhook(req, { rawBody, signature, eventId }) {
       errorCode: entity.error_code,
       method: entity.method,
     });
+    await rememberEvent();
     await auditSafe(req, {
       action: 'paymentWebhookReceived', entityType: 'payment', entityId: payment._id,
       details: { ...received, handled: false, attemptFailed: true, reason: entity.error_description || 'payment attempt failed' },
@@ -92,6 +106,7 @@ async function handleWebhook(req, { rawBody, signature, eventId }) {
     return { handled: false };
   }
 
+  await rememberEvent();
   await auditSafe(req, { action: 'paymentWebhookReceived', entityType: 'payment', entityId: payment._id, details: { ...received, handled: false, reason: 'event not used' } });
   return { handled: false };
 }
