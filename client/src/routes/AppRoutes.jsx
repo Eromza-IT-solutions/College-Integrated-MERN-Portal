@@ -12,6 +12,7 @@ import WebsiteAdminLayout from "../features/admin/website/WebsiteAdminLayout";
 import AdmissionAdminLayout from "../features/admin/admission/AdmissionAdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
 
+
 // Roles that have their own original layout (sidebar + topbar).
 // Any role not listed here falls back to the shared AppLayout.
 const ROLE_LAYOUTS = {
@@ -111,6 +112,8 @@ const DepartmentAttendance = lazy(
 const DepartmentReports = lazy(
   () => import("../features/hod/DepartmentReports"),
 );
+const HodMarksApproval = lazy(
+  () => import("../features/hod/MarksApproval"));
 const TeacherDashboard = lazy(
   () => import("../features/teacher/TeacherDashboard"),
 );
@@ -202,6 +205,7 @@ const ROLE_PAGES = {
     students: ManageStudents,
     attendance: DepartmentAttendance,
     reports: DepartmentReports,
+    marks: HodMarksApproval,
   },
   teacher: {
     classes: TeacherClasses,

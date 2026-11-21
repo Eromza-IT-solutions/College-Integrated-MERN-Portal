@@ -1,148 +1,78 @@
-import { Award, BookOpen, Download, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Award, Download, GraduationCap, Percent } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
-import Card, { CardBody, CardHeader } from "../../components/ui/Card";
+import Card, { CardHeader } from "../../components/ui/Card";
 import DataTable from "../../components/ui/Table";
 import PageHeader from "../../components/ui/PageHeader";
+import Select from "../../components/ui/Select";
 import StatCard from "../../components/ui/StatCard";
-import { studentResults, studentSemesterSummary } from "../../mocks/studentData";
-import { downloadCsv } from "../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../utils/status";
+import { downloadResultPdf, listResults } from "../../services/marksService";
 
-const columns = [
-  {
-    key: "subject",
-    header: "Subject",
-    render: (row) => (
-      <span className="text-xs font-semibold text-eromza-text">
-        {row.subject}
-      </span>
-    ),
-  },
-  {
-    key: "marks",
-    header: "Marks",
-    render: (row) => (
-      <span className="text-xs text-eromza-muted">{row.marks}</span>
-    ),
-  },
-  {
-    key: "grade",
-    header: "Grade",
-    render: (row) => <Badge variant="info">{row.grade}</Badge>,
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (row) => (
-      <Badge variant={getStatusVariant(row.status)}>
-        {formatStatus(row.status)}
-      </Badge>
-    ),
-  },
-];
+const show = (v) => (v === null || v === undefined ? "-" : v);
 
 export default function Results() {
-  const handleExport = () => {
-    downloadCsv("eromza-student-results.csv", [
-      ["Subject", "Marks", "Grade", "Status"],
-      ...studentResults.map((row) => [
-        row.subject,
-        row.marks,
-        row.grade,
-        row.status,
-      ]),
-    ]);
-  };
+  const [results, setResults] = useState([]);
+  const [id, setId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    listResults()
+      .then((r) => { setResults(r); if (r[0]) setId(r[0]._id); })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const result = useMemo(() => results.find((r) => r._id === id), [results, id]);
+
+  const columns = [
+    { key: "subject", header: "Subject", render: (l) => <span className="text-xs font-semibold text-eromza-text">{l.name} ({l.code})</span> },
+    { key: "int", header: "Internal", render: (l) => <span className="text-xs text-eromza-muted">{l.absent ? "AB" : show(l.internalMarks)}/{l.maxInternal}</span> },
+    { key: "ext", header: "External", render: (l) => <span className="text-xs text-eromza-muted">{l.absent ? "AB" : show(l.externalMarks)}/{l.maxExternal}</span> },
+    { key: "total", header: "Total", render: (l) => <span className="text-xs text-eromza-muted">{show(l.total)}/{l.max}</span> },
+    { key: "grade", header: "Grade", render: (l) => <Badge variant={l.status === "pass" ? "success" : "warning"}>{show(l.grade)}</Badge> },
+    { key: "status", header: "Result", render: (l) => <span className="text-xs text-eromza-muted">{show(l.status)}</span> },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Student workspace"
         title="Results"
-        description="Review published internal assessment results and semester performance."
+        description="Published examination results with grades and SGPA."
         actions={
-          <Button variant="secondary" onClick={handleExport}>
-            <Download size={16} />
-            Export results
+          <Button variant="secondary" disabled={!result} onClick={() => downloadResultPdf(result._id, result.enrollmentNumber).catch((e) => setError(e.message))}>
+            <Download size={16} /> Download PDF
           </Button>
         }
       />
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Current GPA"
-          value={studentSemesterSummary.gpa}
-          tone="success"
-          icon={Award}
-        />
-        <StatCard
-          label="Credits earned"
-          value={studentSemesterSummary.credits}
-          tone="info"
-          icon={BookOpen}
-        />
-        <StatCard
-          label="Class rank"
-          value={`#${studentSemesterSummary.rank}`}
-          tone="accent"
-          icon={TrendingUp}
-        />
-        <StatCard
-          label="Attendance"
-          value={studentSemesterSummary.attendance}
-          tone="warning"
-          icon={TrendingUp}
-        />
-      </div>
-
-      <Card>
-        <CardHeader
-          title="Semester V results"
-          description="Published internal assessment results"
-          action={
-            <Badge variant={getStatusVariant(studentSemesterSummary.status)}>
-              {formatStatus(studentSemesterSummary.status)}
-            </Badge>
-          }
-        />
-        <DataTable
-          columns={columns}
-          rows={studentResults}
-          emptyTitle="No results published"
-        />
-      </Card>
-
-      <Card>
-        <CardHeader
-          title="Performance summary"
-          description="How your current semester is shaping up"
-        />
-        <CardBody className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl bg-eromza-bg p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-              Subjects
-            </p>
-            <p className="mt-1 text-sm font-semibold text-eromza-text">
-              {studentResults.length} completed
-            </p>
+      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {!loading && !results.length && (
+        <div className="rounded-lg bg-eromza-bg p-4 text-sm text-eromza-muted">No results are published for you yet.</div>
+      )}
+      {result && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="SGPA" value={String(show(result.sgpa))} tone="success" icon={Award} />
+            <StatCard label="Percentage" value={`${show(result.percentage)}%`} tone="info" icon={Percent} />
+            <StatCard label="Outcome" value={String(show(result.outcome))} tone="accent" icon={GraduationCap} />
+            <StatCard label="Credits earned" value={`${show(result.creditsEarned)}/${show(result.creditsTotal)}`} tone="warning" icon={Award} />
           </div>
-          <div className="rounded-xl bg-eromza-bg p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-              Highest grade
-            </p>
-            <p className="mt-1 text-sm font-semibold text-eromza-text">A+</p>
-          </div>
-          <div className="rounded-xl bg-eromza-bg p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-eromza-subtle">
-              Result status
-            </p>
-            <p className="mt-1 text-sm font-semibold text-eromza-text">
-              {formatStatus(studentSemesterSummary.status)}
-            </p>
-          </div>
-        </CardBody>
-      </Card>
+          <Card>
+            <CardHeader
+              title={`Semester ${result.semester} result`}
+              description={`${result.fullName || ""} · ${result.enrollmentNumber || ""}`}
+              action={results.length > 1 && (
+                <Select aria-label="Choose result" value={id} onChange={(e) => setId(e.target.value)}>
+                  {results.map((r) => <option key={r._id} value={r._id}>Semester {r.semester}</option>)}
+                </Select>
+              )}
+            />
+            <DataTable columns={columns} rows={result.lines || []} getRowKey={(l) => String(l.subjectId)} emptyTitle="No subjects" />
+          </Card>
+        </>
+      )}
     </div>
   );
 }

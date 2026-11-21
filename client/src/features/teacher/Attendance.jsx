@@ -1,317 +1,228 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarCheck, CheckCircle2, Download, Plus } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
-import Card, { CardBody, CardHeader } from "../../components/ui/Card";
+import Card, { CardHeader } from "../../components/ui/Card";
 import DataTable from "../../components/ui/Table";
 import Input from "../../components/ui/Input";
 import Modal from "../../components/ui/Modal";
 import PageHeader from "../../components/ui/PageHeader";
-import SearchInput from "../../components/ui/SearchInput";
 import Select from "../../components/ui/Select";
 import StatCard from "../../components/ui/StatCard";
-import { teacherAttendanceRecords, teacherClasses } from "../../mocks/teacherData";
 import { downloadCsv } from "../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../utils/status";
+import {
+  DAY_NAMES, dayOfWeekOf, getRoster, listRegisters, listTimetable, markAttendance, toDateString,
+} from "../../services/academicsService";
 
-const classLabel = (row) => `${row.program} · Semester ${row.semester}`;
+const STATUSES = ["present", "absent", "leave"];
+const EDIT_DAYS = 7; // server allows corrections for 7 days
+
+const minDate = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - EDIT_DAYS);
+  return toDateString(d);
+};
 
 export default function Attendance() {
-  const [records, setRecords] = useState(teacherAttendanceRecords);
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({
-    classId: teacherClasses[0]?.id ?? "",
-    date: "",
-    present: "",
-  });
+  const [registers, setRegisters] = useState([]);
+  const [slots, setSlots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
-  const selectedClass = teacherClasses.find((row) => row.id === form.classId);
+  const [open, setOpen] = useState(false);
+  const [slotId, setSlotId] = useState("");
+  const [date, setDate] = useState(toDateString());
+  const [roster, setRoster] = useState(null); // { alreadyMarked, students }
+  const [statuses, setStatuses] = useState({}); // studentId -> status
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
 
-  const filteredRecords = useMemo(() => {
-    const search = query.trim().toLowerCase();
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [r, s] = await Promise.all([listRegisters(), listTimetable()]);
+      setRegisters(r);
+      setSlots(s);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
-    return records.filter((row) => {
-      const matchesSearch =
-        !search ||
-        row.className.toLowerCase().includes(search) ||
-        row.subject.toLowerCase().includes(search) ||
-        row.date.toLowerCase().includes(search);
-      const matchesStatus =
-        statusFilter === "all" || row.status === statusFilter;
+  const slot = slots.find((s) => s._id === slotId);
+  const weekdayMismatch = slot && date && dayOfWeekOf(date) !== slot.dayOfWeek;
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [query, records, statusFilter]);
+  // Load the student list whenever the lecture or date changes
+  useEffect(() => {
+    if (!open || !slotId || !date || weekdayMismatch) { setRoster(null); return undefined; }
+    let active = true;
+    setRosterLoading(true);
+    setModalError("");
+    getRoster(slotId, date)
+      .then((r) => {
+        if (!active) return;
+        setRoster(r);
+        setStatuses(Object.fromEntries(r.students.map((st) => [st.studentId, st.status || "present"])));
+      })
+      .catch((e) => { if (active) { setRoster(null); setModalError(e.message); } })
+      .finally(() => { if (active) setRosterLoading(false); });
+    return () => { active = false; };
+  }, [open, slotId, date, weekdayMismatch]);
 
-  const average = Math.round(
-    records.reduce((sum, row) => sum + (row.present / row.total) * 100, 0) /
-      records.length,
-  );
-  const pending = records.filter((row) => row.status === "pending").length;
-  const absent = records.reduce((sum, row) => sum + row.absent, 0);
+  const openModal = (preset) => {
+    setNotice("");
+    setModalError("");
+    setSlotId(preset?.slotId || slots[0]?._id || "");
+    setDate(preset?.lectureDate || toDateString());
+    setOpen(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setModalError("");
+    try {
+      const res = await markAttendance({
+        slotId, lectureDate: date,
+        records: roster.students.map((st) => ({ studentId: st.studentId, status: statuses[st.studentId] })),
+      });
+      setNotice(res.corrected ? "Attendance corrected." : "Attendance saved.");
+      setOpen(false);
+      await load();
+    } catch (e) {
+      setModalError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const rows = useMemo(() => registers.map((r) => {
+    const total = (r.counts?.present || 0) + (r.counts?.absent || 0) + (r.counts?.leave || 0);
+    return {
+      id: r._id, slotId: r.slotId, lectureDate: r.lectureDate, period: r.period,
+      subject: r.subject ? `${r.subject.name} (${r.subject.code})` : "-",
+      klass: `Sem ${r.semester} · Div ${r.division}`,
+      present: r.counts?.present || 0, absent: r.counts?.absent || 0, leave: r.counts?.leave || 0, total,
+    };
+  }), [registers]);
+
+  const average = rows.length ? Math.round(rows.reduce((s, r) => s + (r.total ? (r.present / r.total) * 100 : 0), 0) / rows.length) : 0;
+  const absentTotal = rows.reduce((s, r) => s + r.absent, 0);
+
+  const columns = [
+    { key: "subject", header: "Class", render: (r) => (
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold text-eromza-text">{r.subject}</p>
+        <p className="mt-1 text-[11px] text-eromza-subtle">{r.klass} · Period {r.period}</p>
+      </div>) },
+    { key: "date", header: "Date", render: (r) => <span className="text-xs text-eromza-muted">{r.lectureDate}</span> },
+    { key: "students", header: "Students", render: (r) => <span className="text-xs text-eromza-muted">{r.present}/{r.total} present</span> },
+    { key: "absent", header: "Absent", render: (r) => <Badge variant={r.absent > 3 ? "warning" : "neutral"}>{r.absent}</Badge> },
+    { key: "pct", header: "Attendance", render: (r) => {
+      const pct = r.total ? Math.round((r.present / r.total) * 100) : 0;
+      return <Badge variant={pct >= 85 ? "success" : "warning"}>{pct}%</Badge>;
+    } },
+    { key: "edit", header: "", className: "text-right", cellClassName: "text-right", render: (r) => (
+      <Button variant="ghost" size="sm" onClick={() => openModal({ slotId: r.slotId, lectureDate: r.lectureDate })}>Edit</Button>
+    ) },
+  ];
 
   const handleExport = () => {
     downloadCsv("eromza-teacher-attendance.csv", [
-      ["Date", "Class", "Subject", "Present", "Absent", "Total", "Status"],
-      ...records.map((row) => [
-        row.date,
-        row.className,
-        row.subject,
-        row.present,
-        row.absent,
-        row.total,
-        row.status,
-      ]),
+      ["Date", "Subject", "Class", "Present", "Absent", "Leave", "Total"],
+      ...rows.map((r) => [r.lectureDate, r.subject, r.klass, r.present, r.absent, r.leave, r.total]),
     ]);
   };
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    if (!selectedClass) return;
-
-    const present = Number(form.present);
-    if (!Number.isFinite(present) || present < 0 || present > selectedClass.students) {
-      return;
-    }
-
-    setRecords((current) => [
-      {
-        id: `ATT-${Date.now()}`,
-        className: classLabel(selectedClass),
-        subject: selectedClass.subject,
-        date: form.date || "Today",
-        present,
-        absent: selectedClass.students - present,
-        total: selectedClass.students,
-        status: "submitted",
-      },
-      ...current,
-    ]);
-    setForm({
-      classId: teacherClasses[0]?.id ?? "",
-      date: "",
-      present: "",
-    });
-    setModalOpen(false);
-  };
-
-  const markSubmitted = (recordId) => {
-    setRecords((current) =>
-      current.map((row) =>
-        row.id === recordId ? { ...row, status: "submitted" } : row,
-      ),
-    );
-  };
-
-  const columns = [
-    {
-      key: "className",
-      header: "Class",
-      render: (row) => (
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-eromza-text">
-            {row.subject}
-          </p>
-          <p className="mt-1 text-[11px] text-eromza-subtle">{row.className}</p>
-        </div>
-      ),
-    },
-    {
-      key: "date",
-      header: "Date",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.date}</span>
-      ),
-    },
-    {
-      key: "students",
-      header: "Students",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">
-          {row.present}/{row.total} present
-        </span>
-      ),
-    },
-    {
-      key: "absent",
-      header: "Absent",
-      render: (row) => <Badge variant={row.absent > 3 ? "warning" : "neutral"}>{row.absent}</Badge>,
-    },
-    {
-      key: "percentage",
-      header: "Attendance",
-      render: (row) => (
-        <Badge variant={row.present / row.total >= 0.85 ? "success" : "warning"}>
-          {Math.round((row.present / row.total) * 100)}%
-        </Badge>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => (
-        <Badge variant={getStatusVariant(row.status)}>
-          {formatStatus(row.status)}
-        </Badge>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      className: "text-right",
-      cellClassName: "text-right",
-      render: (row) =>
-        row.status === "pending" ? (
-          <Button variant="ghost" size="sm" onClick={() => markSubmitted(row.id)}>
-            <CheckCircle2 size={14} />
-            Submit
-          </Button>
-        ) : null,
-    },
-  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Teaching workspace"
         title="Attendance"
-        description="Record attendance for your classes and monitor submission status."
+        description="Take attendance for your lectures and correct it within 7 days."
         actions={
           <>
-            <Button variant="secondary" onClick={handleExport}>
-              <Download size={16} />
-              Export attendance
-            </Button>
-            <Button onClick={() => setModalOpen(true)}>
-              <Plus size={16} />
-              Record attendance
-            </Button>
+            <Button variant="secondary" onClick={handleExport} disabled={!rows.length}><Download size={16} /> Export attendance</Button>
+            <Button onClick={() => openModal()} disabled={!slots.length}><Plus size={16} /> Record attendance</Button>
           </>
         }
       />
+      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {notice && <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{notice}</div>}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Average attendance"
-          value={`${average}%`}
-          tone="success"
-          icon={CalendarCheck}
-        />
-        <StatCard
-          label="Submitted records"
-          value={String(records.length - pending)}
-          tone="info"
-          icon={CheckCircle2}
-        />
-        <StatCard
-          label="Pending submissions"
-          value={String(pending)}
-          tone="warning"
-          icon={AlertTriangle}
-        />
-        <StatCard
-          label="Absent today"
-          value={String(absent)}
-          tone="accent"
-          icon={AlertTriangle}
-        />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Average attendance" value={`${average}%`} tone="success" icon={CalendarCheck} />
+        <StatCard label="Registers taken" value={String(rows.length)} tone="info" icon={CheckCircle2} />
+        <StatCard label="Total absences" value={String(absentTotal)} tone="warning" icon={AlertTriangle} />
       </div>
 
       <Card>
-        <CardHeader
-          title="Attendance register"
-          description="Recent attendance submissions across your classes"
-        />
-        <CardBody className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-          <SearchInput
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by class, subject, or date"
-          />
-          <Select
-            aria-label="Filter by status"
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-          >
-            <option value="all">All statuses</option>
-            <option value="submitted">Submitted</option>
-            <option value="pending">Pending</option>
-          </Select>
-        </CardBody>
-        <DataTable
-          columns={columns}
-          rows={filteredRecords}
-          emptyTitle="No attendance records match your filters"
-        />
+        <CardHeader title="Attendance register" description="Lectures you have recorded" />
+        <DataTable columns={columns} rows={rows} loading={loading} getRowKey={(r) => r.id} emptyTitle="No attendance recorded yet" emptyDescription="Use Record attendance to take your first lecture." />
       </Card>
 
       <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        open={open}
+        onClose={() => !saving && setOpen(false)}
         title="Record attendance"
-        description="Submit attendance for one of your assigned classes."
+        description="Pick the lecture and date, then mark each student."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="teacher-attendance-form">
-              <CheckCircle2 size={16} />
-              Submit attendance
+            <Button variant="secondary" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving || !roster || !roster.students.length}>
+              <CheckCircle2 size={16} /> {saving ? "Saving..." : roster?.alreadyMarked ? "Save correction" : "Save attendance"}
             </Button>
           </>
         }
       >
-        <form
-          id="teacher-attendance-form"
-          className="space-y-4"
-          onSubmit={handleSubmit}
-        >
-          <Select
-            label="Class"
-            value={form.classId}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, classId: event.target.value }))
-            }
-          >
-            {teacherClasses.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.subject} · {classLabel(row)}
+        <div className="space-y-4">
+          <Select label="Lecture" value={slotId} onChange={(e) => setSlotId(e.target.value)}>
+            {slots.map((s) => (
+              <option key={s._id} value={s._id}>
+                {s.subjectId?.name} · Sem {s.semester} Div {s.division} · {DAY_NAMES[s.dayOfWeek]} P{s.period}
               </option>
             ))}
           </Select>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Date"
-              type="date"
-              value={form.date}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, date: event.target.value }))
-              }
-            />
-            <Input
-              label="Students present"
-              type="number"
-              min="0"
-              max={selectedClass?.students ?? 0}
-              value={form.present}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  present: event.target.value,
-                }))
-              }
-              hint={
-                selectedClass
-                  ? `Class strength: ${selectedClass.students}`
-                  : undefined
-              }
-              required
-            />
-          </div>
-        </form>
+          <Input label="Date" type="date" value={date} min={minDate()} max={toDateString()} onChange={(e) => setDate(e.target.value)} />
+
+          {weekdayMismatch && (
+            <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
+              This lecture is on {DAY_NAMES[slot.dayOfWeek]}. Pick a {DAY_NAMES[slot.dayOfWeek]} date.
+            </p>
+          )}
+          {modalError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{modalError}</p>}
+          {rosterLoading && <p className="text-xs text-eromza-muted">Loading students...</p>}
+
+          {roster && !roster.students.length && <p className="text-xs text-eromza-muted">No students are enrolled for this lecture.</p>}
+          {roster && roster.students.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-eromza-text">{roster.students.length} students{roster.alreadyMarked ? " · already recorded" : ""}</p>
+                <Button size="sm" variant="ghost" onClick={() => setStatuses(Object.fromEntries(roster.students.map((st) => [st.studentId, "present"])))}>All present</Button>
+              </div>
+              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                {roster.students.map((st) => (
+                  <div key={st.studentId} className="flex items-center justify-between gap-3 rounded-lg bg-eromza-bg p-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-eromza-text">{st.fullName || "Student"}</p>
+                      <p className="text-[11px] text-eromza-subtle">{st.enrollmentNumber}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      {STATUSES.map((v) => (
+                        <Button key={v} size="sm" variant={statuses[st.studentId] === v ? "primary" : "secondary"} onClick={() => setStatuses((cur) => ({ ...cur, [st.studentId]: v }))}>
+                          {v[0].toUpperCase() + v.slice(1)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );

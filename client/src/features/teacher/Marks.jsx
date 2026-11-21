@@ -1,320 +1,150 @@
-import { useMemo, useState } from "react";
-import { Award, ClipboardList, Download, Pencil, TrendingUp } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CheckCircle2, ClipboardList, Send, Save } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card, { CardBody, CardHeader } from "../../components/ui/Card";
 import DataTable from "../../components/ui/Table";
 import Input from "../../components/ui/Input";
-import Modal from "../../components/ui/Modal";
 import PageHeader from "../../components/ui/PageHeader";
-import SearchInput from "../../components/ui/SearchInput";
 import Select from "../../components/ui/Select";
 import StatCard from "../../components/ui/StatCard";
-import { teacherStudentMarks } from "../../mocks/teacherData";
-import { downloadCsv } from "../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../utils/status";
+import { getRoster, listTimetable } from "../../services/academicsService";
+import { enterMarks, listMarks, submitMarks } from "../../services/marksService";
 
-const gradeFor = (total) => {
-  if (total >= 90) return "A+";
-  if (total >= 80) return "A";
-  if (total >= 70) return "B+";
-  if (total >= 60) return "B";
-  return "C";
-};
+const VARIANT = { draft: "neutral", submitted: "warning", approved: "success", returned: "error" };
 
 export default function Marks() {
-  const [rows, setRows] = useState(teacherStudentMarks);
-  const [query, setQuery] = useState("");
-  const [subjectFilter, setSubjectFilter] = useState("all");
-  const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({ internal: "", external: "" });
+  const [slots, setSlots] = useState([]);
+  const [key, setKey] = useState(""); // "<slotId>"
+  const [component, setComponent] = useState("Internal Test 1");
+  const [outOf, setOutOf] = useState("20");
+  const [students, setStudents] = useState([]);
+  const [values, setValues] = useState({});
+  const [marks, setMarks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
-  const subjects = useMemo(
-    () => [...new Set(rows.map((row) => row.subject))],
-    [rows],
-  );
-
-  const filteredRows = useMemo(() => {
-    const search = query.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesSearch =
-        !search ||
-        row.student.toLowerCase().includes(search) ||
-        row.rollNo.toLowerCase().includes(search) ||
-        row.subject.toLowerCase().includes(search);
-      const matchesSubject =
-        subjectFilter === "all" || row.subject === subjectFilter;
-
-      return matchesSearch && matchesSubject;
+  // One option per subject + semester (a subject can have several weekly slots)
+  const options = useMemo(() => {
+    const seen = new Map();
+    slots.forEach((s) => {
+      const k = `${s.subjectId?._id}|${s.semester}|${s.division}`;
+      if (!seen.has(k)) seen.set(k, s);
     });
-  }, [query, rows, subjectFilter]);
+    return [...seen.values()];
+  }, [slots]);
+  const slot = slots.find((s) => s._id === key);
 
-  const average = Math.round(
-    rows.reduce((sum, row) => sum + row.total, 0) / rows.length,
-  );
-  const pending = rows.filter((row) => row.status === "pending").length;
-  const topGrade = rows.filter((row) => row.grade === "A+").length;
+  useEffect(() => {
+    listTimetable()
+      .then((s) => { setSlots(s); if (s[0]) setKey(s[0]._id); })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const openEdit = (row) => {
-    setSelected(row);
-    setForm({ internal: String(row.internal), external: String(row.external) });
+  const loadMarks = useCallback(async () => {
+    if (!slot) return;
+    try { setMarks(await listMarks({ subjectId: slot.subjectId._id, semester: slot.semester })); }
+    catch (e) { setError(e.message); }
+  }, [slot]);
+
+  useEffect(() => {
+    if (!slot) return;
+    setValues({});
+    getRoster(slot._id).then((r) => setStudents(r.students)).catch((e) => setError(e.message));
+    loadMarks();
+  }, [slot, loadMarks]);
+
+  const handleSave = async () => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const entries = students
+        .filter((st) => values[st.studentId] !== undefined && values[st.studentId] !== "")
+        .map((st) => ({ studentId: st.studentId, obtained: Number(values[st.studentId]) }));
+      if (!entries.length) throw new Error("Enter marks for at least one student");
+      const res = await enterMarks({
+        subjectId: slot.subjectId._id, semester: slot.semester, academicYearId: slot.academicYearId,
+        component: component.trim(), outOf: Number(outOf), entries,
+      });
+      setNotice(`Saved ${res.saved.length} entries${res.failed.length ? `, ${res.failed.length} failed: ${res.failed[0].message}` : ""}.`);
+      await loadMarks();
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
 
-  const handleSave = (event) => {
-    event.preventDefault();
-    if (!selected) return;
-
-    const internal = Number(form.internal);
-    const external = Number(form.external);
-    if (
-      !Number.isFinite(internal) ||
-      !Number.isFinite(external) ||
-      internal < 0 ||
-      external < 0
-    ) {
-      return;
-    }
-
-    const total = internal + external;
-    setRows((current) =>
-      current.map((row) =>
-        row.id === selected.id
-          ? {
-              ...row,
-              internal,
-              external,
-              total,
-              grade: gradeFor(total),
-              status: "published",
-            }
-          : row,
-      ),
-    );
-    setSelected(null);
-  };
-
-  const handleExport = () => {
-    downloadCsv("eromza-teacher-marks.csv", [
-      ["Roll no.", "Student", "Class", "Subject", "Internal", "External", "Total", "Grade", "Status"],
-      ...rows.map((row) => [
-        row.rollNo,
-        row.student,
-        row.className,
-        row.subject,
-        row.internal,
-        row.external,
-        row.total,
-        row.grade,
-        row.status,
-      ]),
-    ]);
+  const pendingIds = marks.filter((m) => m.status === "draft" || m.status === "returned").map((m) => m._id);
+  const handleSubmit = async () => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await submitMarks(pendingIds);
+      setNotice("Marks sent to the HOD for approval.");
+      await loadMarks();
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
 
   const columns = [
-    {
-      key: "student",
-      header: "Student",
-      render: (row) => (
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-eromza-text">
-            {row.student}
-          </p>
-          <p className="mt-1 text-[11px] text-eromza-subtle">
-            {row.rollNo} · {row.className}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "subject",
-      header: "Subject",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.subject}</span>
-      ),
-    },
-    {
-      key: "internal",
-      header: "Internal",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.internal}/30</span>
-      ),
-    },
-    {
-      key: "external",
-      header: "External",
-      render: (row) => (
-        <span className="text-xs text-eromza-muted">{row.external}/70</span>
-      ),
-    },
-    {
-      key: "total",
-      header: "Total",
-      render: (row) => (
-        <span className="text-xs font-semibold text-eromza-text">
-          {row.total}/100
-        </span>
-      ),
-    },
-    {
-      key: "grade",
-      header: "Grade",
-      render: (row) => <Badge variant="info">{row.grade}</Badge>,
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => (
-        <Badge variant={getStatusVariant(row.status)}>
-          {formatStatus(row.status)}
-        </Badge>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      className: "text-right",
-      cellClassName: "text-right",
-      render: (row) => (
-        <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
-          <Pencil size={14} />
-          Edit
-        </Button>
-      ),
-    },
+    { key: "stu", header: "Student", render: (m) => <span className="text-xs font-semibold text-eromza-text">{m.studentId?.enrollmentNumber || "-"}</span> },
+    { key: "comp", header: "Component", render: (m) => <span className="text-xs text-eromza-muted">{m.component}</span> },
+    { key: "marks", header: "Marks", render: (m) => <span className="text-xs text-eromza-muted">{m.obtained}/{m.outOf}</span> },
+    { key: "status", header: "Status", render: (m) => <Badge variant={VARIANT[m.status] || "neutral"}>{m.status}</Badge> },
+    { key: "note", header: "HOD note", render: (m) => <span className="text-xs text-eromza-muted">{m.reviewNote || m.note || "-"}</span> },
   ];
+
+  const count = (s) => marks.filter((m) => m.status === s).length;
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="Teaching workspace"
-        title="Marks"
-        description="Enter internal and external marks, review grades, and publish student results."
-        actions={
-          <Button variant="secondary" onClick={handleExport}>
-            <Download size={16} />
-            Export marks
-          </Button>
-        }
-      />
+      <PageHeader eyebrow="Teaching workspace" title="Marks" description="Enter internal marks, then send them to your HOD for approval." />
+      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {notice && <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{notice}</div>}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Marks recorded"
-          value={String(rows.length)}
-          tone="info"
-          icon={ClipboardList}
-        />
-        <StatCard
-          label="Average score"
-          value={`${average}/100`}
-          tone="success"
-          icon={TrendingUp}
-        />
-        <StatCard
-          label="Pending entry"
-          value={String(pending)}
-          tone="warning"
-          icon={ClipboardList}
-        />
-        <StatCard
-          label="A+ grades"
-          value={String(topGrade)}
-          tone="accent"
-          icon={Award}
-        />
+      <div className="grid gap-4 sm:grid-cols-4">
+        <StatCard label="Draft / returned" value={String(pendingIds.length)} tone="warning" icon={ClipboardList} />
+        <StatCard label="Awaiting HOD" value={String(count("submitted"))} tone="info" icon={Send} />
+        <StatCard label="Approved" value={String(count("approved"))} tone="success" icon={CheckCircle2} />
+        <StatCard label="Students" value={String(students.length)} tone="accent" icon={ClipboardList} />
       </div>
 
       <Card>
-        <CardHeader
-          title="Student marks"
-          description="Internal assessment records for your classes"
-        />
-        <CardBody className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-          <SearchInput
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by student, roll number, or subject"
-          />
-          <Select
-            aria-label="Filter by subject"
-            value={subjectFilter}
-            onChange={(event) => setSubjectFilter(event.target.value)}
-          >
-            <option value="all">All subjects</option>
-            {subjects.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject}
-              </option>
+        <CardHeader title="Enter marks" description="Pick the class, name the component and fill marks" />
+        <CardBody className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Select label="Class" value={key} onChange={(e) => setKey(e.target.value)}>
+              {options.map((s) => <option key={s._id} value={s._id}>{s.subjectId?.name} · Sem {s.semester} Div {s.division}</option>)}
+            </Select>
+            <Input label="Component" value={component} onChange={(e) => setComponent(e.target.value)} />
+            <Input label="Out of" type="number" min="0.5" step="0.5" value={outOf} onChange={(e) => setOutOf(e.target.value)} />
+          </div>
+          {!loading && !options.length && <p className="text-xs text-eromza-muted">No classes assigned to you yet.</p>}
+          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {students.map((st) => (
+              <div key={st.studentId} className="flex items-center justify-between gap-3 rounded-lg bg-eromza-bg p-2">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-eromza-text">{st.fullName || "Student"}</p>
+                  <p className="text-[11px] text-eromza-subtle">{st.enrollmentNumber}</p>
+                </div>
+                <input
+                  type="number" min="0" max={outOf} step="0.5" placeholder={`/ ${outOf}`}
+                  value={values[st.studentId] ?? ""}
+                  onChange={(e) => setValues((c) => ({ ...c, [st.studentId]: e.target.value }))}
+                  className="w-24 rounded-lg border border-eromza-border px-2 py-1 text-sm"
+                />
+              </div>
             ))}
-          </Select>
+          </div>
+          <Button onClick={handleSave} disabled={busy || !students.length}><Save size={16} /> {busy ? "Saving..." : "Save marks"}</Button>
         </CardBody>
-        <DataTable
-          columns={columns}
-          rows={filteredRows}
-          emptyTitle="No marks match your filters"
-        />
       </Card>
 
-      <Modal
-        open={Boolean(selected)}
-        onClose={() => setSelected(null)}
-        title="Edit marks"
-        description={
-          selected
-            ? `${selected.student} · ${selected.subject}`
-            : "Update internal and external marks."
-        }
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setSelected(null)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="teacher-marks-form">
-              Save marks
-            </Button>
-          </>
-        }
-      >
-        <form id="teacher-marks-form" className="space-y-4" onSubmit={handleSave}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Internal marks"
-              type="number"
-              min="0"
-              max="30"
-              value={form.internal}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  internal: event.target.value,
-                }))
-              }
-              required
-            />
-            <Input
-              label="External marks"
-              type="number"
-              min="0"
-              max="70"
-              value={form.external}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  external: event.target.value,
-                }))
-              }
-              required
-            />
-          </div>
-          <div className="rounded-xl bg-eromza-bg p-3 text-xs text-eromza-muted">
-            Total:{" "}
-            <span className="font-semibold text-eromza-text">
-              {Number(form.internal || 0) + Number(form.external || 0)}/100
-            </span>
-          </div>
-        </form>
-      </Modal>
+      <Card>
+        <CardHeader
+          title="Entered marks"
+          description="Status of everything you have entered for this subject"
+          action={<Button onClick={handleSubmit} disabled={busy || !pendingIds.length}><Send size={16} /> Send {pendingIds.length} to HOD</Button>}
+        />
+        <DataTable columns={columns} rows={marks} getRowKey={(m) => m._id} emptyTitle="No marks entered yet" />
+      </Card>
     </div>
   );
 }

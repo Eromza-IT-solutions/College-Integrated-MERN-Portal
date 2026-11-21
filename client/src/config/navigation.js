@@ -65,6 +65,7 @@ export const navigationByRole = Object.freeze({
     { label: "Manage Students", to: "/hod/students", icon: GraduationCap },
     { label: "Attendance", to: "/hod/attendance", icon: ClipboardCheck },
     { label: "Department Reports", to: "/hod/reports", icon: BarChart3 },
+        { label: "Marks Approval", to: "/hod/marks", icon: ClipboardCheck },
   ],
   teacher: [
     { label: "Dashboard", to: "/teacher/dashboard", icon: LayoutDashboard },
