@@ -10,6 +10,7 @@ import AppLayout from "../layouts/AppLayout";
 import SuperAdminLayout from "../features/admin/super/SuperAdminLayout";
 import WebsiteAdminLayout from "../features/admin/website/WebsiteAdminLayout";
 import AdmissionAdminLayout from "../features/admin/admission/AdmissionAdminLayout";
+import StudentLayout from "../features/student/StudentLayout";
 import ProtectedRoute from "./ProtectedRoute";
 
 
@@ -19,6 +20,7 @@ const ROLE_LAYOUTS = {
   superAdmin: SuperAdminLayout,
   websiteAdmin: WebsiteAdminLayout,
   admissionAdmin: AdmissionAdminLayout,
+  student: StudentLayout,
 };
 
 const HomePage = lazy(() => import("../features/public-website/HomePage"));

@@ -1,518 +1,423 @@
-import { Link } from "react-router-dom";
 import {
-  ArrowUpRight,
-  Award,
-  CalendarClock,
+  CalendarDays,
   ClipboardCheck,
-  Download,
   GraduationCap,
   Wallet,
+  Ticket,
+  Award,
+  FilePenLine,
+  Megaphone,
+  Clock,
+  MapPin,
+  ArrowRight,
 } from "lucide-react";
-import BarList from "../../components/charts/BarList";
-import ProgressRing from "../../components/charts/ProgressRing";
-import Badge from "../../components/ui/Badge";
-import Button from "../../components/ui/Button";
-import Card, { CardBody, CardHeader } from "../../components/ui/Card";
-import DataTable from "../../components/ui/Table";
-import EmptyState from "../../components/ui/EmptyState";
-import ErrorState from "../../components/ui/ErrorState";
-import Loader from "../../components/ui/Loader";
-import PageHeader from "../../components/ui/PageHeader";
-import StatCard from "../../components/ui/StatCard";
-import { useApiData } from "../../hooks/useApiData";
-import {
-  fetchAttendanceSummary,
-  fetchAvailableExams,
-  fetchResults,
-  fetchStudentOverview,
-  fetchTimetable,
-} from "../../services/studentApi";
-import {
-  formatDate,
-  formatDay,
-  formatPaise,
-  formatTime,
-} from "../../utils/format";
-import { downloadCsv } from "../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../utils/status";
 
-const COLORS = ["#19845b", "#3279be", "#d88a2d", "#a9233d", "#7c5cbf"];
+/*
+  Content area only - render it next to <Sidebar /> in your layout:
 
-const KPI_ICONS = {
-  attendance: ClipboardCheck,
-  gpa: GraduationCap,
-  fees: Wallet,
-  exams: CalendarClock,
+    <div className="flex">
+      <Sidebar onNavigate={...} />
+      <main className="flex-1 overflow-y-auto"><StudentDashboard onNavigate={...} /></main>
+    </div>
+
+  Everything below the "SAMPLE DATA" line is placeholder - replace with your API data
+  (or pass your own `student`, `attendance`, `exams`, `classes`, `notices`, `fees` props).
+*/
+
+/* ----------------------------- SAMPLE DATA ----------------------------- */
+const daysFromNow = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d;
 };
 
-function loadDashboard() {
-  return fetchStudentOverview().then((overview) =>
-    Promise.all([
-      fetchAttendanceSummary(),
-      fetchTimetable({
-        programId: overview.program?._id,
-        semester: overview.student?.currentSemester,
-        division: overview.student?.division,
-      }),
-      fetchResults(),
-      fetchAvailableExams(),
-    ]).then(([attendance, timetable, results, available]) => ({
-      overview,
-      attendance,
-      timetable,
-      results,
-      available,
-    })),
-  );
-}
+const sampleStudent = {
+  name: "Ayesha Khan",
+  course: "B.Sc. Computer Science",
+  semester: "Semester 5",
+  rollNo: "CS2023-045",
+  cgpa: 8.4,
+};
 
-function timeOf(slot) {
-  if (slot.startTime && slot.endTime) {
-    return `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`;
-  }
-  return `Period ${slot.period}`;
-}
+const sampleAttendance = [
+  { subject: "Data Structures", attended: 38, total: 42 },
+  { subject: "Database Management", attended: 34, total: 40 },
+  { subject: "Operating Systems", attended: 29, total: 41 },
+  { subject: "Web Technologies", attended: 36, total: 38 },
+  { subject: "Computer Networks", attended: 31, total: 39 },
+];
 
-export default function StudentDashboard() {
-  const { data, loading, error, reload } = useApiData(loadDashboard);
+const sampleExams = [
+  { subject: "Data Structures", date: daysFromNow(9), time: "10:00 AM", venue: "Hall A" },
+  { subject: "Database Management", date: daysFromNow(12), time: "10:00 AM", venue: "Hall B" },
+  { subject: "Operating Systems", date: daysFromNow(15), time: "2:00 PM", venue: "Hall A" },
+];
 
-  const attendanceRows = (data?.attendance?.subjects ?? []).map((row, index) => ({
-    id: String(row.subjectId),
-    subject: row.subject?.name || "Subject",
-    attended: row.present ?? 0,
-    total: row.held ?? 0,
-    percentage: Number(row.percentage) || 0,
-    color: COLORS[index % COLORS.length],
-  }));
-  const totalAttended = attendanceRows.reduce(
-    (sum, row) => sum + row.attended,
-    0,
-  );
-  const totalClasses = attendanceRows.reduce((sum, row) => sum + row.total, 0);
-  const overallAttendance = totalClasses
-    ? Math.round((totalAttended / totalClasses) * 100)
-    : 0;
-  const breakdown = attendanceRows.map((row) => ({
-    label: row.subject,
-    value: Math.round(row.percentage),
-    color: row.color,
-  }));
+const sampleClasses = [
+  { time: "9:00 AM", subject: "Web Technologies", room: "Lab 2", teacher: "Prof. Sharma" },
+  { time: "11:00 AM", subject: "Database Management", room: "Room 204", teacher: "Prof. Deshmukh" },
+  { time: "1:30 PM", subject: "Computer Networks", room: "Room 110", teacher: "Prof. Patil" },
+];
 
-  const latestResult = (data?.results ?? [])[0] ?? null;
-  const resultLines = latestResult?.lines ?? [];
+const sampleNotices = [
+  { id: 1, title: "Semester 5 exam form submission closes soon", date: daysFromNow(-1), tag: "Exams" },
+  { id: 2, title: "Hall tickets will be available one week before exams", date: daysFromNow(-3), tag: "Hall Tickets" },
+  { id: 3, title: "Annual college day rehearsal schedule released", date: daysFromNow(-5), tag: "General" },
+  { id: 4, title: "Library will remain closed on Saturday", date: daysFromNow(-6), tag: "General" },
+];
 
-  const timetableRows = (data?.timetable ?? []).map((slot) => ({
-    id: slot._id,
-    dayOfWeek: slot.dayOfWeek,
-    time: timeOf(slot),
-    subject: slot.subjectId?.name || "Subject",
-    faculty: slot.teacherUserId?.fullName || "Not assigned",
-    room: slot.room || "Not set",
-  }));
-  const jsDay = new Date().getDay();
-  const today = jsDay === 0 ? 7 : jsDay;
-  const todayRows = timetableRows.filter((row) => row.dayOfWeek === today);
+const sampleFees = { total: 42500, paid: 30000 };
 
-  const subjectOf = new Map(
-    (data?.overview?.enrollments ?? []).map((enrollment) => [
-      String(enrollment.subjectId?._id),
-      enrollment.subjectId,
-    ]),
-  );
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const scheduleRows = (data?.available ?? [])
-    .flatMap((exam) =>
-      (exam.schedule ?? []).map((item) => {
-        const subject = subjectOf.get(String(item.subjectId));
-        return {
-          id: `${exam._id}-${item.subjectId}`,
-          subject: subject?.name || "Subject",
-          dateValue: item.date,
-          date: formatDate(item.date),
-          time: `${formatTime(item.startTime)} - ${formatTime(item.endTime)}`,
-          room: item.room || "Not set",
-          status: exam.status,
-        };
-      }),
-    )
-    .filter((row) => new Date(row.dateValue) >= startOfToday)
-    .sort((a, b) => new Date(a.dateValue) - new Date(b.dateValue));
+/* ------------------------------- HELPERS -------------------------------- */
+const fmtDate = (d, opts = { day: "numeric", month: "short" }) =>
+  new Date(d).toLocaleDateString("en-IN", opts);
 
-  const pendingForms = (data?.available ?? []).filter(
-    (exam) => exam.form?.status === "pendingPayment",
-  );
-  const pendingExamFees = pendingForms.reduce(
-    (sum, exam) => sum + (exam.form?.feeAmountPaise ?? 0),
-    0,
-  );
+const daysLeft = (d) => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(d);
+  end.setHours(0, 0, 0, 0);
+  return Math.round((end - start) / 86400000);
+};
 
-  const kpis = [
+const money = (n) => "₹" + n.toLocaleString("en-IN");
+
+const pct = (a, t) => Math.round((a / t) * 100);
+
+/* ------------------------------ COMPONENT ------------------------------- */
+export default function StudentDashboard({
+  student = sampleStudent,
+  attendance = sampleAttendance,
+  exams = sampleExams,
+  classes = sampleClasses,
+  notices = sampleNotices,
+  fees = sampleFees,
+  onNavigate = () => {},
+}) {
+  const totalAttended = attendance.reduce((s, a) => s + a.attended, 0);
+  const totalClasses = attendance.reduce((s, a) => s + a.total, 0);
+  const overall = pct(totalAttended, totalClasses);
+  const pending = fees.total - fees.paid;
+  const nextExam = exams[0];
+
+  const stats = [
     {
-      id: "attendance",
-      label: "Overall Attendance",
-      value: `${overallAttendance}%`,
-      change: `${attendanceRows.filter((row) => row.percentage < 85).length} below 85%`,
-      tone: "success",
-      icon: "attendance",
+      label: "Overall attendance",
+      value: `${overall}%`,
+      note: overall >= 75 ? "Above the 75% requirement" : "Below the 75% requirement",
+      icon: ClipboardCheck,
+      warn: overall < 75,
     },
     {
-      id: "gpa",
-      label: "Current SGPA",
-      value:
-        latestResult?.sgpa == null
-          ? "Not set"
-          : Number(latestResult.sgpa).toFixed(2),
-      change: latestResult?.outcome
-        ? formatStatus(latestResult.outcome)
-        : "No result yet",
-      tone: "info",
-      icon: "gpa",
+      label: "Current CGPA",
+      value: student.cgpa.toFixed(1),
+      note: "Out of 10",
+      icon: Award,
     },
     {
-      id: "fees",
-      label: "Exam Fees Due",
-      value: formatPaise(pendingExamFees, "0"),
-      change: pendingForms.length
-        ? `${pendingForms.length} form awaiting payment`
-        : "No payment due",
-      tone: "warning",
-      icon: "fees",
+      label: "Pending fees",
+      value: money(pending),
+      note: pending > 0 ? "Pay before the due date" : "All fees cleared",
+      icon: Wallet,
+      warn: pending > 0,
     },
     {
-      id: "exams",
-      label: "Upcoming Exams",
-      value: String(scheduleRows.length),
-      change: scheduleRows[0]
-        ? `Next ${formatDate(scheduleRows[0].dateValue)}`
-        : "No exams scheduled",
-      tone: "accent",
-      icon: "exams",
+      label: "Next exam",
+      value: nextExam ? `${daysLeft(nextExam.date)} days` : "-",
+      note: nextExam ? nextExam.subject : "No exams scheduled",
+      icon: GraduationCap,
     },
   ];
 
-  const handleExport = () => {
-    downloadCsv("eromza-student-summary.csv", [
-      ["Metric", "Value"],
-      ...kpis.map((kpi) => [kpi.label, kpi.value]),
-      ...breakdown.map((item) => [
-        `${item.label} attendance`,
-        `${item.value}%`,
-      ]),
-    ]);
-  };
-
-  const timetableColumns = [
-    {
-      key: "time",
-      header: "Time",
-      render: (entry) => (
-        <span className="text-xs font-semibold text-eromza-text">
-          {entry.time}
-        </span>
-      ),
-    },
-    {
-      key: "subject",
-      header: "Subject",
-      render: (entry) => (
-        <span className="text-xs text-eromza-muted">{entry.subject}</span>
-      ),
-    },
-    {
-      key: "faculty",
-      header: "Faculty",
-      render: (entry) => (
-        <span className="text-xs text-eromza-muted">{entry.faculty}</span>
-      ),
-    },
-    {
-      key: "room",
-      header: "Room",
-      render: (entry) => <Badge variant="neutral">{entry.room}</Badge>,
-    },
-  ];
-
-  const resultColumns = [
-    {
-      key: "subject",
-      header: "Subject",
-      render: (result) => (
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-eromza-text">
-            {result.name || "Subject"}
-          </p>
-          <p className="mt-1 text-[11px] text-eromza-subtle">
-            {result.code || "Code not set"}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "marks",
-      header: "Marks",
-      render: (result) => (
-        <span className="text-xs text-eromza-muted">
-          {result.total ?? "Not set"} / {result.max ?? "Not set"}
-        </span>
-      ),
-    },
-    {
-      key: "grade",
-      header: "Grade",
-      render: (result) => <Badge variant="info">{result.grade || "Not set"}</Badge>,
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (result) => (
-        <Badge variant={getStatusVariant(result.status)}>
-          {formatStatus(result.status || "pending")}
-        </Badge>
-      ),
-    },
-  ];
-
-  const examColumns = [
-    {
-      key: "subject",
-      header: "Exam",
-      render: (exam) => (
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-eromza-text">
-            {exam.subject}
-          </p>
-          <p className="mt-1 text-[11px] text-eromza-subtle">
-            {exam.date} - {exam.time}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "room",
-      header: "Room",
-      render: (exam) => <Badge variant="neutral">{exam.room}</Badge>,
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (exam) => (
-        <Badge variant={getStatusVariant(exam.status)}>
-          {formatStatus(exam.status)}
-        </Badge>
-      ),
-    },
+  const quickActions = [
+    { label: "Fill admission form", icon: FilePenLine, to: "admission/fill-form" },
+    { label: "Hall tickets", icon: Ticket, to: "hall-tickets" },
+    { label: "Pay pending fee", icon: Wallet, to: "payments/pay-pending-fee" },
+    { label: "View results", icon: Award, to: "results" },
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Student workspace"
-        title="Student Dashboard"
-        description="Track your attendance, timetable, results, fees, and upcoming examinations."
-        actions={
-          <>
-            <Button variant="secondary" onClick={handleExport}>
-              <Download size={16} />
-              Download summary
-            </Button>
-            <Button as={Link} to="/student/timetable">
-              <CalendarClock size={16} />
-              View timetable
-            </Button>
-          </>
-        }
-      />
+    <div
+      className="min-h-screen bg-slate-50 p-5 text-slate-800 md:p-8"
+      style={{ fontFamily: "'Poppins', sans-serif" }}
+    >
+      {/* ------------------------------ Welcome banner ------------------------------ */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#16285a] to-[#0b1536] px-6 py-7 text-white shadow-lg md:px-9">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full border-[28px] border-[#f5b800]/15" />
+        <div className="pointer-events-none absolute -bottom-24 right-24 h-52 w-52 rounded-full border-[20px] border-white/5" />
 
-      {loading ? (
-        <Card>
-          <Loader label="Loading dashboard..." />
-        </Card>
-      ) : error ? (
-        <Card>
-          <ErrorState
-            title="Could not load dashboard"
-            description={error.message}
-            onRetry={reload}
-          />
-        </Card>
-      ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {kpis.map((kpi) => (
-              <StatCard
-                key={kpi.id}
-                label={kpi.label}
-                value={kpi.value}
-                change={kpi.change}
-                changeLabel="current semester"
-                tone={kpi.tone}
-                icon={KPI_ICONS[kpi.icon]}
-              />
-            ))}
+        <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-5">
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-[#c9971c] bg-white text-2xl font-bold text-[#16285a]"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+              aria-hidden="true"
+            >
+              {student.name
+                .split(" ")
+                .map((w) => w[0])
+                .slice(0, 2)
+                .join("")}
+            </div>
+            <div>
+              <p className="text-sm text-slate-300">Welcome back,</p>
+              <h1
+                className="text-[28px] font-bold leading-tight"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
+                {student.name}
+              </h1>
+              <p className="mt-1 text-sm text-slate-300">
+                {student.course} · {student.semester} · Roll no. {student.rollNo}
+              </p>
+            </div>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
-            <Card>
-              <CardHeader
-                title="Today's timetable"
-                description={`Your classes for ${formatDay(today)}`}
-                action={
-                  <Button
-                    as={Link}
-                    to="/student/timetable"
-                    variant="ghost"
-                    size="sm"
-                  >
-                    Full timetable
-                    <ArrowUpRight size={14} />
-                  </Button>
-                }
-              />
-              <DataTable
-                columns={timetableColumns}
-                rows={todayRows}
-                getRowKey={(row) => row.id}
-                emptyTitle="No classes scheduled"
-                emptyDescription="You have no classes on the timetable for today."
-              />
-            </Card>
-
-            <Card>
-              <CardHeader
-                title="Attendance"
-                description="Overall attendance this semester"
-              />
-              <CardBody className="space-y-6">
-                <ProgressRing
-                  value={overallAttendance}
-                  label="Present"
-                  caption={`You have attended ${totalAttended} of ${totalClasses} scheduled classes.`}
-                />
-                <BarList
-                  items={breakdown}
-                  valueFormatter={(value) => `${value}%`}
-                />
-              </CardBody>
-            </Card>
+          <div className="flex items-center gap-2 self-start rounded-xl bg-white/10 px-4 py-2.5 text-sm md:self-center">
+            <CalendarDays size={18} className="text-[#f5b800]" />
+            {fmtDate(new Date(), {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
           </div>
+        </div>
+      </section>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
-            <Card>
-              <CardHeader
-                title="Recent results"
-                description="Latest published examination result"
-                action={
-                  <Button
-                    as={Link}
-                    to="/student/results"
-                    variant="ghost"
-                    size="sm"
-                  >
-                    All results
-                    <ArrowUpRight size={14} />
-                  </Button>
-                }
-              />
-              <DataTable
-                columns={resultColumns}
-                rows={resultLines.slice(0, 4)}
-                getRowKey={(row) => String(row.subjectId)}
-                emptyTitle="No results published"
-              />
-            </Card>
-
-            <Card>
-              <CardHeader
-                title="Upcoming exams"
-                description="Your next scheduled examinations"
-                action={
-                  <Button
-                    as={Link}
-                    to="/student/examinations"
-                    variant="ghost"
-                    size="sm"
-                  >
-                    View all
-                    <ArrowUpRight size={14} />
-                  </Button>
-                }
-              />
-              <DataTable
-                columns={examColumns}
-                rows={scheduleRows.slice(0, 4)}
-                getRowKey={(row) => row.id}
-                emptyTitle="No upcoming exams"
-              />
-            </Card>
+      {/* -------------------------------- Stat cards -------------------------------- */}
+      <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {stats.map(({ label, value, note, icon: Icon, warn }) => (
+          <div
+            key={label}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+          >
+            <div className="flex items-start justify-between">
+              <p className="text-sm font-medium text-slate-500">{label}</p>
+              <span
+                className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                  warn ? "bg-red-50 text-[#8b0f1f]" : "bg-[#16285a]/10 text-[#16285a]"
+                }`}
+              >
+                <Icon size={20} strokeWidth={1.8} />
+              </span>
+            </div>
+            <p
+              className="mt-3 text-3xl font-bold text-[#16285a]"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {value}
+            </p>
+            <p className={`mt-1 text-xs ${warn ? "font-medium text-[#8b0f1f]" : "text-slate-500"}`}>
+              {note}
+            </p>
           </div>
+        ))}
+      </section>
 
-          <Card>
-            <CardHeader
-              title="Notices"
-              description="Latest announcements for your programme"
-              action={
-                <Button
-                  as={Link}
-                  to="/student/notices"
-                  variant="ghost"
-                  size="sm"
-                >
-                  View all
-                  <ArrowUpRight size={14} />
-                </Button>
-              }
-            />
-            <EmptyState
-              title="No notices published"
-              description="Announcements for your programme will appear here."
-            />
+      {/* ------------------------------ Main grid (2 / 1) ------------------------------ */}
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+        {/* ---------------- Left column ---------------- */}
+        <div className="space-y-6 xl:col-span-2">
+          {/* Attendance by subject */}
+          <Card
+            title="Attendance by subject"
+            action="View details"
+            onAction={() => onNavigate("attendance")}
+          >
+            <ul className="space-y-4">
+              {attendance.map((a) => {
+                const p = pct(a.attended, a.total);
+                const low = p < 75;
+                return (
+                  <li key={a.subject}>
+                    <div className="mb-1.5 flex items-center justify-between text-sm">
+                      <span className="font-medium">{a.subject}</span>
+                      <span className={low ? "font-semibold text-[#8b0f1f]" : "text-slate-600"}>
+                        {a.attended}/{a.total} classes · {p}%
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full ${low ? "bg-[#8b0f1f]" : "bg-[#16285a]"}`}
+                        style={{ width: `${p}%` }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Card className="flex items-center gap-4 p-5">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-amber-50 text-eromza-warning">
-                <Wallet size={20} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-eromza-text">
-                  {formatPaise(pendingExamFees, "0")} exam fees pending
-                </p>
-                <p className="mt-1 text-xs text-eromza-muted">
-                  {pendingForms.length
-                    ? "Complete payment to submit your exam form."
-                    : "No exam form payment is pending."}
-                </p>
+          {/* Upcoming exams */}
+          <Card
+            title="Upcoming exams"
+            action="Full timetable"
+            onAction={() => onNavigate("timetable")}
+          >
+            {exams.length === 0 ? (
+              <p className="text-sm text-slate-500">No exams are scheduled right now.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="pb-3 font-medium">Subject</th>
+                      <th className="pb-3 font-medium">Date</th>
+                      <th className="pb-3 font-medium">Time</th>
+                      <th className="pb-3 font-medium">Venue</th>
+                      <th className="pb-3 text-right font-medium">Starts in</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {exams.map((e) => (
+                      <tr key={e.subject} className="border-b border-slate-100 last:border-0">
+                        <td className="py-3.5 font-medium">{e.subject}</td>
+                        <td className="py-3.5">{fmtDate(e.date)}</td>
+                        <td className="py-3.5">{e.time}</td>
+                        <td className="py-3.5">{e.venue}</td>
+                        <td className="py-3.5 text-right">
+                          <span className="rounded-full bg-[#f5b800]/20 px-3 py-1 text-xs font-semibold text-[#7a5a00]">
+                            {daysLeft(e.date)} days
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <Button as={Link} to="/student/fees" variant="secondary" size="sm">
-                View fees
-              </Button>
-            </Card>
+            )}
+          </Card>
 
-            <Card className="flex items-center gap-4 p-5">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-eromza-info">
-                <Award size={20} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-eromza-text">
-                  Current SGPA{" "}
-                  {latestResult?.sgpa == null
-                    ? "not set"
-                    : Number(latestResult.sgpa).toFixed(2)}
-                </p>
-                <p className="mt-1 text-xs text-eromza-muted">
-                  {latestResult
-                    ? `${resultLines.length} subjects in your latest published result.`
-                    : "Your result will appear here once published."}
+          {/* Today's classes */}
+          <Card title="Today's classes">
+            {classes.length === 0 ? (
+              <p className="text-sm text-slate-500">No classes scheduled today.</p>
+            ) : (
+              <ul className="space-y-3">
+                {classes.map((c) => (
+                  <li
+                    key={c.time}
+                    className="flex items-center gap-4 rounded-xl border border-slate-200 p-4"
+                  >
+                    <div className="flex w-24 shrink-0 items-center gap-1.5 text-sm font-semibold text-[#16285a]">
+                      <Clock size={15} />
+                      {c.time}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{c.subject}</p>
+                      <p className="text-xs text-slate-500">{c.teacher}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                      <MapPin size={14} />
+                      {c.room}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+
+        {/* ---------------- Right column ---------------- */}
+        <div className="space-y-6">
+          {/* Quick actions */}
+          <Card title="Quick actions">
+            <div className="grid grid-cols-2 gap-3">
+              {quickActions.map(({ label, icon: Icon, to }) => (
+                <button
+                  key={to}
+                  onClick={() => onNavigate(to)}
+                  className="group flex flex-col items-start gap-3 rounded-xl border border-slate-200 p-4 text-left text-sm font-medium transition-colors hover:border-[#16285a] hover:bg-[#16285a] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#16285a]"
+                >
+                  <Icon size={22} strokeWidth={1.8} className="text-[#8b0f1f] group-hover:text-[#f5b800]" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Fee summary */}
+          <Card
+            title="Fee summary"
+            action="Pay now"
+            onAction={() => onNavigate("payments/pay-pending-fee")}
+          >
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-xs text-slate-500">Paid so far</p>
+                <p
+                  className="text-2xl font-bold text-[#16285a]"
+                  style={{ fontFamily: "'Playfair Display', serif" }}
+                >
+                  {money(fees.paid)}
                 </p>
               </div>
-              <Button as={Link} to="/student/results" variant="secondary" size="sm">
-                View results
-              </Button>
-            </Card>
-          </div>
-        </>
-      )}
+              <p className="text-sm text-slate-500">of {money(fees.total)}</p>
+            </div>
+            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-[#c9971c]"
+                style={{ width: `${pct(fees.paid, fees.total)}%` }}
+              />
+            </div>
+            <p className="mt-3 text-sm">
+              {pending > 0 ? (
+                <>
+                  <span className="font-semibold text-[#8b0f1f]">{money(pending)}</span> still pending
+                </>
+              ) : (
+                <span className="font-semibold text-emerald-700">All fees are paid</span>
+              )}
+            </p>
+          </Card>
+
+          {/* Notices */}
+          <Card title="Latest notices" action="All notices" onAction={() => onNavigate("notices")}>
+            <ul className="divide-y divide-slate-100">
+              {notices.map((n) => (
+                <li key={n.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#16285a]/10 text-[#16285a]">
+                    <Megaphone size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-snug">{n.title}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {n.tag} · {fmtDate(n.date)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      </div>
     </div>
+  );
+}
+
+/* ----------------------------- Card wrapper ----------------------------- */
+function Card({ title, action, onAction, children }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <h2
+          className="text-lg font-bold text-[#16285a]"
+          style={{ fontFamily: "'Playfair Display', serif" }}
+        >
+          {title}
+        </h2>
+        {action && (
+          <button
+            onClick={onAction}
+            className="flex items-center gap-1 text-sm font-medium text-[#8b0f1f] hover:underline"
+          >
+            {action}
+            <ArrowRight size={15} />
+          </button>
+        )}
+      </div>
+      {children}
+    </section>
   );
 }
