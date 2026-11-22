@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import { pathToFileURL } from 'node:url';
 import env from '../src/config/env.js';
 import '../src/models/index.js';
+import AcademicYear from '../src/models/AcademicYear.js';
+import Counter from '../src/models/Counter.js';
 import Enrollment from '../src/models/Enrollment.js';
 import Payment from '../src/models/Payment.js';
 import ExamForm from '../src/models/ExamForm.js';
@@ -76,14 +78,24 @@ function paymentBackfills(payments, forms) {
   return { backfills, mismatches };
 }
 
-function examFormLinkMismatches(forms, payments) {
+function examFormLinkMismatches(forms, payments, allForms = forms) {
   const paymentsById = new Map(payments.map((payment) => [String(payment._id), payment]));
+  const formsById = new Map(allForms.map((form) => [String(form._id), form]));
   const mismatches = [];
+  const reportedPayments = new Set();
   for (const form of forms) {
     if (!form.paymentId) continue;
     const payment = paymentsById.get(String(form.paymentId));
     if (payment && String(payment.examFormId) !== String(form._id)) {
       mismatches.push({ examFormId: form._id, paymentId: form.paymentId, reason: 'ExamForm.paymentId disagrees with Payment.examFormId' });
+      reportedPayments.add(String(payment._id));
+    }
+  }
+  for (const payment of payments) {
+    if (reportedPayments.has(String(payment._id)) || !payment.examFormId) continue;
+    const form = formsById.get(String(payment.examFormId));
+    if (!form || !form.paymentId || String(form.paymentId) !== String(payment._id)) {
+      mismatches.push({ paymentId: payment._id, examFormId: payment.examFormId, reason: 'Payment.examFormId does not point back to this payment' });
     }
   }
   return mismatches;
@@ -122,7 +134,7 @@ async function main() {
 
   console.log(`Mode: ${apply ? 'APPLY' : 'DRY RUN'}`);
   console.log('Dry run is the default. Re-run with --apply to make changes.');
-  await mongoose.connect(env.mongodbUri, { serverSelectionTimeoutMS: 10000 });
+  await mongoose.connect(env.mongodbUri, { autoIndex: false, serverSelectionTimeoutMS: 10000 });
 
   try {
     const enrollmentRows = await Enrollment.find({ status: ENROLLMENT_STATUS.ENROLLED })
@@ -161,18 +173,25 @@ async function main() {
       if (apply) await Enrollment.collection.dropIndex(legacyIndex.name);
     }
 
+    const years = await AcademicYear.find({}).select('label').lean();
+    console.log(`\nCounters: ${years.length} academic year(s) to seed`);
+    for (const year of years) {
+      console.log(`  ensure receipt/application/enrollment counters for ${year.label}`);
+      if (apply) await Counter.seedForYear(year.label);
+    }
+
     const examPayments = await Payment.find({
       purpose: PAYMENT_PURPOSE.EXAM,
       $or: [{ examFormId: { $exists: false } }, { examFormId: null }],
     }).select('_id examFormId').lean();
-    const formsWithPayment = await ExamForm.find({ paymentId: { $exists: true, $ne: null } })
-      .select('_id paymentId').lean();
+    const allForms = await ExamForm.find({}).select('_id paymentId').lean();
+    const formsWithPayment = allForms.filter((form) => form.paymentId);
     const paymentResult = paymentBackfills(examPayments, formsWithPayment);
     const linkedPayments = await Payment.find({
       purpose: PAYMENT_PURPOSE.EXAM,
       examFormId: { $exists: true, $ne: null },
     }).select('_id examFormId').lean();
-    const linkMismatches = examFormLinkMismatches(formsWithPayment, linkedPayments);
+    const linkMismatches = examFormLinkMismatches(formsWithPayment, linkedPayments, allForms);
 
     console.log(`\nPayment/ExamForm: ${paymentResult.backfills.length} backfill(s), ${paymentResult.mismatches.length + linkMismatches.length} mismatch(es)`);
     for (const item of paymentResult.backfills) {

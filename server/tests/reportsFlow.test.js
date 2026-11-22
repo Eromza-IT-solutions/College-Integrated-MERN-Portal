@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import AuditLog from '../src/models/AuditLog.js';
 import Application from '../src/models/Application.js';
 import Payment from '../src/models/Payment.js';
@@ -29,7 +29,7 @@ const superAdmin = () => appFor({ id: id(), role: 'superAdmin' });
 const hod = (dept) => appFor({ id: id(), role: 'hod', departmentId: dept });
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri(), { dbName: 'reports_test' });
   await prepareDatabase();
   w = await buildWorld();

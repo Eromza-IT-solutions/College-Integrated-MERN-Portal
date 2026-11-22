@@ -2,7 +2,7 @@ import request from 'supertest';
 import express from 'express';
 import session from 'express-session';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import { readFileSync } from 'fs';
 import app from '../src/app.js';
 import { createSessionMiddleware } from '../src/config/session.js';
@@ -44,7 +44,7 @@ const users = {};
 
 beforeAll(async () => {
   process.env.LOGIN_ID_HASH_SECRET = 'a-long-test-secret-for-hashing';
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri());
   await Permission.insertMany(matrix);
   clearPermissionCache();

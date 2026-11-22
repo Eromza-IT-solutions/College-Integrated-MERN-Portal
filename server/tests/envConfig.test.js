@@ -11,6 +11,9 @@ const watchedKeys = [
   'SESSION_SECRET',
   'RATE_LIMIT_HASH_SECRET',
   'LOGIN_ID_HASH_SECRET',
+  'FIELD_ENCRYPTION_KEY',
+  'FIELD_ENCRYPTION_KEY_ID',
+  'FIELD_ENCRYPTION_PREVIOUS_KEYS',
   'PAYMENT_GATEWAY',
   'PAYMENT_KEY_ID',
   'PAYMENT_KEY_SECRET',
@@ -26,12 +29,15 @@ const validProductionPayment = {
   PAYMENT_WEBHOOK_SECRET: 'valid-webhook-secret-for-tests',
 };
 
+const validFieldEncryptionKey = Buffer.alloc(32, 7).toString('base64');
+
 const baseEnv = {
   NODE_ENV: 'production',
   MONGODB_URI: 'mongodb://127.0.0.1:1/unused',
   SESSION_SECRET: 'session-secret-long-enough-for-env-tests-0123456789',
   RATE_LIMIT_HASH_SECRET: 'rate-limit-hash-secret-long-enough-for-env-tests',
   LOGIN_ID_HASH_SECRET: 'login-id-hash-secret-long-enough',
+  FIELD_ENCRYPTION_KEY: validFieldEncryptionKey,
   ...validProductionPayment,
 };
 
@@ -41,7 +47,7 @@ function loadEnv(vars = {}) {
   Object.assign(childEnv, baseEnv, vars);
   for (const key of Object.keys(childEnv)) if (childEnv[key] === undefined) delete childEnv[key];
 
-  const script = "import('./src/config/env.js').then((m) => console.log('CONFIG=' + JSON.stringify({ gateway: m.default.payment.gateway, intervalMs: m.default.jobs.paymentReconciliationIntervalMs, minAgeMs: m.default.jobs.paymentReconciliationMinAgeMs, loginIdHashSecretConfigured: Boolean(m.default.loginIdHashSecret) })))";
+  const script = "import('./src/config/env.js').then((m) => console.log('CONFIG=' + JSON.stringify({ gateway: m.default.payment.gateway, intervalMs: m.default.jobs.paymentReconciliationIntervalMs, minAgeMs: m.default.jobs.paymentReconciliationMinAgeMs, loginIdHashSecretConfigured: Boolean(m.default.loginIdHashSecret), fieldEncryptionKeyConfigured: Boolean(m.default.fieldEncryptionKey) })))";
   try {
     const stdout = execFileSync(process.execPath, ['--input-type=module', '-e', script], {
       cwd: serverDir,
@@ -63,6 +69,7 @@ describe('startup environment validation', () => {
     expect(result.stdout).toContain('"intervalMs":900000');
     expect(result.stdout).toContain('"minAgeMs":1800000');
     expect(result.stdout).toContain('"loginIdHashSecretConfigured":true');
+    expect(result.stdout).toContain('"fieldEncryptionKeyConfigured":true');
   });
 
   test('PAYMENT_GATEWAY is required outside tests', () => {
@@ -121,5 +128,51 @@ describe('startup environment validation', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toMatch(/LOGIN_ID_HASH_SECRET must be at least 16 characters/);
     expect(result.stderr).not.toContain(shortSecret);
+  });
+
+  test('FIELD_ENCRYPTION_KEY is required outside tests', () => {
+    const result = loadEnv({ FIELD_ENCRYPTION_KEY: undefined });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(/FIELD_ENCRYPTION_KEY is required/);
+  });
+
+  test('short FIELD_ENCRYPTION_KEY is refused without printing its value', () => {
+    const shortKey = Buffer.alloc(16, 3).toString('base64');
+    const result = loadEnv({ FIELD_ENCRYPTION_KEY: shortKey });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(/FIELD_ENCRYPTION_KEY must be 32 bytes encoded as base64/);
+    expect(result.stderr).not.toContain(shortKey);
+  });
+
+  test('malformed FIELD_ENCRYPTION_KEY is refused without printing its value', () => {
+    const badKey = 'this-is-not-canonical-base64-at-all!!';
+    const result = loadEnv({ FIELD_ENCRYPTION_KEY: badKey });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(/FIELD_ENCRYPTION_KEY must be exactly 32 bytes encoded as standard base64/);
+    expect(result.stderr).not.toContain(badKey);
+  });
+
+  test('FIELD_ENCRYPTION_KEY_ID accepts a short label', () => {
+    const result = loadEnv({ FIELD_ENCRYPTION_KEY_ID: 'v2' });
+    expect(result.code).toBe(0);
+  });
+
+  test('malformed FIELD_ENCRYPTION_KEY_ID is refused', () => {
+    const result = loadEnv({ FIELD_ENCRYPTION_KEY_ID: 'bad id!' });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(/FIELD_ENCRYPTION_KEY_ID must be 1-32 letters/);
+  });
+
+  test('valid previous keys are accepted and invalid ones are refused without printing values', () => {
+    const oldKey = Buffer.alloc(32, 9).toString('base64');
+    expect(loadEnv({
+      FIELD_ENCRYPTION_KEY_ID: 'v2',
+      FIELD_ENCRYPTION_PREVIOUS_KEYS: JSON.stringify({ v1: oldKey }),
+    }).code).toBe(0);
+
+    const result = loadEnv({ FIELD_ENCRYPTION_PREVIOUS_KEYS: '{"v1":"not-a-key"}' });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(/FIELD_ENCRYPTION_PREVIOUS_KEYS contains an invalid key ID or key/);
+    expect(result.stderr).not.toContain('not-a-key');
   });
 });

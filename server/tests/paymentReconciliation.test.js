@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import '../src/models/index.js';
 import Application from '../src/models/Application.js';
 import AcademicYear from '../src/models/AcademicYear.js';
@@ -14,7 +14,7 @@ let mongod;
 let year;
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri(), { dbName: 'reconciliation_test' });
   await Promise.all([Application.init(), AcademicYear.init(), AuditLog.init(), Payment.init()]);
 }, 180000);

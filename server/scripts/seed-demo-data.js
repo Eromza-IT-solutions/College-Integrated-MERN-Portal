@@ -19,6 +19,7 @@ import { hashPassword } from '../src/utils/password.js';
 import Role from '../src/models/Role.js';
 import Department from '../src/models/Department.js';
 import AcademicYear from '../src/models/AcademicYear.js';
+import Counter from '../src/models/Counter.js';
 import User from '../src/models/User.js';
 import Teacher from '../src/models/Teacher.js';
 
@@ -98,10 +99,9 @@ export async function seed() {
 
   // 3. the current academic year (only one year can be current)
   const alreadyCurrent = await AcademicYear.findOne({ isCurrent: true });
-  if (!alreadyCurrent) {
-    await AcademicYear.create(currentAcademicYear());
-    added.academicYear = 1;
-  }
+  const year = alreadyCurrent || await AcademicYear.create(currentAcademicYear());
+  if (!alreadyCurrent) added.academicYear = 1;
+  await Counter.seedForYear(year.label);
 
   // 4. demo users and teacher profiles
   const { password, generated } = pickPassword();

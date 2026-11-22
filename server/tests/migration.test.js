@@ -74,6 +74,17 @@ describe('migration helpers', () => {
     expect(mismatches[0].reason).toMatch(/disagrees/);
   });
 
+  test('examFormLinkMismatches reports a payment whose exam form does not point back', () => {
+    const paymentId = '65c000000000000000000002';
+    const examFormId = '65d000000000000000000002';
+    const allForms = [{ _id: examFormId }];
+    const payments = [{ _id: paymentId, examFormId }];
+
+    const mismatches = examFormLinkMismatches([], payments, allForms);
+    expect(mismatches).toHaveLength(1);
+    expect(mismatches[0].reason).toMatch(/does not point back/);
+  });
+
   test('refundBackfills uses the newest audit log and reports missing ids', () => {
     const refunds = [
       { _id: '65e000000000000000000001' },

@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import mongoose from 'mongoose';
 import MongoStore from 'connect-mongo';
 import app from '../src/app.js';
@@ -80,7 +80,7 @@ describe('session flow (real MongoDB store)', () => {
   let startError = null;
   beforeAll(async () => {
     try {
-      mongod = await MongoMemoryServer.create();
+      mongod = await createTestMongo();
       await mongoose.connect(mongod.getUri());
     } catch (err) {
       startError = err; // e.g. the MongoDB binary could not be downloaded

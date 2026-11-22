@@ -6,7 +6,8 @@ import env from './env.js';
 mongoose.set('strictQuery', true);
 
 async function connect() {
-  await mongoose.connect(env.mongodbUri, { serverSelectionTimeoutMS: 10000 });
+  // Indexes are created by `npm run sync:indexes` during deployment, never implicitly at startup.
+  await mongoose.connect(env.mongodbUri, { autoIndex: false, serverSelectionTimeoutMS: 10000 });
 }
 
 async function connectDatabase() {

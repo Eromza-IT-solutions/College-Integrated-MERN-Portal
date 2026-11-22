@@ -2,7 +2,7 @@ import request from 'supertest';
 import express from 'express';
 import session from 'express-session';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import { createSessionMiddleware } from '../src/config/session.js';
 import { requestId } from '../src/middleware/requestId.js';
 import { errorHandler } from '../src/middleware/errorHandler.js';
@@ -41,7 +41,7 @@ let sequence = 0;
 const email = () => `applicant${++sequence}@demo.example`;
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri());
 }, 120000);
 afterAll(async () => {

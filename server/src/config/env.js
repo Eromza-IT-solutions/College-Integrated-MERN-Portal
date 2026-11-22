@@ -8,6 +8,9 @@ const nodeEnv = process.env.NODE_ENV || 'development';
 const inTests = nodeEnv === 'test';
 const inProduction = nodeEnv === 'production';
 const allowedGatewayNames = [...PAYMENT_GATEWAY_VALUES].sort();
+const KEY_ID = /^[A-Za-z0-9_-]{1,32}$/;
+const validDataKey = (text) => typeof text === 'string' && Buffer.from(text, 'base64').length === 32
+  && Buffer.from(text, 'base64').toString('base64') === text;
 
 function requiredText(label, min, message) {
   let schema = z.string({ required_error: `${label} is required`, invalid_type_error: `${label} must be text` })
@@ -42,6 +45,11 @@ const envSchema = z.object({
   LOGIN_ID_HASH_SECRET: inTests
     ? optionalText('LOGIN_ID_HASH_SECRET')
     : requiredText('LOGIN_ID_HASH_SECRET', 16, 'LOGIN_ID_HASH_SECRET must be at least 16 characters.'),
+  FIELD_ENCRYPTION_KEY: inTests
+    ? optionalText('FIELD_ENCRYPTION_KEY')
+    : requiredText('FIELD_ENCRYPTION_KEY', 44, 'FIELD_ENCRYPTION_KEY must be 32 bytes encoded as base64.'),
+  FIELD_ENCRYPTION_KEY_ID: optionalText('FIELD_ENCRYPTION_KEY_ID', 1, 'FIELD_ENCRYPTION_KEY_ID must be 1-32 letters, digits, _ or -.', 'v1'),
+  FIELD_ENCRYPTION_PREVIOUS_KEYS: optionalText('FIELD_ENCRYPTION_PREVIOUS_KEYS').default('{}'),
   PAYMENT_GATEWAY: inTests
     ? optionalText('PAYMENT_GATEWAY', 0, undefined, PAYMENT_GATEWAY.FAKE)
     : requiredText('PAYMENT_GATEWAY'),
@@ -65,6 +73,58 @@ const envSchema = z.object({
       path: ['RATE_LIMIT_HASH_SECRET'],
       message: 'RATE_LIMIT_HASH_SECRET is required in production (at least 32 characters).',
     });
+  }
+
+  if (config.FIELD_ENCRYPTION_KEY) {
+    const decoded = Buffer.from(config.FIELD_ENCRYPTION_KEY, 'base64');
+    if (decoded.length !== 32 || decoded.toString('base64') !== config.FIELD_ENCRYPTION_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['FIELD_ENCRYPTION_KEY'],
+        message: 'FIELD_ENCRYPTION_KEY must be exactly 32 bytes encoded as standard base64.',
+      });
+    }
+  }
+
+  if (!KEY_ID.test(config.FIELD_ENCRYPTION_KEY_ID)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['FIELD_ENCRYPTION_KEY_ID'],
+      message: 'FIELD_ENCRYPTION_KEY_ID must be 1-32 letters, digits, _ or -.',
+    });
+  }
+
+  let previousKeys;
+  try {
+    previousKeys = JSON.parse(config.FIELD_ENCRYPTION_PREVIOUS_KEYS || '{}');
+  } catch {
+    previousKeys = null;
+  }
+  if (!previousKeys || Array.isArray(previousKeys) || typeof previousKeys !== 'object') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['FIELD_ENCRYPTION_PREVIOUS_KEYS'],
+      message: 'FIELD_ENCRYPTION_PREVIOUS_KEYS must be a JSON object of key IDs to base64 keys.',
+    });
+  } else {
+    for (const [id, value] of Object.entries(previousKeys)) {
+      if (!KEY_ID.test(id) || !validDataKey(value)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['FIELD_ENCRYPTION_PREVIOUS_KEYS'],
+          message: 'FIELD_ENCRYPTION_PREVIOUS_KEYS contains an invalid key ID or key (values are never printed).',
+        });
+        break;
+      }
+      if (id === config.FIELD_ENCRYPTION_KEY_ID) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['FIELD_ENCRYPTION_PREVIOUS_KEYS'],
+          message: 'FIELD_ENCRYPTION_PREVIOUS_KEYS must not repeat the current FIELD_ENCRYPTION_KEY_ID.',
+        });
+        break;
+      }
+    }
   }
 
   if (!PAYMENT_GATEWAY_VALUES.includes(config.PAYMENT_GATEWAY)) {
@@ -111,6 +171,9 @@ const watchedKeys = [
   'SESSION_SECRET',
   'RATE_LIMIT_HASH_SECRET',
   'LOGIN_ID_HASH_SECRET',
+  'FIELD_ENCRYPTION_KEY',
+  'FIELD_ENCRYPTION_KEY_ID',
+  'FIELD_ENCRYPTION_PREVIOUS_KEYS',
   'PAYMENT_GATEWAY',
   'PAYMENT_KEY_ID',
   'PAYMENT_KEY_SECRET',
@@ -135,6 +198,7 @@ if (!parsed.success) {
 }
 
 const config = parsed.data;
+const fieldEncryptionPreviousKeys = JSON.parse(config.FIELD_ENCRYPTION_PREVIOUS_KEYS || '{}');
 
 const rateLimitHashSecret =
   config.RATE_LIMIT_HASH_SECRET ||
@@ -158,6 +222,10 @@ export default {
   mongodbUri: config.MONGODB_URI,
   sessionSecret: config.SESSION_SECRET,
   loginIdHashSecret: config.LOGIN_ID_HASH_SECRET,
+  fieldEncryptionKey: config.FIELD_ENCRYPTION_KEY
+    || crypto.createHash('sha256').update('eromza:field-encryption:test-only').digest('base64'),
+  fieldEncryptionKeyId: config.FIELD_ENCRYPTION_KEY_ID,
+  fieldEncryptionPreviousKeys,
   rateLimitHashSecret,
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
 

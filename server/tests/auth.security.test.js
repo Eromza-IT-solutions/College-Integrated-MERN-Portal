@@ -4,7 +4,7 @@ import request from 'supertest';
 import express from 'express';
 import session from 'express-session';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import env from '../src/config/env.js';
 import { createSessionMiddleware } from '../src/config/session.js';
 import { requestId } from '../src/middleware/requestId.js';
@@ -61,7 +61,7 @@ const dbUser = (id) => User.findById(id);
 const strip = (body) => ({ ...body, meta: undefined }); // compare answers without the per-request id
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri());
   hash = await hashPassword(PASSWORD);
 }, 120000);
