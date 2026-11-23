@@ -1,161 +1,50 @@
-import { useState } from "react";
-import { Bell, CheckCircle2, MailOpen, Megaphone } from "lucide-react";
-import ActivityFeed from "../../components/common/ActivityFeed";
-import Badge from "../../components/ui/Badge";
-import Button from "../../components/ui/Button";
-import Card, { CardBody, CardHeader } from "../../components/ui/Card";
-import PageHeader from "../../components/ui/PageHeader";
-import Select from "../../components/ui/Select";
-import StatCard from "../../components/ui/StatCard";
-import { teacherNotices, teacherUpdates } from "../../mocks/teacherData";
+import { useMemo, useState } from "react";
+import { Search, Pin, CheckCheck, Megaphone } from "lucide-react";
+import { Card, Pill, Empty, PageShell, useTeacher, fmt } from "./TeacherShared";
 
-const ACTIVITY_ICONS = {
-  attendance: CheckCircle2,
-  marks: CheckCircle2,
-  calendar: Megaphone,
-  notice: Bell,
-};
+const CATS = ["All", "Exam", "Admin", "Events", "Holiday"];
+const TONE = { Exam: "red", Admin: "blue", Events: "gold", Holiday: "green" };
 
-export default function Updates() {
-  const [notices, setNotices] = useState(teacherNotices);
-  const [filter, setFilter] = useState("all");
+export default function TeacherNotices() {
+  const { notices, readNotices, markRead, markAllRead } = useTeacher();
+  const [cat, setCat] = useState("All");
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(null);
 
-  const filteredNotices =
-    filter === "all"
-      ? notices
-      : notices.filter((notice) => notice.read === (filter === "read"));
+  const list = useMemo(() => notices.filter((n) => (cat === "All" || n.category === cat) && `${n.title} ${n.body}`.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.date.localeCompare(a.date)), [notices, cat, q]);
+  const unread = notices.filter((n) => !readNotices.has(n.id)).length;
 
-  const unread = notices.filter((notice) => !notice.read).length;
-  const highPriority = notices.filter(
-    (notice) => notice.priority === "High",
-  ).length;
-
-  const toggleRead = (noticeId) => {
-    setNotices((current) =>
-      current.map((notice) =>
-        notice.id === noticeId ? { ...notice, read: !notice.read } : notice,
-      ),
-    );
-  };
-
-  const markAllRead = () => {
-    setNotices((current) =>
-      current.map((notice) => ({ ...notice, read: true })),
-    );
-  };
+  const toggle = (n) => { setOpen(open === n.id ? null : n.id); markRead(n.id); };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Teaching workspace"
-        title="Updates"
-        description="Review department notices, examination updates, and recent teaching activity."
-        actions={
-          <Button variant="secondary" onClick={markAllRead} disabled={!unread}>
-            <MailOpen size={16} />
-            Mark all read
-          </Button>
-        }
-      />
+    <PageShell title="Notices" section="Notices" chip={unread ? `${unread} unread` : "All read"}>
+      <Card title="College notices" action={unread > 0 && <button type="button" className="mini" onClick={markAllRead}><CheckCheck size={14} /> Mark all as read</button>}>
+        <div className="filters">
+          <label className="search"><Search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search notices…" aria-label="Search notices" /></label>
+        </div>
+        <div className="chips" style={{ marginBottom: 18 }} role="tablist" aria-label="Category">
+          {CATS.map((c) => <button key={c} type="button" role="tab" aria-selected={cat === c} className={cat === c ? "on" : ""} onClick={() => setCat(c)} style={{ flexDirection: "row", padding: "8px 16px" }}><b>{c}</b></button>)}
+        </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Total updates"
-          value={String(notices.length)}
-          tone="info"
-          icon={Bell}
-        />
-        <StatCard
-          label="Unread"
-          value={String(unread)}
-          tone="warning"
-          icon={MailOpen}
-        />
-        <StatCard
-          label="High priority"
-          value={String(highPriority)}
-          tone="accent"
-          icon={Megaphone}
-        />
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
-        <Card>
-          <CardHeader
-            title="Notices and updates"
-            description="Messages from the department and examination office"
-            action={
-              <Select
-                aria-label="Filter updates"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                className="min-w-[150px]"
-              >
-                <option value="all">All updates</option>
-                <option value="unread">Unread</option>
-                <option value="read">Read</option>
-              </Select>
-            }
-          />
-          <CardBody className="space-y-3">
-            {filteredNotices.map((notice) => (
-              <div
-                key={notice.id}
-                className={`rounded-xl border p-4 ${
-                  notice.read
-                    ? "border-eromza-border"
-                    : "border-rose-200 bg-rose-50/40"
-                }`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="neutral">{notice.category}</Badge>
-                      <Badge
-                        variant={notice.priority === "High" ? "accent" : "warning"}
-                      >
-                        {notice.priority}
-                      </Badge>
-                      {!notice.read ? <Badge variant="info">Unread</Badge> : null}
-                    </div>
-                    <p className="mt-2 text-sm font-semibold leading-5 text-eromza-text">
-                      {notice.title}
-                    </p>
-                    <p className="mt-1 text-[11px] text-eromza-subtle">
-                      {notice.date}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-eromza-muted">
-                      {notice.body}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleRead(notice.id)}
-                  >
-                    {notice.read ? "Mark unread" : "Mark read"}
-                  </Button>
-                </div>
-              </div>
-            ))}
-            {!filteredNotices.length ? (
-              <p className="py-8 text-center text-xs text-eromza-subtle">
-                No updates match this filter.
-              </p>
-            ) : null}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Recent activity"
-            description="Latest actions in your teaching workspace"
-          />
-          <CardBody>
-            <ActivityFeed items={teacherUpdates} icons={ACTIVITY_ICONS} />
-          </CardBody>
-        </Card>
-      </div>
-    </div>
+        {list.length ? (
+          <div className="news">
+            {list.map((n) => {
+              const isOpen = open === n.id;
+              const body = isOpen || n.body.length < 140 ? n.body : n.body.slice(0, 140).replace(/\s+\S*$/, "") + "…";
+              return (
+                <article key={n.id} className={"note" + (readNotices.has(n.id) ? "" : " unread")}>
+                  <h4>{n.pinned && <Pin size={14} style={{ color: "#9b1230" }} aria-label="Pinned" />}{n.title}{!readNotices.has(n.id) && <Pill tone="red">New</Pill>}</h4>
+                  <div className="meta"><Pill tone={TONE[n.category]}>{n.category}</Pill><span>{n.from}</span><span>{fmt(n.date)}</span></div>
+                  <p>{body}</p>
+                  {n.body.length >= 140 && <button type="button" className="mini" style={{ marginTop: 10 }} onClick={() => toggle(n)}>{isOpen ? "Show less" : "Read more"}</button>}
+                  {n.body.length < 140 && !readNotices.has(n.id) && <button type="button" className="mini" style={{ marginTop: 10 }} onClick={() => markRead(n.id)}>Mark as read</button>}
+                </article>
+              );
+            })}
+          </div>
+        ) : <Empty icon={Megaphone}>No notices found.</Empty>}
+      </Card>
+    </PageShell>
   );
 }

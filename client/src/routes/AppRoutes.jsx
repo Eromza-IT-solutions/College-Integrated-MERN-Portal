@@ -12,6 +12,8 @@ import WebsiteAdminLayout from "../features/admin/website/WebsiteAdminLayout";
 import AdmissionAdminLayout from "../features/admin/admission/AdmissionAdminLayout";
 import StudentLayout from "../features/student/StudentLayout";
 import ProtectedRoute from "./ProtectedRoute";
+import TeacherLayout from "../features/teacher/TeacherLayout";
+import { TeacherProvider } from "../features/teacher/TeacherShared";
 
 // Roles that have their own original layout (sidebar + topbar).
 // Any role not listed here falls back to the shared AppLayout.
@@ -20,6 +22,7 @@ const ROLE_LAYOUTS = {
   websiteAdmin: WebsiteAdminLayout,
   admissionAdmin: AdmissionAdminLayout,
   student: StudentLayout,
+ teacher: TeacherRouteLayout,
 };
 
 const HomePage = lazy(() => import("../features/public-website/HomePage"));
@@ -144,14 +147,35 @@ const TeacherClasses = lazy(
   () => import("../features/teacher/MyClasses"),
 );
 const TeacherAttendance = lazy(
-  () => import("../features/teacher/Attendance"),
+  () => import("../features/teacher/AttendanceReport"),
 );
-const TeacherMarks = lazy(() => import("../features/teacher/Marks"));
+
+const TeacherInternalMarks = lazy(
+  () => import("../features/teacher/InternalMarks")
+);
 const TeacherTimetable = lazy(
   () => import("../features/teacher/Timetable"),
 );
 const TeacherUpdates = lazy(
   () => import("../features/teacher/Updates"),
+);
+const TeacherDefaulters = lazy(
+  () => import("../features/teacher/DefaulterList")
+);
+const TeacherExamDuty = lazy(
+  () => import("../features/teacher/ExamDuty")
+);
+const TeacherExamResults = lazy(
+  () => import("../features/teacher/ExamResults")
+);
+const TeacherAssignments = lazy(
+  () => import("../features/teacher/Assignments")
+);
+const TeacherApplyLeave = lazy(
+  () => import("../features/teacher/ApplyLeave")
+);
+const TeacherLeaveStatus = lazy(
+  () => import("../features/teacher/LeaveStatus")
 );
 const StudentDashboard = lazy(
   () => import("../features/student/StudentDashboard"),
@@ -241,13 +265,19 @@ const ROLE_PAGES = {
     attendance: DepartmentAttendance,
     reports: DepartmentReports,
   },
-  teacher: {
-    classes: TeacherClasses,
-    attendance: TeacherAttendance,
-    marks: TeacherMarks,
-    timetable: TeacherTimetable,
-    updates: TeacherUpdates,
-  },
+ teacher: {
+  classes: TeacherClasses,
+  "attendance/report": TeacherAttendance,
+  "attendance/defaulters": TeacherDefaulters,
+  timetable: TeacherTimetable,
+  "examinations/internal-marks": TeacherInternalMarks,
+  "examinations/duty": TeacherExamDuty,
+  "examinations/results": TeacherExamResults,
+  "material/assignments": TeacherAssignments,
+  "leave/apply": TeacherApplyLeave,
+  "leave/status": TeacherLeaveStatus,
+  notices: TeacherUpdates,
+},
   student: {
     profile: StudentProfile,
     attendance: StudentAttendance,
@@ -290,7 +320,15 @@ const ROLE_ROUTES = [
   { role: "student", path: "/student", dashboard: StudentDashboard },
   { role: "applicant", path: "/applicant", dashboard: ApplicantDashboard },
 ];
+function TeacherRouteLayout() {
+  const { user } = useAuth();
 
+  return (
+    <TeacherProvider teacher={user}>
+      <TeacherLayout teacher={user} />
+    </TeacherProvider>
+  );
+}
 function RoleRedirect() {
   const { user, loading } = useAuth();
   if (loading) return null;
