@@ -1,5 +1,16 @@
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useApiData } from "../../../hooks/useApiData";
+import {
+  displayStatus,
+  fetchContent,
+  fetchContentItem,
+  formatShortDate,
+  publishContent,
+  removeContent,
+  saveContent,
+  unpublishContent,
+} from "../../../services/websiteApi";
 import {
   FileText,
   Plus,
@@ -21,57 +32,21 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+// A website page as this screen shows it, made from the stored content item.
+const toPage = (item) => ({
+  id: item.id,
+  title: item.title,
+  category: item.category || "Other",
+  description: item.body ?? item.summary ?? "",
+  status: displayStatus(item) === "Draft" ? "Draft" : "Published",
+  updated: formatShortDate(item.updatedAt || item.publishedAt),
+  raw: item,
+});
+
 function ManageContent() {
-  const [pages, setPages] = useState([
-    {
-      id: 1,
-      title: "Home Page",
-      category: "Main Pages",
-      description: "Main college website landing page and introduction.",
-      status: "Published",
-      updated: "14 Nov 2026",
-    },
-    {
-      id: 2,
-      title: "About College",
-      category: "Main Pages",
-      description: "College history, vision, mission and information.",
-      status: "Published",
-      updated: "12 Nov 2026",
-    },
-    {
-      id: 3,
-      title: "Departments",
-      category: "Academic",
-      description: "Information about departments and courses.",
-      status: "Published",
-      updated: "10 Nov 2026",
-    },
-    {
-      id: 4,
-      title: "Admission Information",
-      category: "Academic",
-      description: "Admission guidelines, eligibility and process.",
-      status: "Draft",
-      updated: "09 Nov 2026",
-    },
-    {
-      id: 5,
-      title: "Contact Us",
-      category: "Information",
-      description: "College address, contact details and location.",
-      status: "Published",
-      updated: "07 Nov 2026",
-    },
-    {
-      id: 6,
-      title: "Events & Activities",
-      category: "Information",
-      description: "College events, activities and celebrations.",
-      status: "Draft",
-      updated: "05 Nov 2026",
-    },
-  ]);
+  const { data, loading, error, reload } = useApiData(() => fetchContent("page"));
+  const pages = useMemo(() => (data?.items ?? []).map(toPage), [data]);
+  const [saving, setSaving] = useState(false);
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
@@ -116,71 +91,86 @@ function ManageContent() {
     setShowModal(true);
   };
 
-  const openEditModal = (page) => {
-    setEditingId(page.id);
+  // The list carries only a short summary; load the full text before editing or previewing.
+  const withFullText = async (page) => {
+    try {
+      return toPage(await fetchContentItem(page.id));
+    } catch {
+      return page;
+    }
+  };
+
+  const openEditModal = async (page) => {
+    const full = await withFullText(page);
+    setEditingId(full.id);
     setFormData({
-      title: page.title,
-      category: page.category,
-      description: page.description,
-      status: page.status,
+      title: full.title,
+      category: full.category,
+      description: full.description,
+      status: full.status,
     });
     setShowModal(true);
   };
 
-  const handleSave = (e) => {
+  const openPreview = async (page) => setPreviewPage(await withFullText(page));
+
+  const handleSave = async (e) => {
     e.preventDefault();
 
-    if (!formData.title.trim()) return;
+    if (!formData.title.trim() || saving) return;
 
-    const currentDate = new Date().toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    const description = formData.description.trim();
+    const current = pages.find((page) => page.id === editingId)?.raw;
 
-    if (editingId) {
-      setPages((prev) =>
-        prev.map((page) =>
-          page.id === editingId
-            ? { ...page, ...formData, updated: currentDate }
-            : page
-        )
-      );
-    } else {
-      setPages((prev) => [
-        {
-          id: Date.now(),
-          ...formData,
-          updated: currentDate,
+    setSaving(true);
+    try {
+      await saveContent({
+        id: editingId,
+        type: "page",
+        current,
+        fields: {
+          title: formData.title.trim(),
+          category: formData.category,
+          summary: description.slice(0, 500),
+          body: description,
         },
-        ...prev,
-      ]);
+        want: formData.status === "Published" ? "published" : "draft",
+      });
+      setShowModal(false);
+    } catch (err) {
+      window.alert(err.message);
+    } finally {
+      setSaving(false);
+      reload();
     }
-
-    setShowModal(false);
   };
 
-  const togglePublish = (id) => {
-    setPages((prev) =>
-      prev.map((page) =>
-        page.id === id
-          ? {
-              ...page,
-              status:
-                page.status === "Published" ? "Draft" : "Published",
-            }
-          : page
-      )
-    );
+  const togglePublish = async (id) => {
+    const page = pages.find((item) => item.id === id);
+    if (!page) return;
+    try {
+      if (page.status === "Published") await unpublishContent(id);
+      else await publishContent(id);
+    } catch (err) {
+      window.alert(err.message);
+    } finally {
+      reload();
+    }
   };
 
-  const deletePage = (id) => {
+  const deletePage = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this page?"
     );
 
-    if (confirmed) {
-      setPages((prev) => prev.filter((page) => page.id !== id));
+    if (!confirmed) return;
+    const page = pages.find((item) => item.id === id);
+    try {
+      await removeContent(page.raw);
+    } catch (err) {
+      window.alert(err.message);
+    } finally {
+      reload();
     }
   };
 
@@ -439,7 +429,7 @@ function ManageContent() {
 
                       <button
                         title="Preview"
-                        onClick={() => setPreviewPage(page)}
+                        onClick={() => openPreview(page)}
                         className="rounded-lg p-2 text-gray-500 transition hover:bg-blue-50 hover:text-blue-700"
                       >
                         <Eye size={17} />
@@ -482,10 +472,18 @@ function ManageContent() {
                       className="mx-auto mb-3 text-gray-300"
                     />
                     <p className="font-bold text-[#142B50]">
-                      No pages found
+                      {loading
+                        ? "Loading pages..."
+                        : error
+                          ? "Could not load pages"
+                          : "No pages found"}
                     </p>
                     <p className="mt-1 text-xs text-gray-400">
-                      Try another search or change the filter.
+                      {error
+                        ? error.message
+                        : loading
+                          ? "Please wait."
+                          : "Try another search or change the filter."}
                     </p>
                   </td>
                 </tr>
@@ -613,6 +611,7 @@ function ManageContent() {
 
                 <button
                   type="submit"
+                  disabled={saving}
                   className="flex items-center gap-2 rounded-xl bg-[#A00018] px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#780013]"
                 >
                   <Save size={17} />

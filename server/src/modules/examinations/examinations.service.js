@@ -9,6 +9,7 @@ import { isInScope } from '../../utils/scope.js';
 import { auditSafe } from '../../services/auditService.js';
 import { EXAM_STATUS } from '../../utils/constants.js';
 import { both, clean, isStudent, skipOf, studentOfActor } from '../academics/academics.helpers.js';
+import { checkEligibility } from './eligibility.js';
 
 async function programOrThrow(programId) {
   const program = await Program.findById(programId);
@@ -145,6 +146,41 @@ async function availableExams(req) {
   return exams.map((exam) => ({ ...exam, form: byExam.get(String(exam._id)) || null }));
 }
 
+// Every published exam of the student's own class, each marked eligible or not, with the reasons.
+async function examEligibility(req) {
+  const student = await studentOfActor(req);
+  const now = new Date();
+  const exams = await Exam.find({
+    programId: student.programId,
+    semester: student.currentSemester,
+    status: { $ne: EXAM_STATUS.DRAFT },
+  }).sort({ formClosesAt: -1 }).lean();
+
+  const forms = await ExamForm.find({
+    studentId: student._id,
+    examId: { $in: exams.map((exam) => exam._id) },
+  }).select('examId status').lean();
+  const byExam = new Map(forms.map((form) => [String(form.examId), form]));
+
+  return {
+    student: {
+      enrollmentNumber: student.enrollmentNumber,
+      currentSemester: student.currentSemester,
+      status: student.status,
+    },
+    exams: exams.map((exam) => ({
+      _id: exam._id,
+      name: exam.name,
+      semester: exam.semester,
+      status: exam.status,
+      formOpensAt: exam.formOpensAt,
+      formClosesAt: exam.formClosesAt,
+      ...checkEligibility(student, exam, now),
+      form: byExam.get(String(exam._id)) || null,
+    })),
+  };
+}
+
 async function startForm(req, examId) {
   const student = await studentOfActor(req);
   const form = await ExamForm.start({ examId, studentId: student._id });
@@ -200,7 +236,7 @@ async function listForms(req, query) {
       .sort({ createdAt: -1 })
       .skip(skipOf(query))
       .limit(query.limit)
-      .select('examId studentId details status feeAmountPaise submittedAt decidedAt decisionNote')
+      .select('examId studentId details subjects status feeAmountPaise submittedAt decidedAt decisionNote')
       .lean(),
     ExamForm.countDocuments(filter),
   ]);
@@ -254,6 +290,7 @@ export {
   updateExam,
   referenceData,
   availableExams,
+  examEligibility,
   startForm,
   getForm,
   listForms,
