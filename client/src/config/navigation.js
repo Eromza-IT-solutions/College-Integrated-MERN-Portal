@@ -33,6 +33,7 @@ export const navigationByRole = Object.freeze({
     { label: "Admin Panels", to: "/super-admin/admin-panels", icon: LayoutGrid },
     { label: "Reports & Analytics", to: "/super-admin/reports", icon: BarChart3 },
     { label: "Audit Logs", to: "/super-admin/audit-logs", icon: ScrollText },
+    { label: "Academic Data", to: "/super-admin/academic-data", icon: BookOpen },
     { label: "System Settings", to: "/super-admin/settings", icon: Settings },
   ],
   websiteAdmin: [

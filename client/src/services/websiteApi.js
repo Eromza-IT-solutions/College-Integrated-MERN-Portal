@@ -73,6 +73,26 @@ export async function fetchPublicContent(type, params = {}) {
   return dataOf(response);
 }
 
+/** One published item with its full text (for example a notice or a page, found by its slug). */
+export async function fetchPublicItem(type, slug) {
+  const response = await http.get(`/website/public/${type}/${encodeURIComponent(slug)}`);
+  return dataOf(response);
+}
+
+/** Notices for signed-in people (students, teachers ...), including the members-only ones. */
+export async function fetchMemberNotices(params = {}) {
+  const response = await http.get("/website/members/notices", {
+    params: { limit: 50, ...params },
+  });
+  return dataOf(response);
+}
+
+/** One of those notices with its full text. */
+export async function fetchMemberNotice(slug) {
+  const response = await http.get(`/website/members/notices/${encodeURIComponent(slug)}`);
+  return dataOf(response);
+}
+
 // ---- helpers shared by the admin pages ----
 
 /** "Published" / "Scheduled" / "Draft" / "Archived" as the pages show it. */

@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CalendarClock, ClipboardList, FileCheck, Ticket } from "lucide-react";
 import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
 import Card, { CardHeader } from "../../components/ui/Card";
 import DataTable from "../../components/ui/Table";
 import ErrorState from "../../components/ui/ErrorState";
@@ -8,8 +9,10 @@ import Loader from "../../components/ui/Loader";
 import PageHeader from "../../components/ui/PageHeader";
 import StatCard from "../../components/ui/StatCard";
 import { useApiData } from "../../hooks/useApiData";
+import ExamFormModal from "./ExamFormModal";
 import {
   fetchAvailableExams,
+  fetchExamEligibility,
   fetchExamForms,
   fetchHallTickets,
   fetchStudentOverview,
@@ -23,11 +26,13 @@ function loadExaminations() {
     fetchAvailableExams(),
     fetchExamForms(),
     fetchHallTickets(),
-  ]).then(([overview, available, forms, tickets]) => ({
+    fetchExamEligibility(),
+  ]).then(([overview, available, forms, tickets, eligibility]) => ({
     overview,
     available,
     forms,
     tickets,
+    eligibility,
   }));
 }
 
@@ -59,6 +64,43 @@ const scheduleColumns = [
         {formatStatus(row.status)}
       </Badge>
     ),
+  },
+];
+
+const eligibilityColumns = [
+  {
+    key: "exam",
+    header: "Examination",
+    render: (row) => (
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold text-eromza-text">{row.exam}</p>
+        <p className="mt-1 text-[11px] text-eromza-subtle">Form: {row.window}</p>
+      </div>
+    ),
+  },
+  {
+    key: "eligible",
+    header: "Eligibility",
+    render: (row) => (
+      <Badge variant={row.eligible ? "success" : "warning"}>
+        {row.eligible ? "Eligible" : "Not eligible"}
+      </Badge>
+    ),
+  },
+  {
+    key: "reason",
+    header: "Details",
+    render: (row) => <span className="text-xs text-eromza-muted">{row.reason}</span>,
+  },
+  {
+    key: "form",
+    header: "Your form",
+    render: (row) =>
+      row.formStatus ? (
+        <Badge variant={getStatusVariant(row.formStatus)}>{formatStatus(row.formStatus)}</Badge>
+      ) : (
+        <span className="text-xs text-eromza-muted">Not started</span>
+      ),
   },
 ];
 
@@ -107,6 +149,7 @@ const formColumns = [
 
 export default function Examinations() {
   const { data, loading, error, reload } = useApiData(loadExaminations);
+  const [activeExam, setActiveExam] = useState(null); // the exam whose form is open in the popup
 
   const scheduleRows = useMemo(() => {
     const subjectOf = new Map(
@@ -135,6 +178,42 @@ export default function Examinations() {
       )
       .sort((a, b) => new Date(a.dateValue) - new Date(b.dateValue));
   }, [data]);
+
+  const eligibilityRows = useMemo(
+    () =>
+      (data?.eligibility?.exams ?? []).map((exam) => ({
+        id: exam._id,
+        exam: exam.name,
+        window: `${formatDate(exam.formOpensAt)} to ${formatDate(exam.formClosesAt)}`,
+        eligible: exam.eligible,
+        reason: exam.eligible
+          ? "You can fill the exam form."
+          : exam.reasons.map((reason) => reason.message).join(" "),
+        formStatus: exam.form?.status ?? null,
+        raw: exam,
+      })),
+    [data],
+  );
+
+  const actionColumn = {
+    key: "action",
+    header: "Action",
+    render: (row) => {
+      if (!row.eligible && !row.formStatus) {
+        return <span className="text-xs text-eromza-muted">-</span>;
+      }
+      const label = !row.formStatus
+        ? "Start form"
+        : row.formStatus === "draft" || row.formStatus === "pendingPayment"
+          ? "Continue form"
+          : "View form";
+      return (
+        <Button size="sm" variant="secondary" onClick={() => setActiveExam(row.raw)}>
+          {label}
+        </Button>
+      );
+    },
+  };
 
   const formRows = useMemo(() => {
     const examOf = new Map(
@@ -225,6 +304,20 @@ export default function Examinations() {
 
           <Card>
             <CardHeader
+              title="Exam eligibility"
+              description="Whether you can fill the exam form for each examination in your class"
+            />
+            <DataTable
+              columns={[...eligibilityColumns, actionColumn]}
+              rows={eligibilityRows}
+              getRowKey={(row) => row.id}
+              emptyTitle="No examinations yet"
+              emptyDescription="Examinations for your class will appear here once the exam office publishes them."
+            />
+          </Card>
+
+          <Card>
+            <CardHeader
               title="Exam schedule"
               description="Scheduled papers for the open examinations in your class"
             />
@@ -252,6 +345,11 @@ export default function Examinations() {
           </Card>
         </>
       )}
+      <ExamFormModal
+        exam={activeExam}
+        onClose={() => setActiveExam(null)}
+        onChanged={reload}
+      />
     </div>
   );
 }
