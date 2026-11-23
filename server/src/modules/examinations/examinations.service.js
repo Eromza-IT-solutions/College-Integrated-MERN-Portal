@@ -200,7 +200,7 @@ async function listForms(req, query) {
       .sort({ createdAt: -1 })
       .skip(skipOf(query))
       .limit(query.limit)
-      .select('examId studentId details status feeAmountPaise submittedAt decidedAt decisionNote')
+      .select('examId studentId details subjects status feeAmountPaise submittedAt decidedAt decisionNote')
       .lean(),
     ExamForm.countDocuments(filter),
   ]);

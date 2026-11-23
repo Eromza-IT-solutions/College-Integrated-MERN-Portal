@@ -13,7 +13,10 @@ const enrollmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// A student is enrolled in a subject once per semester.
-enrollmentSchema.index({ studentId: 1, subjectId: 1, semester: 1 }, { unique: true });
+// A student can have only one ACTIVE enrollment in a subject per semester. Dropped rows are kept as history.
+enrollmentSchema.index(
+  { studentId: 1, subjectId: 1, semester: 1, status: 1 },
+  { unique: true, name: 'uniq_enrollment_active', partialFilterExpression: { status: ENROLLMENT_STATUS.ENROLLED } }
+);
 
 export default mongoose.model('Enrollment', enrollmentSchema);

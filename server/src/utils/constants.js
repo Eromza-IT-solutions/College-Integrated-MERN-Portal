@@ -131,14 +131,18 @@ export const DOCUMENT_RULES = Object.freeze({ mimeTypes: ['image/jpeg', 'image/p
 
 
 // ---- Website content (notices, events, news, gallery, pages) ----
-export const WEBSITE_CONTENT_TYPE = Object.freeze({"NOTICE": "notice", "EVENT": "event", "NEWS": "news", "GALLERY": "gallery", "PAGE": "page"});
+export const WEBSITE_CONTENT_TYPE = Object.freeze({"NOTICE": "notice", "EVENT": "event", "NEWS": "news", "GALLERY": "gallery", "PAGE": "page", "DEPARTMENT": "department", "COURSE": "course", "FACULTY": "faculty", "DOCUMENT": "document"});
 export const WEBSITE_CONTENT_TYPE_VALUES = Object.values(WEBSITE_CONTENT_TYPE);
 export const WEBSITE_CONTENT_STATUS = Object.freeze({"DRAFT": "draft", "PUBLISHED": "published", "ARCHIVED": "archived"});
 export const WEBSITE_CONTENT_STATUS_VALUES = Object.values(WEBSITE_CONTENT_STATUS);
 // Which permission-matrix resource governs each type. Notices have their own rows; the rest use "publicPages".
-// (Events, news and gallery are not named in the signed-off matrix; they are treated as public pages until the team says otherwise.)
-export const WEBSITE_CONTENT_RESOURCE = Object.freeze({"notice": "notices", "event": "publicPages", "news": "publicPages", "gallery": "publicPages", "page": "publicPages"});
-export const WEBSITE_LIMITS = Object.freeze({ titleMax: 200, summaryMax: 500, bodyMax: 20000, attachmentsMax: 10, imagesMax: 60, slugMax: 80 });
+// (Events, news, gallery, documents and the website's department / course / faculty profiles are not named in the signed-off
+// matrix; they are public website content and are treated as public pages until the team says otherwise. The academic
+// Department / Program / Teacher records stay with the Super Admin and are never changed from the website panel.)
+export const WEBSITE_CONTENT_RESOURCE = Object.freeze({"notice": "notices", "event": "publicPages", "news": "publicPages", "gallery": "publicPages", "page": "publicPages", "department": "publicPages", "course": "publicPages", "faculty": "publicPages", "document": "publicPages"});
+// Structured profiles: their details live in "meta", so they need no long text before publishing.
+export const WEBSITE_PROFILE_TYPES = Object.freeze(["department", "course", "faculty"]);
+export const WEBSITE_LIMITS = Object.freeze({ titleMax: 200, summaryMax: 500, bodyMax: 20000, attachmentsMax: 10, imagesMax: 60, slugMax: 80, categoryMax: 80, metaKeysMax: 30, metaValueMax: 2000, uploadMaxBytes: 10 * 1024 * 1024 });
 
 // ---- Fees and payments ----
 // ---- Programs ----

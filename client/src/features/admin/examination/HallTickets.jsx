@@ -36,7 +36,7 @@ import { formatStatus, getStatusVariant } from "../../../utils/status";
 import "../../../assets/styles/aisc-premium.css";
 
 const EMPTY_EDIT = {
-  seatNo: "",
+  seatNumber: "",
   room: "",
   status: "issued",
 };
@@ -68,7 +68,7 @@ export default function HallTickets() {
     const search = query.trim().toLowerCase();
     if (!search) return list;
     return list.filter((ticket) =>
-      [ticket.studentName, ticket.enrollmentNumber, ticket.seatNo, ticket.room]
+      [ticket.fullName, ticket.enrollmentNumber, ticket.seatNumber, ticket.room]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(search)),
     );
@@ -84,7 +84,7 @@ export default function HallTickets() {
   const openEdit = (ticket) => {
     setEditing(ticket);
     setEditForm({
-      seatNo: ticket.seatNo || "",
+      seatNumber: ticket.seatNumber || "",
       room: ticket.room || "",
       status: ticket.status || "issued",
     });
@@ -107,7 +107,7 @@ export default function HallTickets() {
     try {
       const result = await generateHallTickets(activeExam._id, { overwrite });
       setMessage(
-        `Generated ${result.generated ?? result.tickets?.length ?? 0} hall ticket(s).`,
+        `Generated ${result.created ?? 0} ticket(s), updated ${result.updated ?? 0}, skipped ${result.skipped ?? 0}.`,
       );
       setGenerateOpen(false);
       setOverwrite(false);
@@ -122,7 +122,7 @@ export default function HallTickets() {
 
   const handleUpdate = async () => {
     if (!editing) return;
-    if (!editForm.seatNo.trim() || !editForm.room.trim()) {
+    if (!editForm.seatNumber.trim() || !editForm.room.trim()) {
       setError("Seat number and room are required.");
       return;
     }
@@ -132,7 +132,7 @@ export default function HallTickets() {
     setMessage("");
     try {
       await updateHallTicket(editing._id, {
-        seatNo: editForm.seatNo.trim(),
+        seatNumber: editForm.seatNumber.trim(),
         room: editForm.room.trim(),
         status: editForm.status,
       });
@@ -150,9 +150,9 @@ export default function HallTickets() {
     downloadCsv("aisc-hall-tickets.csv", [
       ["Student", "Enrollment", "Seat", "Room", "Status", "Issued"],
       ...ticketRows.map((ticket) => [
-        ticket.studentName,
+        ticket.fullName,
         ticket.enrollmentNumber,
-        ticket.seatNo,
+        ticket.seatNumber,
         ticket.room,
         ticket.status,
         ticket.issuedAt,
@@ -166,7 +166,7 @@ export default function HallTickets() {
       header: "Student",
       render: (ticket) => (
         <div>
-          <div className="aisc-table-primary">{ticket.studentName}</div>
+          <div className="aisc-table-primary">{ticket.fullName}</div>
           <div className="aisc-table-secondary">{ticket.enrollmentNumber}</div>
         </div>
       ),
@@ -188,7 +188,7 @@ export default function HallTickets() {
       header: "Seat / Room",
       render: (ticket) => (
         <div>
-          <div className="font-bold text-[#14264B]">{ticket.seatNo || "Not allotted"}</div>
+          <div className="font-bold text-[#14264B]">{ticket.seatNumber || "Not allotted"}</div>
           <div className="aisc-table-secondary">{ticket.room || "Room not set"}</div>
         </div>
       ),
@@ -418,7 +418,7 @@ export default function HallTickets() {
         open={editOpen}
         onClose={closeEdit}
         title="Edit Hall Ticket"
-        description={editing ? `${editing.studentName} · ${editing.enrollmentNumber}` : undefined}
+        description={editing ? `${editing.fullName} · ${editing.enrollmentNumber}` : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={closeEdit}>Cancel</Button>
@@ -438,9 +438,9 @@ export default function HallTickets() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               label="Seat number *"
-              value={editForm.seatNo}
+              value={editForm.seatNumber}
               onChange={(event) => {
-                setEditForm((current) => ({ ...current, seatNo: event.target.value }));
+                setEditForm((current) => ({ ...current, seatNumber: event.target.value }));
                 setError("");
               }}
             />

@@ -16,7 +16,7 @@ const paymentSchema = new Schema(
     academicYearId: { type: Schema.Types.ObjectId, ref: 'AcademicYear', required: true },
     feeStructureId: { type: Schema.Types.ObjectId, ref: 'FeeStructure', required: true },
     applicationId: { type: Schema.Types.ObjectId, ref: 'Application', index: true }, // for admission payments
-    examFormId: { type: Schema.Types.ObjectId, index: true }, // for exam payments (exam form model comes later)
+    examFormId: { type: Schema.Types.ObjectId, ref: 'ExamForm', index: true }, // for exam payments
 
     amountPaise: {
       type: Number,

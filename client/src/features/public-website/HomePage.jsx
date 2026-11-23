@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useApiData } from "../../hooks/useApiData";
+import { fetchPublicContent } from "../../services/websiteApi";
 import {
   GraduationCap,
   BookOpen,
@@ -370,6 +372,16 @@ function MobileSub({ n, onPick }) {
 
 /* ───────────── PAGE ───────────── */
 export default function CollegeHome() {
+  // Published notices and news from the website admin; the built-in lines are shown until there are some.
+  const { data: liveNews } = useApiData(() =>
+    Promise.all([
+      fetchPublicContent("notice", { limit: 10 }),
+      fetchPublicContent("news", { limit: 10 }),
+    ])
+      .then(([notices, news]) => [...(notices?.items ?? []), ...(news?.items ?? [])].map((item) => item.title))
+      .catch(() => [])
+  );
+  const tickerNews = liveNews && liveNews.length ? liveNews : NEWS;
   const [menu, setMenu] = useState(false);
   const [slide, setSlide] = useState(0);
   const [cycle, setCycle] = useState(0);
@@ -640,7 +652,7 @@ export default function CollegeHome() {
         </div>
         <div className="relative flex-1 overflow-hidden py-2.5">
           <div className="ticker-track flex w-max gap-12 whitespace-nowrap text-xs">
-            {[...NEWS, ...NEWS, ...NEWS, ...NEWS].map((n, i) => (
+            {[...tickerNews, ...tickerNews, ...tickerNews, ...tickerNews].map((n, i) => (
               <span key={i}>● {n}</span>
             ))}
           </div>

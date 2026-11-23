@@ -1,26 +1,36 @@
 import env from '../../config/env.js';
-import { PAYMENT_GATEWAY } from '../../utils/constants.js';
+import { PAYMENT_GATEWAY, PAYMENT_GATEWAY_VALUES, RAZORPAY } from '../../utils/constants.js';
 import { createFakeGateway } from './fakeGateway.js';
 import { createRazorpayGateway } from './razorpayGateway.js';
 
-// One place that decides which gateway the server talks to. Everything else asks for getGateway()
-// and never knows whether it is the fake one or Razorpay.
-//   PAYMENT_GATEWAY=fake       (default) no keys needed
-//   PAYMENT_GATEWAY=razorpay   needs PAYMENT_KEY_ID, PAYMENT_KEY_SECRET, PAYMENT_WEBHOOK_SECRET
 let cached = null;
 
-function buildGateway(config = env.payment) {
+const allowedGatewayNames = [...PAYMENT_GATEWAY_VALUES].sort();
+
+const credentialNames = {
+  keyId: 'PAYMENT_KEY_ID',
+  keySecret: 'PAYMENT_KEY_SECRET',
+  webhookSecret: 'PAYMENT_WEBHOOK_SECRET',
+};
+
+function buildGateway(config = env.payment, activeNodeEnv = env.nodeEnv) {
+  if (!PAYMENT_GATEWAY_VALUES.includes(config.gateway)) {
+    throw new Error(`PAYMENT_GATEWAY must be one of: ${allowedGatewayNames.join(', ')}`);
+  }
+
   if (config.gateway === PAYMENT_GATEWAY.RAZORPAY) {
-    const missing = ['keyId', 'keySecret', 'webhookSecret'].filter((k) => !config[k]);
-    if (missing.length) throw new Error(`PAYMENT_GATEWAY=razorpay but these are missing in .env: ${missing.join(', ')}`);
-    if (!config.keyId.startsWith('rzp_test_')) throw new Error('Only Razorpay TEST keys (rzp_test_...) are allowed: this demo takes no real money');
+    const missing = Object.keys(credentialNames).filter((key) => !config[key]).map((key) => credentialNames[key]);
+    if (missing.length) throw new Error(`PAYMENT_GATEWAY=razorpay but ${missing.join(', ')} missing`);
+    if (typeof config.keyId !== 'string' || !config.keyId.startsWith(RAZORPAY.testKeyPrefix)) {
+      throw new Error(`PAYMENT_KEY_ID must start with ${RAZORPAY.testKeyPrefix}`);
+    }
     return createRazorpayGateway(config);
   }
-  if (config.gateway === PAYMENT_GATEWAY.FAKE) {
-    if (env.nodeEnv === 'production') throw new Error('The fake payment gateway cannot be used when NODE_ENV=production');
-    return createFakeGateway();
+
+  if (activeNodeEnv === 'production') {
+    throw new Error('PAYMENT_GATEWAY=fake is not allowed when NODE_ENV=production');
   }
-  throw new Error(`Unknown PAYMENT_GATEWAY "${config.gateway}"`);
+  return createFakeGateway();
 }
 
 function getGateway() {
@@ -28,7 +38,6 @@ function getGateway() {
   return cached;
 }
 
-/** Tests can put in their own gateway (or null to forget it). */
 function setGatewayForTests(gateway) {
   cached = gateway;
 }
