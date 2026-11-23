@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, AlertCircle, X } from "lucide-react";
-import { fetchMemberNotices } from "../../services/websiteApi";
 
 /* ------------------------------------------------------------------ */
 /* Routes — same paths as TEACHER_MENU in TeacherSidebar.jsx           */
@@ -158,24 +157,14 @@ const DEFAULT_PAPERS = [
   { id: "p2", classId: "c3", exam: "Internal Test", set: "Set A", submittedOn: "2026-11-10", status: "Under review", file: { name: "CS303_Internal_SetA.pdf", size: 148, url: "" }, remark: "" },
 ];
 
-// Notices come from the server (GET /website/members/notices). Which ones were read is remembered in this browser only.
-const READ_KEY = "eromza.readNotices";
-const loadRead = () => {
-  try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]")); } catch { return new Set(); }
-};
-const saveRead = (ids) => {
-  try { localStorage.setItem(READ_KEY, JSON.stringify([...ids])); } catch { /* storage blocked: the page still works */ }
-};
-const toNotice = (n) => ({
-  id: n.id,
-  slug: n.slug,
-  title: n.title,
-  category: n.category || "General",
-  date: n.publishedAt,
-  pinned: Boolean(n.isPinned),
-  from: n.meta?.audience || "College office",
-  body: n.summary || "", // the list has only the summary; Updates loads the full text on "Read more"
-});
+const DEFAULT_NOTICES = [
+  { id: "n1", title: "Semester end examination — invigilation duty chart", category: "Exam", date: "2026-11-20", pinned: true, from: "Examination Department", body: "The invigilation duty chart for the Semester End Examinations (30 Nov – 12 Dec) has been published. All teachers are requested to acknowledge their duty from the Exam Duty page and report 30 minutes before the start of each paper." },
+  { id: "n2", title: "Submission of internal marks", category: "Exam", date: "2026-11-18", pinned: true, from: "Examination Department", body: "Internal marks for all semesters must be submitted through the portal on or before 5 December 2026. Marks once submitted cannot be edited." },
+  { id: "n3", title: "Staff meeting on Friday", category: "Admin", date: "2026-11-17", pinned: false, from: "Principal's Office", body: "A staff meeting will be held on Friday at 3:30 PM in the conference room to discuss the academic calendar for the next semester." },
+  { id: "n4", title: "NAAC data collection — action required", category: "Admin", date: "2026-11-12", pinned: false, from: "IQAC", body: "Departments are requested to upload the supporting documents for the AQAR before the end of the month. Contact the IQAC coordinator for the format." },
+  { id: "n5", title: "Annual Gathering — volunteers needed", category: "Events", date: "2026-11-10", pinned: false, from: "Cultural Committee", body: "Faculty members who wish to volunteer for the Annual Gathering may give their names to the Cultural Committee by 28 November." },
+  { id: "n6", title: "Holiday on account of Id-e-Milad", category: "Holiday", date: "2026-10-24", pinned: false, from: "Principal's Office", body: "The college will remain closed on the occasion of Id-e-Milad. Regular lectures resume the next working day." },
+];
 
 const DEFAULT_MATERIALS = [
   { id: "m1", classId: "c1", title: "Unit 3 — Trees and Graphs (notes)", type: "Notes", description: "Handwritten notes with solved examples.", date: "2026-11-14", file: { name: "DS_Unit3_Notes.pdf", size: 640, url: "" }, link: "" },
@@ -228,15 +217,8 @@ export function TeacherProvider({ children, teacher: initial = DEFAULT_TEACHER, 
   const [papers, setPapers] = useState(DEFAULT_PAPERS);
   const [materials, setMaterials] = useState(DEFAULT_MATERIALS);
   const [assignments, setAssignments] = useState(seedAssignments);
-  const [notices, setNotices] = useState([]);
-  const [readNotices, setReadNotices] = useState(loadRead);
-  useEffect(() => {
-    let alive = true;
-    fetchMemberNotices({ limit: 100 })
-      .then((data) => { if (alive) setNotices((data?.items ?? []).map(toNotice)); })
-      .catch(() => { /* leave the list empty; the page shows "No notices found" */ });
-    return () => { alive = false; };
-  }, []);
+  const [notices] = useState(DEFAULT_NOTICES);
+  const [readNotices, setReadNotices] = useState(() => new Set(["n3", "n4", "n5", "n6"]));
   const [reminded, setReminded] = useState({});
   const now = useNow();
   const save = (what, payload) => onSave?.(what, payload);
@@ -254,8 +236,8 @@ export function TeacherProvider({ children, teacher: initial = DEFAULT_TEACHER, 
     removeMaterial: (id) => setMaterials((x) => x.filter((m) => m.id !== id)),
     addAssignment: (a) => { setAssignments((x) => [a, ...x]); save("assignment", a); },
     gradeAssignment: (aid, sid, mk) => setAssignments((x) => x.map((a) => (a.id === aid ? { ...a, subs: { ...a.subs, [sid]: { ...a.subs[sid], marks: mk } } } : a))),
-    markRead: (id) => setReadNotices((s) => { const next = new Set(s).add(id); saveRead(next); return next; }),
-    markAllRead: () => setReadNotices((s) => { const next = new Set([...s, ...notices.map((n) => n.id)]); saveRead(next); return next; }),
+    markRead: (id) => setReadNotices((s) => new Set(s).add(id)),
+    markAllRead: () => setReadNotices(new Set(notices.map((n) => n.id))),
     remind: (key) => setReminded((r) => ({ ...r, [key]: true })),
   // eslint-disable-next-line
   }), [teacher, attendance, marks, marksLocked, leaves, duties, papers, materials, assignments, notices, readNotices, reminded, now]);
