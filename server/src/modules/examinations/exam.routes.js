@@ -4,7 +4,7 @@ import { requirePermission } from '../../middleware/requirePermission.js';
 import { ok, paged } from '../academics/academics.helpers.js';
 import { examBody, examUpdateBody, examQuery, formQuery, referenceQuery, hallTicketGenerateBody, idParam, parse } from './examinations.validation.js';
 import {
-  createExam, listExams, getExam, updateExam, referenceData, availableExams, startForm, listForms,
+  createExam, listExams, getExam, updateExam, referenceData, availableExams, examEligibility, startForm, listForms,
 } from './examinations.service.js';
 import { generateTickets, listTickets } from './hallTickets.service.js';
 
@@ -17,6 +17,10 @@ router.get('/', requirePermission('exams', 'view'), asyncHandler(async (req, res
 
 router.get('/available', requirePermission('examForms', 'create'), asyncHandler(async (req, res) => {
   ok(req, res, await availableExams(req));
+}));
+
+router.get('/eligibility', requirePermission('examForms', 'create'), asyncHandler(async (req, res) => {
+  ok(req, res, await examEligibility(req));
 }));
 
 router.get('/reference', requirePermission('exams', 'view'), asyncHandler(async (req, res) => {

@@ -33,6 +33,12 @@ const AboutPage = lazy(
 const ExaminationPage = lazy(
   () => import("../features/public-website/pages/Examination")
 );
+const NoticeBoardPage = lazy(() =>
+  import("../features/public-website/pages/PublicContent").then((m) => ({ default: m.NoticeBoardPage }))
+);
+const ContentDetailPage = lazy(() =>
+  import("../features/public-website/pages/PublicContent").then((m) => ({ default: m.ContentDetailPage }))
+);
 const ProspectusPage = lazy(
   () => import("../features/public-website/pages/Prospectus")
 );
@@ -73,6 +79,7 @@ const AdminPanels = lazy(
 );
 const Reports = lazy(() => import("../features/admin/super/ReportsAnalytics"));
 const AuditLogs = lazy(() => import("../features/admin/super/AuditLogs"));
+const AcademicData = lazy(() => import("../features/admin/super/AcademicData"));
 const Settings = lazy(() => import("../features/admin/super/SystemSettings"));
 const WebsiteAdminDashboard = lazy(
   () => import("../features/admin/website/WebsiteAdminDashboard"),
@@ -239,6 +246,7 @@ const ROLE_PAGES = {
     "admin-panels": AdminPanels,
     reports: Reports,
     "audit-logs": AuditLogs,
+    "academic-data": AcademicData,
     settings: Settings,
   },
   websiteAdmin: {
@@ -354,6 +362,9 @@ export default function AppRoutes() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/examination" element={<ExaminationPage />} />
         <Route path="/prospectus" element={<ProspectusPage />} />
+        <Route path="/notices" element={<NoticeBoardPage />} />
+        <Route path="/notices/:type/:slug" element={<ContentDetailPage />} />
+        <Route path="/pages/:slug" element={<ContentDetailPage fixedType="page" />} />
         <Route
   path="/student-instructions"
   element={<StudentInstructionsPage />}

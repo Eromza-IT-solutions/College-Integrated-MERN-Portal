@@ -107,6 +107,11 @@ function buildRouter() {
     ok(res, await listVisible({ type: 'notice', includeMembersOnly: true, query: req.query }));
   }));
 
+  // One notice with its full text, including the members-only ones (the public /public/:type/:slug hides those).
+  router.get('/members/notices/:slug', requirePermission('notices', 'view'), asyncHandler(async (req, res) => {
+    ok(res, await getVisible({ type: 'notice', slug: req.params.slug, includeMembersOnly: true }));
+  }));
+
   // ---- editors ----
   router.get('/content', permit('update', 'query'), asyncHandler(async (req, res) => {
     ok(res, await listForEditor({ type: req.query.type, status: req.query.status, scopeFilter: scopeFilter(req, opts), query: req.query }));

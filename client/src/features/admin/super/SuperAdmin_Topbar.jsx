@@ -11,6 +11,7 @@ const PAGE_TITLES = {
   "/settings": "System Settings",
   "/reports": "Reports & Analytics",
   "/audit-logs": "Audit Logs",
+  "/academic-data": "Academic Data",
 };
 
 export default function SuperAdmin_Topbar() {

@@ -122,7 +122,7 @@ items: [
     pos: "right",
     items: [
       { label: "Examination", href: "/examination" },
-      { label: "Notices / Circulars", href: "/examination" },
+      { label: "Notices / Circulars", href: "/notices" },
       { label: "Exam Fee Waiver Notice 2026–27", href: `${SITE}/assets/pdf/Exam_Fee_Waiver_Notice_2026-27.pdf`, hint: "Drought-affected talukas (PDF)" },
     ],
   },
