@@ -1,63 +1,70 @@
+
+import { useState } from "react";
+import { Menu } from "lucide-react";
 import { useLocation } from "react-router-dom";
-import { Bell, ChevronDown } from "lucide-react";
 
-import adminAvatar from "../../assets/images/website-admin-avatar.png";
+import NotificationBell from "./NotificationBell";
+import ProfileDropdown from "./ProfileDropdown";
+import SearchInput from "../ui/SearchInput";
 
-function CHeader() 
-{
+export default function CHeader({ onMenuClick, navItems = [] }) {
+  const [query, setQuery] = useState("");
   const location = useLocation();
 
-const pageTitles = {
-  "/website-admin/dashboard": "College Website Admin Dashboard",
-  "/website-admin/content": "Manage Website Content",
-  "/website-admin/departments": "Departments & Courses",
-  "/website-admin/faculty": "Faculty Profiles",
-  "/website-admin/gallery": "Gallery & Documents",
-  "/website-admin/notices": "Notices & Announcements",
-};
+  const currentItem = navItems.find(
+    (item) =>
+      location.pathname === item.to ||
+      location.pathname.startsWith(`${item.to}/`),
+  );
 
-const pageTitle =
-  pageTitles[location.pathname] || "College Website Admin";
+  const pageTitle = currentItem?.label ?? "Dashboard";
+
   return (
-    
-    <header className="fixed left-[220px] right-0 top-0 z-40 flex h-[68px] items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
+    <header
+      className={`sticky top-0 z-20 border-b border-eromza-border bg-white/95 backdrop-blur ${
+        ""
+      }`}
+    >
+      <div
+        className={`flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8 ${
+          ""
+        }`}
+      >
+        {/* Mobile Menu */}
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-eromza-muted transition hover:bg-eromza-bg hover:text-eromza-text lg:hidden"
+          aria-label="Open navigation"
+        >
+          <Menu size={20} />
+        </button>
 
-      {/* Page Title */}
-      <h1 className="text-xl font-bold text-[#102D4F]">
-  {pageTitle}
-</h1>
+        {/* Page Title */}
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-eromza-subtle">
+            Abeda Inamdar Senior College
+          </p>
 
-      {/* Right Section */}
-      <div className="flex items-center gap-5">
+          <h1 className="truncate text-sm font-semibold text-eromza-text sm:text-base">
+            {pageTitle}
+          </h1>
+        </div>
+
+        {/* Search */}
+        <SearchInput
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search records..."
+          className="hidden w-64 md:flex"
+        />
 
         {/* Notification */}
-        <button className="relative text-[#102D4F] transition hover:text-[#C9253D]">
-          <Bell size={20} />
+        <NotificationBell />
 
-          <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500" />
-        </button>
-
-        {/* Admin Profile */}
-        <button className="flex items-center gap-2">
-
-          <img
-            src={adminAvatar}
-            alt="Website Admin"
-            className="h-9 w-9 rounded-full border border-gray-200 object-cover"
-          />
-
-          <span className="text-sm font-semibold text-[#102D4F]">
-            Website Admin
-          </span>
-
-          <ChevronDown size={16} className="text-gray-500" />
-
-        </button>
-
+        {/* Profile */}
+        <ProfileDropdown />
       </div>
-
     </header>
   );
 }
-
-export default CHeader;
