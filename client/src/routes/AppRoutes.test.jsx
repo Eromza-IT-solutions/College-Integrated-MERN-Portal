@@ -115,7 +115,8 @@ describe("super admin secondary routes", () => {
 
   it("renders the reports route", async () => {
     renderRoute("superAdmin", "/super-admin/reports");
-    await expectPageHeading("User Growth");
+    // await expectPageHeading("User Growth");
+    await expectPageHeading("Reports & Analytics");
   });
 
   it("renders the audit logs route", async () => {
@@ -152,16 +153,21 @@ describe("HOD routes", () => {
 
   it("renders the department reports route", async () => {
     renderRoute("hod", "/hod/reports");
-    await expectPageText("Reports Available");
+    // await expectPageText("Reports Available");
+    await expectPageText("Live numbers from the college database");
   });
 });
 
 const roleSecondaryRoutes = [
-  ["teacher", "/teacher/classes", "My Classes"],
-  ["teacher", "/teacher/attendance", "Attendance"],
-  ["teacher", "/teacher/marks", "Marks"],
+  // ["teacher", "/teacher/classes", "My Classes"],
+  ["teacher", "/teacher/classes", "Class List"],
+  // ["teacher", "/teacher/attendance", "Attendance"],
+  ["teacher", "/teacher/attendance/report", "Attendance Report"],
+  // ["teacher", "/teacher/marks", "Marks"],
+  ["teacher", "/teacher/examinations/internal-marks", "Internal Marks"],
   ["teacher", "/teacher/timetable", "Timetable"],
-  ["teacher", "/teacher/updates", "Updates"],
+  // ["teacher", "/teacher/updates", "Updates"],
+  ["teacher", "/teacher/notices", "Notices"],
   ["student", "/student/profile", "Profile"],
   ["student", "/student/attendance", "Attendance"],
   ["student", "/student/examinations", "Examinations"],
@@ -196,7 +202,8 @@ describe("role dashboard routes", () => {
 
   it("renders the teacher dashboard route", async () => {
     renderRoute("teacher", "/teacher/dashboard");
-    await expectPageHeading("Teacher Dashboard");
+    // await expectPageHeading("Teacher Dashboard");
+    await expectPageHeading(/^(Good morning|Good afternoon|Good evening), Test$/);
   });
 
   it("renders the student dashboard route", async () => {

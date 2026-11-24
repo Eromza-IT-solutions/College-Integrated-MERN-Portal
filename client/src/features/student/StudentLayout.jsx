@@ -1,6 +1,9 @@
 
-import { useState } from "react";
-import StudentSidebar from "./StudentSidebar";
+// import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+// import StudentSidebar from "./StudentSidebar";
+import StudentSidebar, { menuItems } from "./StudentSidebar";
 import StudentTopbar from "./StudentTopbar";
 import StudentDashboard from "./StudentDashboard";
 import StudentProfile from "./Profile";
@@ -35,7 +38,13 @@ import DownloadCollegeReceipts from "./payments/DownloadCollegeReceipts";
 
 export default function StudentLayout() {
  const { logout, user } = useAuth();
-  const [activePage, setActivePage] = useState("dashboard");
+  // const [activePage, setActivePage] = useState("dashboard");
+  const { pathname } = useLocation();
+  const routePage = pathname.startsWith("/student/") ? pathname.slice("/student/".length) : "dashboard";
+  const [activePage, setActivePage] = useState(routePage);
+  useEffect(() => { setActivePage(routePage); }, [routePage]);
+  const pageTitle = menuItems.find((item) => item.id === activePage)?.label
+    ?? activePage.split("/").pop().replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
 <PaymentsProvider
@@ -96,6 +105,7 @@ export default function StudentLayout() {
         {/* Fixed Topbar */}
         <div className="shrink-0">
          <StudentTopbar
+  title={pageTitle}
   student={{
     name: user?.name || "Student",
     rollNo: user?.rollNo || "N/A",
