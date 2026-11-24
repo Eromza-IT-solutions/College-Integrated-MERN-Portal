@@ -82,7 +82,7 @@ function DepartmentsAndCourses() {
 
   const [editingDepartmentId, setEditingDepartmentId] = useState(null);
   const [editingCourseId, setEditingCourseId] = useState(null);
-  const [previewDepartment, setPreviewDepartment] = useState(null); 
+  const [previewDepartment, setPreviewDepartment] = useState(null);
 
   const [departmentForm, setDepartmentForm] = useState({
     name: "",
