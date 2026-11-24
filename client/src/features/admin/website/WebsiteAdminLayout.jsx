@@ -20,6 +20,8 @@ function WebsiteAdminLayout() {
 
   return (
     <div className="min-h-screen bg-eromza-bg">
+
+      {/* Sidebar */}
       <CSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -27,13 +29,16 @@ function WebsiteAdminLayout() {
         onToggleCollapse={() => setCollapsed((prev) => !prev)}
       />
 
+      {/* Header */}
       <CHeader
         onMenuClick={() => setSidebarOpen(true)}
         navItems={navItems}
+        collapsed={collapsed}
       />
 
+      {/* Main Content */}
       <main
-        className={`min-h-screen px-4 pb-6 pt-20 transition-all duration-300 sm:px-6 lg:px-8 ${
+        className={`min-h-screen px-4 pb-6 pt-6 transition-all duration-300 sm:px-6 lg:px-8 ${
           collapsed ? "lg:ml-[72px]" : "lg:ml-[240px]"
         }`}
       >
@@ -41,6 +46,7 @@ function WebsiteAdminLayout() {
           <Outlet />
         </div>
       </main>
+
     </div>
   );
 }
