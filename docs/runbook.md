@@ -92,6 +92,14 @@ cd server
 npm run migrate:data-integrity
 ```
 
+To reproduce the final check on a representative scratch dataset (220 applications, 220 payments, 326 enrollments, 220 refunds and deliberate anomalies):
+
+```powershell
+npm run verify:migration-dryrun
+```
+
+That command creates a temporary local MongoDB, seeds it, runs `npm run migrate:data-integrity` in dry-run mode, and writes `docs/evidence/data-integrity-dryrun.md`. It never uses `--apply`.
+
 3. Review the report. Mismatches and unresolved refunds must be resolved manually before apply; the script exits with code 1 after an apply that still has unresolved records.
 
 4. Apply after the backup is confirmed. The script is idempotent; older duplicate active enrollments are marked `dropped`, the legacy full-tuple unique index is replaced with partial unique index `uniq_enrollment_active`, missing `Payment.examFormId` values are backfilled from `ExamForm.paymentId`, and refund gateway IDs are recovered from append-only audit logs.
@@ -109,6 +117,37 @@ mongorestore --uri $env:MONGODB_URI --drop .\backups\pre-data-integrity
 
 For an index-only rollback on a database with no duplicate enrollment rows, drop `uniq_enrollment_active` and recreate `{ studentId: 1, subjectId: 1, semester: 1 }` as unique.
 
+## PII encryption migration
+
+Run this before loading real applicant data, or when upgrading a database that still holds plaintext Aadhaar numbers, mobile numbers or dates of birth. The decision, field list and key-management rules are in `docs/pii-storage.md`.
+
+1. Take a verified backup and back up `FIELD_ENCRYPTION_KEY` in the secrets manager plus the named custodian's escrow copy. Both must exist before real data; see `docs/pii-storage.md`.
+2. Run the dry run (`npm run migrate:pii-encryption`) and review the per-collection counts, including blind-index updates.
+3. Apply with `MIGRATION_BACKUP_CONFIRMED=yes`, then re-run the dry run; it must report zero plaintext values and zero blind-index updates. Re-running `--apply` is safe after a crash.
+4. For key rotation, keep the old key in `FIELD_ENCRYPTION_PREVIOUS_KEYS`, use a new `FIELD_ENCRYPTION_KEY_ID`, and run `npm run migrate:pii-encryption -- --apply --rewrap`. Dry-run first and again afterwards; the final run must report zero old-key values.
+5. Reproduce the full apply/repeat-apply/rewrap/read-back/reverse sequence on a scratch database with `npm run verify:pii-dryrun`; evidence is written to `docs/evidence/pii-encryption-dryrun.md`.
+
+Rollback is `npm run migrate:pii-encryption -- --apply --reverse` with the same key, or a full database restore plus the matching key restore.
+
+## Restore drill
+
+Verify the backup/restore path before release and after any MongoDB or Database Tools upgrade. The drill runs on two temporary local single-node replica sets; it never touches a real database.
+
+```powershell
+cd server
+npm run verify:restore-drill
+```
+
+The command needs `mongodump` and `mongorestore` on `PATH`, or `MONGO_TOOLS_DIR` pointing at their `bin` folder. It seeds a representative database, synchronises every model index, takes a `mongodump` backup, restores it with `mongorestore --drop`, compares collection lists, document counts, index definitions and sample documents, then runs the `check-*` scripts against the restored database. It also writes the encryption key to a separate local escrow file, removes it from the deployment environment, and runs `check-field-encryption-key.js` to restore it from that file and decrypt a row in the restored database; only the key fingerprint is recorded. For a production drill, point `FIELD_ENCRYPTION_BACKUP_FILE` at the real secrets-manager export instead. Evidence is written to `docs/evidence/restore-drill.md`; the latest run passed all seven checks, the key restore check and the snapshot comparison.
+
+Run the list-query performance check after index changes or a MongoDB upgrade:
+
+```powershell
+npm run verify:query-performance
+```
+
+It seeds 3,000 rows per collection in a scratch database, runs `explain("executionStats")` on the application, payment and audit-log list queries, and records the chosen index in `docs/evidence/query-performance.md`.
+
 ## Verification
 
 Run before every release:
@@ -125,6 +164,13 @@ cd server
 npm run lint
 npm run openapi:check
 npm test
+```
+
+The application connects with `autoIndex: false`. Indexes are created only by the deploy step below, after the backup has been verified:
+
+```powershell
+$env:SYNC_INDEXES_CONFIRMED = 'yes'
+npm run sync:indexes
 ```
 
 CI runs these checks on pull requests and pushes to `main` and `develop`: client lint/test/build, server lint, OpenAPI validation, and server tests.
@@ -149,9 +195,14 @@ Status: not selected. This is a release blocker, not an implemented component.
 
 A deployment decision is required for the API host, MongoDB provider, client host, domain/TLS, public webhook URL, and environment-secret store. Until those are chosen, the runbook can describe local and CI behavior only. Do not configure production payment credentials or scheduled jobs against an unapproved target.
 
+`docs/production-db.md` specifies the least-privilege MongoDB users required before go-live. Creating those users is an external administrator task and is still pending.
+
 ## Data inventory
 
 - `docs/db-model-map.md` lists every model, relationship, and invariant.
+- `docs/data-dictionary.md` lists stored fields and their meaning.
+- `docs/data-retention.md` is the proposed retention policy; only the `AuthToken` TTL is automated today.
+- `docs/local-replica-set.md` explains the required local single-node replica set.
 - `docs/openapi.yaml` lists the HTTP contract, including `/exams/reference`, hall tickets, payments, and reports.
 - `server/scripts/data/college-programs.json` has 60 programs, enforced by `server/tests/college-alignment.test.js`.
 - `server/scripts/data/college-subjects.json` has 1,636 subjects across 32 programs.
@@ -175,6 +226,8 @@ Known data gaps requiring college decisions:
 6. `POST /admissions/applications/:id/student` creates the Student and semester-1 enrollments.
 
 Overdue applications are listed by `GET /admissions/applications/overdue`.
+
+Uploaded documents are validated before storage: JPG or PNG only, 500 KB maximum, non-empty, with the file extension, client MIME type and actual bytes all agreeing. Image dimensions are read from the bytes; `photo` must be 80x100 px and `signature` 80x50 px. SVG, archives, executables, PDFs and malformed images are rejected with 400. Uploads are disabled until this validation is deployed.
 
 ### Payments
 

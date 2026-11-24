@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import env from '../src/config/env.js';
 import Result from '../src/models/Result.js';
 import ExamForm from '../src/models/ExamForm.js';
+import '../src/models/index.js'; // Result populates related models by name.
 
 // Checks the result models against the real DEV database: one result per student per exam, marks, grades, SGPA, CGPA,
 // publishing and unpublishing. It adds records for one test student and removes them again.

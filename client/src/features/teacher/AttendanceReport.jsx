@@ -28,10 +28,10 @@ export default function AttendanceReport() {
       <Card><ClassPicker value={classId} onChange={setClassId} /></Card>
 
       <div className="stats">
-        <Stat icon={BarChart3} label="Sessions" value={dates.length} sub={dates.length ? `${fmt(dates[0], { day: "numeric", month: "short" })} – ${fmt(dates[dates.length - 1], { day: "numeric", month: "short" })}` : "No data"} />
+        <Stat icon={BarChart3} label="Sessions" value={dates.length} sub={dates.length ? `${fmt(dates[0], { day: "numeric", month: "short" })} ΓÇô ${fmt(dates[dates.length - 1], { day: "numeric", month: "short" })}` : "No data"} />
         <Stat label="Average attendance" value={`${avg}%`} sub={c.subject} tone={avg >= MIN_ATT ? "good" : "warn"} />
         <Stat label={`Below ${MIN_ATT}%`} value={low} sub={low ? "Defaulters" : "None"} tone={low ? "warn" : "good"} />
-        <Stat label="Top attendance" value={best ? `${best.pct}%` : "—"} sub={best ? best.name : ""} tone="good" />
+        <Stat label="Top attendance" value={best ? `${best.pct}%` : "ΓÇö"} sub={best ? best.name : ""} tone="good" />
       </div>
 
       <div className="grid-2">

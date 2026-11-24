@@ -1,4 +1,5 @@
 import AppError from '../../utils/AppError.js';
+import { withTransaction } from '../../config/transactions.js';
 import Application from '../../models/Application.js';
 import AdmissionDocument from '../../models/AdmissionDocument.js';
 import AcademicYear from '../../models/AcademicYear.js';
@@ -6,8 +7,10 @@ import Program from '../../models/Program.js';
 import Student from '../../models/Student.js';
 import { getActor } from '../../middleware/requirePermission.js';
 import { isInScope, scopeFilter } from '../../utils/scope.js';
-import { auditSafe } from '../../services/auditService.js';
+import { audit, auditSafe } from '../../services/auditService.js';
 import { saveUploadedFile, deleteStoredFile, readStoredFile } from '../../utils/fileStore.js';
+import { validateUploadedFile } from '../../utils/imageValidation.js';
+import { hashMobile } from '../../utils/blindIndex.js';
 import {
   ACADEMIC_YEAR_STATUS,
   APPLICATION_STATUS,
@@ -83,8 +86,8 @@ function fileNameOf(file) {
   return String(file.originalname || 'document').split(/[\\/]/).pop();
 }
 
-async function loadApplication(req, id) {
-  const application = await Application.findById(id).select('+aadhaarNumber');
+async function loadApplication(req, id, session) {
+  const application = await Application.findById(id).select('+aadhaarNumber').session(session || null);
   if (!application || !isInScope(req, application, { ownerField: 'applicantUserId' })) {
     throw new AppError('Application not found', 404);
   }
@@ -181,6 +184,7 @@ async function listApplications(req, query) {
       status: query.status,
       academicYearId: query.academicYearId,
       programId: query.programId,
+      'student.mobileHash': query.mobile ? hashMobile(query.mobile) : undefined,
     }),
     scopeFilter(req, { ownerField: 'applicantUserId' })
   );
@@ -269,13 +273,11 @@ async function listDocuments(req, id) {
 
 async function uploadDocument(req, id, body) {
   if (!req.file) throw new AppError('Choose a file to upload', 400, [{ field: 'file', message: 'Required' }]);
-  if (!DOCUMENT_RULES.mimeTypes.includes(req.file.mimetype)) {
-    throw new AppError(`File must be one of: ${DOCUMENT_RULES.mimeTypes.join(', ')}`, 400, [
-      { field: 'file', message: 'Unsupported file type' },
-    ]);
-  }
-  if (req.file.size > DOCUMENT_RULES.maxBytes) {
-    throw new AppError('File is too large', 400, [{ field: 'file', message: 'File is too large' }]);
+  const verified = validateUploadedFile(req.file);
+  const sizeRule = DOCUMENT_RULES.size[body.type];
+  if (sizeRule && (verified.width !== sizeRule.width || verified.height !== sizeRule.height)) {
+    const message = `${body.type} must be ${sizeRule.width}x${sizeRule.height} pixels`;
+    throw new AppError(message, 400, [{ field: 'file', message }], 'VALIDATION_ERROR');
   }
 
   const application = await loadApplication(req, id);
@@ -287,6 +289,7 @@ async function uploadDocument(req, id, body) {
     applicationId: application._id,
     type: body.type,
     file: req.file,
+    extension: verified.extension,
   });
 
   let document;
@@ -294,10 +297,10 @@ async function uploadDocument(req, id, body) {
     if (existing) {
       existing.set({
         fileName: fileNameOf(req.file),
-        mimeType: req.file.mimetype,
-        sizeBytes: req.file.size,
-        width: body.width,
-        height: body.height,
+        mimeType: verified.mimeType,
+        sizeBytes: verified.sizeBytes,
+        width: verified.width,
+        height: verified.height,
         storageKey,
         status: DOCUMENT_STATUS.PENDING,
         reviewedByUserId: null,
@@ -310,10 +313,10 @@ async function uploadDocument(req, id, body) {
         applicationId: application._id,
         type: body.type,
         fileName: fileNameOf(req.file),
-        mimeType: req.file.mimetype,
-        sizeBytes: req.file.size,
-        width: body.width,
-        height: body.height,
+        mimeType: verified.mimeType,
+        sizeBytes: verified.sizeBytes,
+        width: verified.width,
+        height: verified.height,
         storageKey,
       });
     }
@@ -469,20 +472,22 @@ async function receiveHardCopy(req, id) {
 }
 
 async function createStudent(req, id) {
-  const application = await loadApplication(req, id);
-  const result = await Student.createFromApplication(application._id);
-  await auditSafe(req, {
-    action: 'studentCreatedFromApplication',
-    entityType: 'student',
-    entityId: result.student._id,
-    details: {
-      applicationId: String(application._id),
-      enrollmentNumber: result.student.enrollmentNumber,
-      enrolled: result.enrolled,
-      unmatched: result.unmatched,
-    },
+  return withTransaction(async ({ session }) => {
+    const application = await loadApplication(req, id, session);
+    const result = await Student.createFromApplication(application._id, { session });
+    await audit(req, {
+      action: 'studentCreatedFromApplication',
+      entityType: 'student',
+      entityId: result.student._id,
+      details: {
+        applicationId: String(application._id),
+        enrollmentNumber: result.student.enrollmentNumber,
+        enrolled: result.enrolled,
+        unmatched: result.unmatched,
+      },
+    }, { session });
+    return result;
   });
-  return result;
 }
 
 async function overdue(req) {

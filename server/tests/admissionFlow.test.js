@@ -18,6 +18,8 @@ import Counter from '../src/models/Counter.js';
 import { clearPermissionCache } from '../src/services/permissionService.js';
 import { errorHandler } from '../src/middleware/errorHandler.js';
 import admissionRoutes from '../src/modules/admission/admission.routes.js';
+import { pngBuffer } from './helpers/testImages.js';
+import { hashMobile } from '../src/utils/blindIndex.js';
 
 const matrix = JSON.parse(readFileSync(new URL('../scripts/data/permission-matrix.json', import.meta.url), 'utf8'));
 const id = () => new mongoose.Types.ObjectId();
@@ -29,17 +31,19 @@ const q = (value) => ({
   lean: () => q(value),
 });
 
+const at = (row, key) => key.split('.').reduce((value, part) => (value == null ? value : value[part]), row);
+
 const matches = (row, filter) =>
   Object.entries(filter || {}).every(([key, value]) => {
     if (key === '$and') return value.every((part) => matches(row, part));
     if (key === '$or') return value.some((part) => matches(row, part));
     if (value && typeof value === 'object' && !Array.isArray(value)) {
-      if ('$in' in value) return value.$in.map(String).includes(String(row[key]));
-      if ('$lt' in value) return new Date(row[key]).getTime() < new Date(value.$lt).getTime();
-      if ('$ne' in value) return String(row[key]) !== String(value.$ne);
-      if ('$exists' in value) return (row[key] !== undefined) === value.$exists;
+      if ('$in' in value) return value.$in.map(String).includes(String(at(row, key)));
+      if ('$lt' in value) return new Date(at(row, key)).getTime() < new Date(value.$lt).getTime();
+      if ('$ne' in value) return String(at(row, key)) !== String(value.$ne);
+      if ('$exists' in value) return (at(row, key) !== undefined) === value.$exists;
     }
-    return String(row[key]) === String(value);
+    return String(at(row, key)) === String(value);
   });
 
 const cursor = (rows) => {
@@ -129,6 +133,7 @@ function completeFields() {
       gender: 'Male',
       address,
       mobile: '9876543210',
+      mobileHash: hashMobile('9876543210'),
       email: 'Aman@Demo.example',
       birthDate: '2007-01-02',
       birthPlace: 'Pune',
@@ -381,6 +386,21 @@ describe('admission API', () => {
     expect(res.body.meta.total).toBe(1);
   });
 
+  test('staff can find an application by the mobile blind index', async () => {
+    addApplication({ applicationNumber: 'APP-MOBILE' });
+    addApplication({
+      applicationNumber: 'APP-MATCH',
+      student: { ...completeFields().student, mobile: '9000000011', mobileHash: hashMobile('9000000011') },
+    });
+
+    const res = await as('admissionAdmin', adminUser).get('/admissions/applications?mobile=9000000011');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].applicationNumber).toBe('APP-MATCH');
+    expect(JSON.stringify(res.body.data[0])).not.toContain(hashMobile('9000000011'));
+  });
+
   test('another applicant cannot open someone else’s application', async () => {
     const row = addApplication({ applicantUserId: applicantB });
 
@@ -485,30 +505,30 @@ describe('admission API', () => {
     );
   });
 
-  test('the applicant uploads a document and the office verifies it', async () => {
+  test('the applicant uploads a verified document and the office verifies it', async () => {
     const row = addApplication({ applicantUserId: applicantA, status: 'draft' });
+    const image = pngBuffer(80, 100);
 
     const uploaded = await as('applicant', applicantA)
       .post(`/admissions/applications/${row._id}/documents`)
       .field('type', 'photo')
-      .field('width', '80')
-      .field('height', '100')
-      .attach('file', Buffer.from('fake-image'), {
-        filename: 'photo.jpg',
-        contentType: 'image/jpeg',
+      .attach('file', image, {
+        filename: 'photo.png',
+        contentType: 'image/png',
       });
 
     expect(uploaded.status).toBe(201);
     expect(uploaded.body.data.type).toBe('photo');
+    expect(uploaded.body.data.mimeType).toBe('image/png');
     expect(uploaded.body.data.width).toBe(80);
     expect(uploaded.body.data.height).toBe(100);
     await expect(fs.stat(path.join(uploadDir, uploaded.body.data.storageKey))).resolves.toBeTruthy();
 
     const download = await as('applicant', applicantA).get(`/admissions/documents/${uploaded.body.data._id}/download`);
     expect(download.status).toBe(200);
-    expect(download.headers['content-type']).toBe('image/jpeg');
-    expect(download.headers['content-disposition']).toContain('photo.jpg');
-    expect(download.body.toString()).toBe('fake-image');
+    expect(download.headers['content-type']).toBe('image/png');
+    expect(download.headers['content-disposition']).toContain('photo.png');
+    expect(download.body).toEqual(image);
 
     const otherApplicant = await as('applicant', applicantB).get(`/admissions/documents/${uploaded.body.data._id}/download`);
     expect(otherApplicant.status).toBe(404);
@@ -527,6 +547,39 @@ describe('admission API', () => {
 
     expect(approved.status).toBe(200);
     expect(approved.body.data.documentsApprovedAt).toBeTruthy();
+  });
+
+  test('upload validation rejects bad content, size and dimensions', async () => {
+    const upload = (type, buffer, filename, contentType) => {
+      const row = addApplication({ applicantUserId: applicantA, status: 'draft' });
+      return as('applicant', applicantA)
+        .post(`/admissions/applications/${row._id}/documents`)
+        .field('type', type)
+        .attach('file', buffer, { filename, contentType });
+    };
+
+    const wrongMime = await upload('photo', pngBuffer(80, 100), 'photo.jpg', 'image/jpeg');
+    expect(wrongMime.status).toBe(400);
+    expect(wrongMime.body.error.message).toContain('does not match');
+
+    const malformed = await upload('photo', Buffer.from('fake-image'), 'photo.png', 'image/png');
+    expect(malformed.status).toBe(400);
+    expect(malformed.body.error.message).toContain('valid PNG or JPEG');
+
+    const svg = Buffer.from('<svg onload="alert(1)"><script>alert(1)</script></svg>');
+    const script = await upload('photo', svg, 'photo.svg', 'image/svg+xml');
+    expect(script.status).toBe(400);
+    expect(script.body.error.message).toContain('SVG');
+
+    const oversized = await upload('photo', pngBuffer(80, 100, 600 * 1024), 'photo.png', 'image/png');
+    expect(oversized.status).toBe(400);
+    expect(oversized.body.error.message).toContain('too large');
+
+    const wrongSize = await upload('photo', pngBuffer(10, 10), 'photo.png', 'image/png');
+    expect(wrongSize.status).toBe(400);
+    expect(wrongSize.body.error.message).toContain('80x100');
+
+    expect(documentsOf(addApplication({ applicantUserId: applicantA, status: 'draft' })._id)).toHaveLength(0);
   });
 
   test('the office creates a student only after admission', async () => {

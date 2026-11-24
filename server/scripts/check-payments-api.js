@@ -50,8 +50,11 @@ const appFor = (role, uid) => {
     const id = () => new mongoose.Types.ObjectId();
     const applicant = id(); const admin = id(); const boss = id(); const programId = id();
     const year = await AcademicYear.create({ label: '2026-27', startDate: new Date('2026-06-01'), endDate: new Date('2027-05-31'), status: 'current' });
-    await FeeStructure.create({ purpose: 'admission', academicYearId: year._id, programId, feesCategory: 'PAYING', amountPaise: 1200000 });
-    const application = await Application.create({ applicantUserId: applicant, academicYearId: year._id, programId, feesCategory: 'PAYING', status: 'submitted' });
+    const fee = await FeeStructure.create({ purpose: 'admission', academicYearId: year._id, programId, feesCategory: 'PAYING', amountPaise: 1200000 });
+    const application = await Application.create({
+      applicantUserId: applicant, academicYearId: year._id, programId, feesCategory: 'PAYING',
+      status: 'approved', approvedAt: new Date(), feeStructureId: fee._id, feeAmountPaise: fee.amountPaise,
+    });
 
     const A = appFor('applicant', applicant);
     const body = { purpose: 'admission', applicationId: String(application._id) };

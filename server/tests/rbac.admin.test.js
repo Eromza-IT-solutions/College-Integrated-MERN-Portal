@@ -3,7 +3,7 @@ import request from 'supertest';
 import express from 'express';
 import session from 'express-session';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import { readFileSync } from 'fs';
 import app from '../src/app.js';
 import { createSessionMiddleware } from '../src/config/session.js';
@@ -73,7 +73,7 @@ const reseedRules = async () => { await Permission.deleteMany({}); await Permiss
 const ruleOf = (roleKey, resource, action) => Permission.findOne({ roleKey, resource, action });
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri());
   hash = await hashPassword(PASSWORD);
   deptA = new mongoose.Types.ObjectId();

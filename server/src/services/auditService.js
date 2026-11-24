@@ -2,7 +2,8 @@ import AuditLog from '../models/AuditLog.js';
 import { AUDIT_OUTCOME } from '../utils/constants.js';
 
 // Small helpers so every module writes audit rows the same way.
-// They sit on top of AuditLog.record(), which already removes passwords and tokens from `details`.
+// They sit on top of AuditLog.record(), which removes password, token, secret, Aadhaar, mobile,
+// birth date, phone, address and email keys from `details` at any depth.
 //
 //   await audit(req, {
 //     action: 'refundRequested', entityType: 'refund', entityId: refund._id, details: { amountPaise },

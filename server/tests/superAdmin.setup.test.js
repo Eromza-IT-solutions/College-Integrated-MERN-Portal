@@ -1,7 +1,7 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
 import express from 'express';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import app from '../src/app.js';
 import env from '../src/config/env.js';
 import { originCheck } from '../src/middleware/originCheck.js';
@@ -14,7 +14,7 @@ const GOOD = 'Correct-Horse-Battery-9';
 let mongod;
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri());
 }, 120000);
 

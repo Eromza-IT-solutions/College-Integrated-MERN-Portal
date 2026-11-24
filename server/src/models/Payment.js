@@ -55,6 +55,8 @@ paymentSchema.index({ examFormId: 1, status: 1 }, { unique: true, name: 'one_ope
 paymentSchema.index({ receiptNumber: 1 }, { unique: true, partialFilterExpression: { receiptNumber: { $type: 'string' } } });
 paymentSchema.index({ gateway: 1, gatewayOrderId: 1 }, { unique: true, partialFilterExpression: { gatewayOrderId: { $type: 'string' } } });
 paymentSchema.index({ gateway: 1, gatewayPaymentId: 1 }, { unique: true, partialFilterExpression: { gatewayPaymentId: { $type: 'string' } } });
+paymentSchema.index({ status: 1, createdAt: -1, _id: -1 }, { name: 'payment_status_created' });
+paymentSchema.index({ purpose: 1, status: 1, createdAt: -1, _id: -1 }, { name: 'payment_purpose_status_created' });
 
 paymentSchema.pre('validate', function checks() {
   if (this.purpose === PAYMENT_PURPOSE.ADMISSION && !this.applicationId) this.invalidate('applicationId', 'An admission payment needs an application');
