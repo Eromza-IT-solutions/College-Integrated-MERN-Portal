@@ -38,7 +38,8 @@ export default function Checkout({ type, title, items, paidIds = [], onBack, bac
 
   const validate = () => {
     const e = {};
-    if (method === "upi" && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(f.upi.trim())) e.upi = "Enter a valid UPI ID, e.g. name@bank";
+    // if (method === "upi" && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(f.upi.trim())) e.upi = "Enter a valid UPI ID, e.g. name@bank";
+    if (method === "upi" && !/^[\w.-]{2,}@[a-zA-Z]{2,}$/.test(f.upi.trim())) e.upi = "Enter a valid UPI ID, e.g. name@bank";
     if (method === "card") {
       const num = f.card.replace(/\s/g, "");
       if (!/^\d{16}$/.test(num) || !luhn(num)) e.card = "Enter a valid 16-digit card number";
