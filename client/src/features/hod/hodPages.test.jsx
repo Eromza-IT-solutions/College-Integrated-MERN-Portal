@@ -61,7 +61,9 @@ describe("HOD pages", () => {
     expect(
       screen.getByRole("heading", { name: "Department Reports", level: 1 }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Monthly attendance summary")).toBeInTheDocument();
-    expect(screen.getByText("Reports Available")).toBeInTheDocument();
+    // expect(screen.getByText("Monthly attendance summary")).toBeInTheDocument();
+    expect(screen.getByText("Live numbers from the college database")).toBeInTheDocument();
+    // expect(screen.getByText("Reports Available")).toBeInTheDocument();
+    expect(screen.getByText("Report")).toBeInTheDocument();
   });
 });

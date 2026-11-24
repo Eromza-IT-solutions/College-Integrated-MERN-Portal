@@ -19,3 +19,6 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: () => false,
   }),
 })
+
+// jsdom does not implement scrollTo; several layouts call it on scroll containers.
+Element.prototype.scrollTo = Element.prototype.scrollTo || function scrollTo() {}

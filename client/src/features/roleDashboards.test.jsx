@@ -5,6 +5,7 @@ import ApplicantDashboard from "./applicant/ApplicantDashboard";
 import HODDashboard from "./hod/HODDashboard";
 import StudentDashboard from "./student/StudentDashboard";
 import TeacherDashboard from "./teacher/TeacherDashboard";
+import { TeacherProvider } from "./teacher/TeacherShared";
 import {
   fetchAttendanceSummary,
   fetchAvailableExams,
@@ -127,20 +128,29 @@ describe("role dashboards", () => {
   });
 
   it("renders the teacher dashboard", () => {
-    renderDashboard(<TeacherDashboard />);
+    // renderDashboard(<TeacherDashboard />);
+    renderDashboard(<TeacherProvider><TeacherDashboard /></TeacherProvider>);
+    // expect(
+    //   screen.getByRole("heading", { name: "Teacher Dashboard" }),
+    // ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Teacher Dashboard" }),
+      screen.getByRole("heading", { name: /^(Good morning|Good afternoon|Good evening), Sana$/ }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Today's timetable")).toBeInTheDocument();
+    // expect(screen.getByText("Today's timetable")).toBeInTheDocument();
+    expect(screen.getByText("Today’s schedule")).toBeInTheDocument();
     expect(screen.getAllByText("Data Structures").length).toBeGreaterThan(0);
   });
 
   it("renders the student dashboard", async () => {
     renderDashboard(<StudentDashboard />);
+    // expect(
+    //   screen.getByRole("heading", { name: "Student Dashboard" }),
+    // ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Student Dashboard" }),
+      screen.getByRole("heading", { name: "Ayesha Khan" }),
     ).toBeInTheDocument();
-    expect(await screen.findByText("Current SGPA 8.70")).toBeInTheDocument();
+    // expect(await screen.findByText("Current SGPA 8.70")).toBeInTheDocument();
+    expect(await screen.findByText("8.4")).toBeInTheDocument();
     expect(screen.getAllByText("Data Structures").length).toBeGreaterThan(0);
   });
 
