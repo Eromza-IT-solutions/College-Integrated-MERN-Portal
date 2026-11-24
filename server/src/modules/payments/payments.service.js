@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import AppError from '../../utils/AppError.js';
-import { auditSafe } from '../../services/auditService.js';
+import { withTransaction } from '../../config/transactions.js';
+import { audit, auditSafe } from '../../services/auditService.js';
 import { getGateway } from '../../services/payment/index.js';
 import { getActor } from '../../middleware/requirePermission.js';
 import { isInScope, scopeFilter } from '../../utils/scope.js';
@@ -150,52 +151,47 @@ async function createOrder(req, { purpose, applicationId, examFormId }) {
  * Payment.markPaid only changes a "created" payment, and the form it belongs to ignores a repeat.
  */
 async function settlePaid(req, payment, gatewayPaymentId, { source, method } = {}) {
-  const alreadyPaid = payment.status === PAYMENT_STATUS.PAID;
   const methodFields = method ? { gatewayMethod: PAYMENT_METHODS.includes(method) ? method : 'other' } : {};
   const fields = source === 'webhook'
     ? { confirmedVia: PAYMENT_CONFIRMED_VIA.WEBHOOK, ...methodFields }
     : source === 'reconciliation'
       ? { confirmedVia: PAYMENT_CONFIRMED_VIA.RECONCILIATION, ...methodFields }
       : { confirmedVia: PAYMENT_CONFIRMED_VIA.CHECKOUT, signatureVerifiedAt: new Date() };
-  const paid = await Payment.markPaid(payment._id, { gatewayPaymentId, fields });
 
-  if (paid.purpose === PAYMENT_PURPOSE.EXAM) {
-    try {
-      const form = await ExamForm.findById(paid.examFormId);
-      if (!form) throw new AppError('Exam form not found', 404);
-      await form.markPaid(paid._id);
-    } catch (err) {
-      // The money is safely recorded. Say loudly that the form was not updated, then let the caller see the error.
-      await auditSafe(req, {
-        action: 'paymentVerified', entityType: 'payment', entityId: paid._id, outcome: AUDIT_OUTCOME.FAILED,
-        details: { source, reason: `Paid, but the exam form was not updated: ${err.message}` },
-      });
-      throw err;
-    }
-  }
+  try {
+    return await withTransaction(async ({ session }) => {
+      const before = await Payment.findById(payment._id).session(session || null);
+      if (!before) throw new AppError('Payment not found', 404);
+      const alreadyPaid = before.status === PAYMENT_STATUS.PAID;
+      const updated = await Payment.markPaid(payment._id, { gatewayPaymentId, fields, session });
 
-  if (paid.purpose === PAYMENT_PURPOSE.ADMISSION) {
-    try {
-      const application = await Application.findById(paid.applicationId);
-      if (!application) throw new AppError('Application not found', 404);
-      await application.markFeePaid({ paymentId: paid._id });
-    } catch (err) {
-      // The money is safely recorded. Say loudly that the admission was not updated, then let the caller see the error.
-      await auditSafe(req, {
-        action: 'paymentVerified', entityType: 'payment', entityId: paid._id, outcome: AUDIT_OUTCOME.FAILED,
-        details: { source, reason: `Paid, but the application was not updated: ${err.message}` },
-      });
-      throw err;
-    }
-  }
+      if (updated.purpose === PAYMENT_PURPOSE.EXAM) {
+        const form = await ExamForm.findById(updated.examFormId).session(session || null);
+        if (!form) throw new AppError('Exam form not found', 404);
+        await form.markPaid(updated._id, { session });
+      }
 
-  if (!alreadyPaid) {
-    await auditSafe(req, {
-      action: 'paymentVerified', entityType: 'payment', entityId: paid._id,
-      details: { source, gatewayPaymentId: paid.gatewayPaymentId, amountPaise: paid.amountPaise, receiptNumber: paid.receiptNumber },
+      if (updated.purpose === PAYMENT_PURPOSE.ADMISSION) {
+        const application = await Application.findById(updated.applicationId).session(session || null);
+        if (!application) throw new AppError('Application not found', 404);
+        await application.markFeePaid({ paymentId: updated._id }, { session });
+      }
+
+      if (!alreadyPaid) {
+        await audit(req, {
+          action: 'paymentVerified', entityType: 'payment', entityId: updated._id,
+          details: { source, gatewayPaymentId: updated.gatewayPaymentId, amountPaise: updated.amountPaise, receiptNumber: updated.receiptNumber },
+        }, { session });
+      }
+      return { payment: updated, alreadyPaid };
     });
+  } catch (err) {
+    await auditSafe(req, {
+      action: 'paymentVerified', entityType: 'payment', entityId: payment._id, outcome: AUDIT_OUTCOME.FAILED,
+      details: { source, reason: `Payment could not be settled: ${err.message}` },
+    });
+    throw err;
   }
-  return { payment: paid, alreadyPaid };
 }
 
 /**

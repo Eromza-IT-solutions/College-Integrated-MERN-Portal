@@ -99,6 +99,7 @@ describe('RATE_LIMIT_HASH_SECRET configuration (env.js)', () => {
   const FAKE_SESSION_SECRET = 'fake-session-secret-for-this-test-only-0123456789';
   const FAKE_HASH_SECRET = 'fake-hash-secret-for-this-test-only-0123456789abc';
   const FAKE_LOGIN_HASH_SECRET = 'fake-login-hash-secret-for-tests';
+  const FAKE_FIELD_ENCRYPTION_KEY = Buffer.alloc(32, 5).toString('base64');
   const VALID_PRODUCTION_PAYMENT_ENV = {
     PAYMENT_GATEWAY: 'razorpay',
     PAYMENT_KEY_ID: 'rzp_test_validkey',
@@ -111,6 +112,7 @@ describe('RATE_LIMIT_HASH_SECRET configuration (env.js)', () => {
     const childEnv = { ...process.env, DOTENV_CONFIG_PATH: 'no-such-file.env', MONGODB_URI: 'mongodb://127.0.0.1:1/unused', SESSION_SECRET: FAKE_SESSION_SECRET };
     delete childEnv.RATE_LIMIT_HASH_SECRET;
     delete childEnv.LOGIN_ID_HASH_SECRET;
+    delete childEnv.FIELD_ENCRYPTION_KEY;
     delete childEnv.PAYMENT_GATEWAY;
     delete childEnv.PAYMENT_KEY_ID;
     delete childEnv.PAYMENT_KEY_SECRET;
@@ -121,6 +123,7 @@ describe('RATE_LIMIT_HASH_SECRET configuration (env.js)', () => {
       if (childEnv[key] === undefined) childEnv[key] = value;
     }
     if (childEnv.LOGIN_ID_HASH_SECRET === undefined) childEnv.LOGIN_ID_HASH_SECRET = FAKE_LOGIN_HASH_SECRET;
+    if (childEnv.FIELD_ENCRYPTION_KEY === undefined) childEnv.FIELD_ENCRYPTION_KEY = FAKE_FIELD_ENCRYPTION_KEY;
     for (const k of Object.keys(childEnv)) if (childEnv[k] === undefined) delete childEnv[k];
     try {
       const stdout = execFileSync(

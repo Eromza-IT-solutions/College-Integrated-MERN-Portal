@@ -24,7 +24,6 @@ const STATUS_VARIANTS = {
   "in progress": "warning",
   processing: "warning",
   "refund requested": "warning",
-  refunded: "info",
   submitted: "info",
   new: "info",
   pendingpayment: "warning",

@@ -3,7 +3,7 @@ import request from 'supertest';
 import express from 'express';
 import session from 'express-session';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import app from '../src/app.js';
 import env from '../src/config/env.js';
 import { createSessionMiddleware } from '../src/config/session.js';
@@ -60,7 +60,7 @@ async function requestToken(user) {
 }
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri());
   oldHash = await hashPassword(OLD_PASSWORD);
 }, 120000);

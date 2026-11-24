@@ -1,7 +1,7 @@
 ﻿import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
 import { readFileSync } from 'fs';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import Permission from '../src/models/Permission.js';
 import { seedPermissions, validateMatrix } from '../scripts/seed-permissions.js';
 import { changeScope, grantPermission, revokePermission } from '../src/modules/admin/super/rbac.service.js';
@@ -13,7 +13,7 @@ const find = (roleKey, resource, action) => Permission.findOne({ roleKey, resour
 let mongod;
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri());
   await Permission.init(); // make sure the unique index exists
 }, 120000);

@@ -122,7 +122,7 @@ export default function Checkout({ type, title, items, paidIds = [], onBack, bac
                 placeholder: "MM/YY", inputMode: "numeric", maxLength: 5,
                 onChange: (e) => { const d = e.target.value.replace(/\D/g, "").slice(0, 4); set("exp", d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d); },
               })}
-              {field("cvv", "CVV", { type: "password", placeholder: "•••", inputMode: "numeric", maxLength: 3, onChange: (e) => set("cvv", e.target.value.replace(/\D/g, "")) })}
+              {field("cvv", "CVV", { type: "password", placeholder: "ΓÇóΓÇóΓÇó", inputMode: "numeric", maxLength: 3, onChange: (e) => set("cvv", e.target.value.replace(/\D/g, "")) })}
             </div>
           </>
         )}
@@ -151,7 +151,7 @@ export default function Checkout({ type, title, items, paidIds = [], onBack, bac
           <li className="sum"><span>Total payable</span><b>{inr(total)}</b></li>
         </ul>
         <button type="button" className="btn full" onClick={submit} disabled={busy}>
-          {busy ? <><Loader2 size={16} className="spin" /> Processing payment…</> : <>Pay {inr(total)}</>}
+          {busy ? <><Loader2 size={16} className="spin" /> Processing paymentΓÇª</> : <>Pay {inr(total)}</>}
         </button>
         <p className="secure"><ShieldCheck size={15} /> Payments are secure. An e-receipt is generated instantly.</p>
       </Card>

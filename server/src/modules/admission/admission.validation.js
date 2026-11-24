@@ -28,6 +28,7 @@ const listQuery = z
     status: z.enum(APPLICATION_STATUS_VALUES).optional(),
     academicYearId: objectId('academicYearId').optional(),
     programId: objectId('programId').optional(),
+    mobile: z.string().trim().regex(/^\d{10}$/, 'mobile must be 10 digits').optional(),
     page: z.coerce.number().int().min(1).max(100000).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
   })

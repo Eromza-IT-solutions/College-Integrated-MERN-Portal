@@ -37,7 +37,7 @@ export default function ReceiptsList({ source }) {
       <div className="stats">
         <Stat label={source === "online" ? "Online receipts" : "College receipts"} value={all.length} sub="Total receipts available" />
         <Stat label="Amount in this list" value={inr(total)} sub={`${list.length} receipt${list.length === 1 ? "" : "s"} shown`} tone="good" />
-        <Stat label="Latest receipt" value={latest ? fmt(latest.date, { day: "numeric", month: "short" }) : "—"} sub={latest ? latest.no : "No receipts yet"} />
+        <Stat label="Latest receipt" value={latest ? fmt(latest.date, { day: "numeric", month: "short" }) : "ΓÇö"} sub={latest ? latest.no : "No receipts yet"} />
       </div>
 
       <Card
@@ -51,7 +51,7 @@ export default function ReceiptsList({ source }) {
         <div className="filters">
           <label className="search">
             <Search size={16} />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by receipt no., particulars or transaction…" aria-label="Search receipts" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by receipt no., particulars or transactionΓÇª" aria-label="Search receipts" />
           </label>
           <select className="sel" value={year} onChange={(e) => setYear(e.target.value)} aria-label="Filter by year">
             <option value="all">All years</option>

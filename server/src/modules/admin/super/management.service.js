@@ -4,6 +4,7 @@ import User from '../../../models/User.js';
 import Teacher from '../../../models/Teacher.js';
 import Department from '../../../models/Department.js';
 import AcademicYear from '../../../models/AcademicYear.js';
+import Counter from '../../../models/Counter.js';
 import Program from '../../../models/Program.js';
 import Subject from '../../../models/Subject.js';
 import FeeStructure from '../../../models/FeeStructure.js';
@@ -266,7 +267,9 @@ async function clearCurrentYear(exceptId) {
 export async function createAcademicYear(body) {
   if (body.status === ACADEMIC_YEAR_STATUS.CURRENT) await clearCurrentYear();
   try {
-    return await AcademicYear.create(body);
+    const year = await AcademicYear.create(body);
+    await Counter.seedForYear(year.label);
+    return year;
   } catch (err) {
     throw duplicate(err, { label: 'That academic year already exists.' });
   }
@@ -275,10 +278,12 @@ export async function createAcademicYear(body) {
 export async function updateAcademicYear(id, body) {
   const year = mongoose.isValidObjectId(id) ? await AcademicYear.findById(id) : null;
   if (!year) throw notFound('Academic year');
+  const previousLabel = year.label;
   if (body.status === ACADEMIC_YEAR_STATUS.CURRENT) await clearCurrentYear(year._id);
   for (const key of ['label', 'startDate', 'endDate', 'status']) if (body[key] !== undefined) year[key] = body[key];
   try {
     await year.save();
+    if (year.label !== previousLabel) await Counter.seedForYear(year.label);
   } catch (err) {
     throw duplicate(err, { label: 'That academic year already exists.' });
   }

@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import { readFileSync } from 'fs';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import app from '../src/app.js';
 import User from '../src/models/User.js';
 import Permission from '../src/models/Permission.js';
@@ -19,7 +19,7 @@ let mongod;
 let user;
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri(), { dbName: 'change_password_test' });
   await Promise.all([User.init(), Permission.init()]);
   await Permission.insertMany(matrix);

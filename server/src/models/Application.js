@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import * as C from '../utils/constants.js';
 import AppError from '../utils/AppError.js';
+import { decryptDateField, decryptField, encryptDateField, encryptField } from '../utils/fieldCrypto.js';
+import { hashMobile } from '../utils/blindIndex.js';
 import { firstSemesterOf } from '../utils/academic.js';
 
 const { Schema } = mongoose;
@@ -9,6 +11,17 @@ const text = { type: String, trim: true };
 const pick = (values) => ({ type: String, enum: { values, message: '{PATH} has an unknown value' } });
 // Draft-friendly: an empty value is fine, a filled one must match.
 const digits = (n, label) => ({ type: String, trim: true, match: [new RegExp(`^(\\d{${n}})?$`), `${label} must be ${n} digits`] });
+const encryptedDigits = (n, label) => ({
+  type: String,
+  get: decryptField,
+  set(value) {
+    if (value === undefined || value === null || value === '') return value;
+    const text = String(value);
+    if (!new RegExp(`^\\d{${n}}$`).test(text)) throw new AppError(`${label} must be ${n} digits`, 400);
+    return encryptField(text);
+  },
+});
+const encryptedDate = { type: String, get: decryptDateField, set: encryptDateField };
 
 const addressSchema = new Schema(
   {
@@ -34,8 +47,8 @@ const applicationSchema = new Schema(
     divisionType: pick(C.DIVISION_TYPES),
     feesCategory: pick(C.FEES_CATEGORIES),
     abcId: text, // Academic Bank of Credits / APAAR ID
-    // Personal data: not returned unless a query asks for it with .select('+aadhaarNumber').
-    aadhaarNumber: { ...digits(12, 'Aadhaar number'), select: false },
+    // Personal data: encrypted at rest and not returned unless a query asks for it with .select('+aadhaarNumber').
+    aadhaarNumber: { ...encryptedDigits(12, 'Aadhaar number'), select: false },
 
     // ---- Step 2: student ----
     student: {
@@ -44,9 +57,10 @@ const applicationSchema = new Schema(
       fullName: text, // as per the last mark sheet
       gender: pick(C.GENDERS),
       address: { type: addressSchema, default: () => ({}) }, // local address
-      mobile: digits(10, 'Mobile number'),
+      mobile: encryptedDigits(10, 'Mobile number'),
+      mobileHash: { type: String, select: false }, // keyed blind index for exact-mobile lookup only
       email: { type: String, trim: true, lowercase: true, match: [/^([^\s@]+@[^\s@]+\.[^\s@]+)?$/, 'Email is not valid'] },
-      birthDate: Date, birthPlace: text, birthPlaceCountry: text, nationality: text, motherTongue: text,
+      birthDate: encryptedDate, birthPlace: text, birthPlaceCountry: text, nationality: text, motherTongue: text,
       maritalStatus: pick(C.MARITAL_STATUSES), bloodGroup: pick(C.BLOOD_GROUPS), handicap: pick(C.HANDICAPS),
       religion: pick(C.RELIGIONS), caste: text, subCaste: text, casteCategory: pick(C.CASTE_CATEGORIES),
       casteValidityNo: text, isMinority: pick(C.MINORITY_TYPES), minorityDetail: pick(C.MINORITY_DETAILS),
@@ -57,7 +71,7 @@ const applicationSchema = new Schema(
       fatherFullName: text, motherFirstName: text,
       sameAddressAsStudent: { type: Boolean, default: false },
       address: { type: addressSchema, default: () => ({}) }, // permanent address
-      fatherMobile: digits(10, 'Father mobile number'), motherMobile: digits(10, 'Mother mobile number'),
+      fatherMobile: encryptedDigits(10, 'Father mobile number'), motherMobile: encryptedDigits(10, 'Mother mobile number'),
       email: { type: String, trim: true, lowercase: true, match: [/^([^\s@]+@[^\s@]+\.[^\s@]+)?$/, 'Email is not valid'] },
       isAlumni: Boolean,
     },
@@ -121,14 +135,22 @@ const applicationSchema = new Schema(
     cancelledAt: Date,
     cancelReason: text,
   },
-  { timestamps: true }
+  { timestamps: true, toObject: { getters: true }, toJSON: { getters: true } }
 );
 
 applicationSchema.index({ status: 1, feeDueAt: 1 });
 applicationSchema.index({ status: 1, hardCopyDueAt: 1 });
+applicationSchema.index({ status: 1, createdAt: -1 }, { name: 'application_status_created' });
+applicationSchema.index({ applicantUserId: 1, createdAt: -1 }, { name: 'application_owner_created' });
 applicationSchema.index({ applicationNumber: 1 }, { unique: true, partialFilterExpression: { applicationNumber: { $type: 'string' } } });
 // One application per applicant, year and class.
 applicationSchema.index({ applicantUserId: 1, academicYearId: 1, programId: 1 }, { unique: true });
+applicationSchema.index({ 'student.mobileHash': 1 }, { name: 'application_mobile_blind_index' });
+
+applicationSchema.pre('save', function syncMobileBlindIndex() {
+  if (!this.student) return;
+  this.student.mobileHash = this.student.mobile ? hashMobile(this.student.mobile) : undefined;
+});
 
 // Cross-field rules that hold even in a draft.
 applicationSchema.pre('validate', function crossChecks() {
