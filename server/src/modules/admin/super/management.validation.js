@@ -26,6 +26,22 @@ const atLeastOne = (o) => Object.keys(o).length > 0;
 const staffRoles = [ROLES.WEBSITE_ADMIN, ROLES.ADMISSION_ADMIN, ROLES.EXAM_ADMIN, ROLES.SUPER_ADMIN];
 
 const listQuery = z.object({ search, isActive: active, ...pageFields }).strict();
+// Programs can be filtered by department and level; subjects by program, semester and category.
+const programListQuery = z.object({
+  search,
+  isActive: active,
+  departmentId: objectId('departmentId').optional(),
+  level: z.enum(PROGRAM_LEVELS).optional(),
+  ...pageFields,
+}).strict();
+const subjectListQuery = z.object({
+  search,
+  isActive: active,
+  programId: objectId('programId').optional(),
+  semester: z.coerce.number().int().min(1).max(12).optional(),
+  category: z.enum(SUBJECT_CATEGORIES).optional(),
+  ...pageFields,
+}).strict();
 const userListQuery = z.object({
   search,
   role: z.enum(ROLE_VALUES).optional(),
@@ -172,8 +188,8 @@ export {
   listQuery, userListQuery, userCreateBody, userUpdateBody,
   departmentBody, departmentUpdateBody,
   academicYearBody, academicYearUpdateBody,
-  programBody, programUpdateBody,
-  subjectBody, subjectUpdateBody,
+  programBody, programUpdateBody, programListQuery,
+  subjectBody, subjectUpdateBody, subjectListQuery,
   feeStructureBody, feeStructureUpdateBody,
   teacherBody, teacherUpdateBody,
   idParam, parse,

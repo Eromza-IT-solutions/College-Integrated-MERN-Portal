@@ -1306,7 +1306,14 @@ paths:
       parameters:
         - name: type
           in: query
-          schema: { type: string, enum: [notice, event, news, gallery, page] }
+          schema: { type: string, enum: [notice, event, news, gallery, page, department, course, faculty, document] }
+        - name: q
+          in: query
+          description: Search in title, summary and category (plain text).
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/Limit' }
       responses:
@@ -1347,6 +1354,18 @@ paths:
         - name: status
           in: query
           schema: { type: string, enum: [draft, published, archived] }
+        - name: q
+          in: query
+          description: Search in title, summary and category (plain text).
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - { $ref: '#/components/parameters/Page' }
+        - name: limit
+          in: query
+          description: Page size for editors (1-100, default 20).
+          schema: { type: integer, minimum: 1, maximum: 100 }
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         default: { $ref: '#/components/responses/DefaultError' }
@@ -1402,6 +1421,46 @@ paths:
       summary: Archive website content
       responses:
         '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/content/stats:
+    get:
+      tags: [Website]
+      summary: Website dashboard counts per content type and status (publicPages update)
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/uploads:
+    post:
+      tags: [Website]
+      summary: Upload one website picture or document (publicPages create)
+      description: >
+        Multipart field "file". JPG, PNG, WEBP, PDF, DOC, DOCX, XLSX, PPT, PPTX or TXT up to 10 MB; the file's
+        content must match its type. Returns { url, name, mimeType, sizeBytes, kind } to place on content.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/files/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[a-f0-9]{24}\.(jpg|jpeg|png|webp|pdf|doc|docx|xlsx|ppt|pptx|txt)$' }
+    get:
+      tags: [Website]
+      summary: Download an uploaded website file (public)
+      security: []
+      responses:
+        '200':
+          description: The file. Pictures and PDFs are shown inline; other files are sent as downloads.
         default: { $ref: '#/components/responses/DefaultError' }
 
 components:

@@ -5,7 +5,7 @@ import * as s from './management.service.js';
 import {
   listQuery, userListQuery, userCreateBody, userUpdateBody,
   departmentBody, departmentUpdateBody, academicYearBody, academicYearUpdateBody,
-  programBody, programUpdateBody, subjectBody, subjectUpdateBody,
+  programBody, programUpdateBody, programListQuery, subjectBody, subjectUpdateBody, subjectListQuery,
   feeStructureBody, feeStructureUpdateBody, teacherBody, teacherUpdateBody,
   idParam, parse,
 } from './management.validation.js';
@@ -117,7 +117,7 @@ export const updateAcademicYear = asyncHandler(async (req, res) => {
 
 // ---- programs ----
 export const listPrograms = asyncHandler(async (req, res) => {
-  const result = await s.listPrograms(parse(listQuery, req.query));
+  const result = await s.listPrograms(parse(programListQuery, req.query));
   send(req, res, result.items, 200, paged(result));
 });
 
@@ -141,7 +141,7 @@ export const deactivateProgram = asyncHandler(async (req, res) => {
 
 // ---- subjects ----
 export const listSubjects = asyncHandler(async (req, res) => {
-  const result = await s.listSubjects(parse(listQuery, req.query));
+  const result = await s.listSubjects(parse(subjectListQuery, req.query));
   send(req, res, result.items, 200, paged(result));
 });
 

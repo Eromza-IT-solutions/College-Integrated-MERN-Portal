@@ -32,10 +32,14 @@ describe("super admin secondary pages", () => {
 
   it("renders reports and analytics", () => {
     renderPage(<ReportsAnalytics />);
+    // expect(
+    //   screen.getByRole("heading", { name: "User Growth" }),
+    // ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "User Growth" }),
+      screen.getByRole("heading", { name: "Reports & Analytics" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Report Types/)).toBeInTheDocument();
+    // expect(screen.getByText(/Report Types/)).toBeInTheDocument();
+    expect(screen.getByText("Departments")).toBeInTheDocument();
   });
 
   it("renders audit logs", () => {

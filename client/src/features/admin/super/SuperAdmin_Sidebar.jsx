@@ -7,6 +7,7 @@ import {
   Settings,
   BarChart3,
   ClipboardList,
+  BookOpen,
   LogOut,
   Menu,
   X,
@@ -35,6 +36,7 @@ const MENU = [
   { id: "settings", label: "System Settings", icon: Settings, path: "/settings" },
   { id: "reports", label: "Reports & Analytics", icon: BarChart3, path: "/reports" },
   { id: "audit", label: "Audit Logs", icon: ClipboardList, path: "/audit-logs" },
+  { id: "academic", label: "Academic Data", icon: BookOpen, path: "/academic-data" },
 ];
 
 export default function Sidebar({ activeItem = "dashboard", onNavigate, onLogout }) {

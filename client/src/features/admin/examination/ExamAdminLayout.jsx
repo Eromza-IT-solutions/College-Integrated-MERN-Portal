@@ -1,3 +1,4 @@
+import "../../../assets/styles/aisc-superadmin-reference.css";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
@@ -5,7 +6,6 @@ import {
   ChartNoAxesCombined, Menu, X, ExternalLink, Bell
 } from "lucide-react";
 const logo = "/aisc-logo.png";
-import "../../../assets/styles/aisc-premium.css";
 
 const navItems = [
   { label: "Dashboard", path: "/exam-admin/dashboard", icon: LayoutDashboard },

@@ -24,6 +24,7 @@ import Application from '../src/models/Application.js';
 import AdmissionDocument from '../src/models/AdmissionDocument.js';
 import Student from '../src/models/Student.js';
 import Enrollment from '../src/models/Enrollment.js';
+import '../src/models/index.js'; // registers every model (Student.createFromApplication needs Counter)
 
 // The demo class whose subjects are already seeded by seed-sample-subjects.js.
 const DEMO_PROGRAM_CODE = 'BDPCCA';

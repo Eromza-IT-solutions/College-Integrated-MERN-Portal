@@ -1,5 +1,13 @@
 
 import { useMemo, useRef, useState } from "react";
+import { useApiData } from "../../../hooks/useApiData";
+import {
+  createContent,
+  fetchContent,
+  publishContent,
+  removeContent,
+  uploadWebsiteFile,
+} from "../../../services/websiteApi";
 import {
   Images,
   FileText,
@@ -30,8 +38,42 @@ const categories = [
   "Others",
 ];
 
+// One uploaded file as this screen shows it: a "gallery" item holds one picture, a "document" item one file.
+const toMediaItem = (item) => {
+  const isImage = item.type === "gallery";
+  const file = isImage ? item.images?.[0] : item.attachments?.[0];
+  return {
+    id: item.id,
+    name: item.title,
+    type: isImage ? "Image" : "Document",
+    category: item.category || (isImage ? "Others" : "Documents"),
+    size: Number(file?.sizeBytes || item.meta?.sizeBytes || 0),
+    url: file?.url || item.imageUrl || "",
+    uploadedAt: item.createdAt
+      ? new Date(item.createdAt).toLocaleDateString("en-GB")
+      : "",
+    raw: item,
+  };
+};
+
 function GalleryAndDocuments() {
-  const [items, setItems] = useState([]);
+  const { data, loading, error, reload } = useApiData(async () => {
+    const [gallery, documents] = await Promise.all([
+      fetchContent("gallery"),
+      fetchContent("document"),
+    ]);
+    return [...(gallery?.items ?? []), ...(documents?.items ?? [])];
+  });
+  const items = useMemo(
+    () =>
+      (data ?? [])
+        .map(toMediaItem)
+        .sort((a, b) =>
+          String(b.raw.createdAt || "").localeCompare(String(a.raw.createdAt || ""))
+        ),
+    [data]
+  );
+  const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("All");
   const [category, setCategory] = useState("All");
   const [search, setSearch] = useState("");
@@ -41,7 +83,6 @@ function GalleryAndDocuments() {
   const [toast, setToast] = useState("");
 
   const fileInputRef = useRef(null);
-  const previewUrls = useRef(new Set());
 
   const imageCount = items.filter(
     (item) => item.type === "Image"
@@ -71,57 +112,84 @@ function GalleryAndDocuments() {
 
   const showMessage = (message) => {
     setToast(message);
-    window.setTimeout(() => setToast(""), 2500);
+    window.setTimeout(() => setToast(""), 3500);
   };
 
-  const handleUpload = (event) => {
+  // Each file: upload it securely, record it as website content, and put it live.
+  const uploadOne = async (file) => {
+    const saved = await uploadWebsiteFile(file);
+    const isImage = saved.kind === "image";
+    const title = (saved.name || file.name).slice(0, 200);
+    const created = await createContent(
+      isImage
+        ? {
+            type: "gallery",
+            title,
+            category: uploadCategory,
+            images: [{ url: saved.url }],
+            meta: { sizeBytes: saved.sizeBytes, mimeType: saved.mimeType },
+          }
+        : {
+            type: "document",
+            title,
+            category: "Documents",
+            attachments: [
+              {
+                name: saved.name,
+                url: saved.url,
+                mimeType: saved.mimeType,
+                sizeBytes: saved.sizeBytes,
+              },
+            ],
+          }
+    );
+    await publishContent(created.id);
+  };
+
+  const handleUpload = async (event) => {
     const files = Array.from(event.target.files || []);
-
-    if (!files.length) return;
-
-    const newItems = files.map((file, index) => {
-      const isImage = file.type.startsWith("image/");
-      const url = URL.createObjectURL(file);
-
-      previewUrls.current.add(url);
-
-      return {
-        id: `${Date.now()}-${index}`,
-        name: file.name,
-        type: isImage ? "Image" : "Document",
-        category: isImage ? uploadCategory : "Documents",
-        size: file.size,
-        url,
-        uploadedAt: new Date().toLocaleDateString("en-GB"),
-        isLocal: true,
-      };
-    });
-
-    setItems((previous) => [...newItems, ...previous]);
-    setShowUpload(false);
     event.target.value = "";
-    showMessage(`${newItems.length} file(s) uploaded successfully`);
+
+    if (!files.length || uploading) return;
+
+    setUploading(true);
+    let done = 0;
+    const failed = [];
+    for (const file of files) {
+      try {
+        await uploadOne(file);
+        done += 1;
+      } catch (err) {
+        failed.push(`${file.name}: ${err.message}`);
+      }
+    }
+    setUploading(false);
+    setShowUpload(false);
+    reload();
+    showMessage(
+      failed.length
+        ? `${done} file(s) uploaded. Not uploaded: ${failed.join("; ")}`
+        : `${done} file(s) uploaded successfully`
+    );
   };
 
-  const deleteItem = (id) => {
+  const deleteItem = async (id) => {
     const item = items.find((entry) => entry.id === id);
 
     if (!item) return;
+    if (!window.confirm("Are you sure you want to delete this file?")) return;
 
-    if (item.isLocal && previewUrls.current.has(item.url)) {
-      URL.revokeObjectURL(item.url);
-      previewUrls.current.delete(item.url);
+    try {
+      await removeContent(item.raw);
+      if (previewItem?.id === id) {
+        setPreviewItem(null);
+      }
+      showMessage("File deleted successfully");
+    } catch (err) {
+      showMessage(err.message);
+    } finally {
+      reload();
     }
-
-    setItems((previous) =>
-      previous.filter((entry) => entry.id !== id)
-    );
-
-    if (previewItem?.id === id) {
-      setPreviewItem(null);
-    }
-
-    showMessage("File deleted successfully");
   };
 
   const formatSize = (bytes) => {
@@ -307,12 +375,13 @@ function GalleryAndDocuments() {
               </div>
 
               <h3 className="text-lg font-bold text-[#142B50]">
-                No Images Available
+                {loading ? "Loading Gallery..." : error ? "Could Not Load Gallery" : "No Images Available"}
               </h3>
 
               <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
-                Your college gallery is currently empty. Upload campus,
-                classroom, student and event photographs to get started.
+                {error
+                  ? error.message
+                  : "Your college gallery is currently empty. Upload campus, classroom, student and event photographs to get started."}
               </p>
 
               <button
@@ -557,19 +626,21 @@ function GalleryAndDocuments() {
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.ppt,.pptx"
+                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.txt,.xlsx,.ppt,.pptx"
                 onChange={handleUpload}
                 className="hidden"
               />
             </div>
 
             <p className="mt-4 text-xs text-gray-400">
-              Files are currently stored temporarily in browser memory.
-              Backend storage is needed for permanent uploads.
+              {uploading
+                ? "Uploading files, please wait..."
+                : "Files are stored securely on the college server and published to the website (up to 10 MB each)."}
             </p>
 
             <button
               onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
               className="mt-5 w-full rounded-xl bg-[#A00018] py-3 font-semibold text-white transition hover:bg-[#7D0015]"
             >
               Choose Files

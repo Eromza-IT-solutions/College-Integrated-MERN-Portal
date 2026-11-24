@@ -291,7 +291,13 @@ export async function updateAcademicYear(id, body) {
 }
 
 // ---- programs ----
-export const listPrograms = (query) => list(Program, query.isActive === undefined ? {} : { isActive: query.isActive }, query, ['name', 'code'], { name: 1 });
+export function listPrograms(query) {
+  const filter = {};
+  if (query.isActive !== undefined) filter.isActive = query.isActive;
+  if (query.departmentId) filter.departmentId = query.departmentId;
+  if (query.level) filter.level = query.level;
+  return list(Program, filter, query, ['name', 'code'], { name: 1 });
+}
 
 export async function createProgram(body) {
   await mustExist(Department, body.departmentId, 'Department');
@@ -326,7 +332,14 @@ export async function deactivateProgram(id) {
 }
 
 // ---- subjects ----
-export const listSubjects = (query) => list(Subject, query.isActive === undefined ? {} : { isActive: query.isActive }, query, ['name', 'code'], { code: 1 });
+export function listSubjects(query) {
+  const filter = {};
+  if (query.isActive !== undefined) filter.isActive = query.isActive;
+  if (query.programId) filter.programId = query.programId;
+  if (query.semester) filter.semester = query.semester;
+  if (query.category) filter.category = query.category;
+  return list(Subject, filter, query, ['name', 'code'], { code: 1 });
+}
 
 export async function createSubject(body) {
   await mustExist(Program, body.programId, 'Program');

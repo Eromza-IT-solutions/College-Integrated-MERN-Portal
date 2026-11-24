@@ -44,6 +44,33 @@ export async function fetchAvailableExams() {
   return dataOf(response);
 }
 
+// ---- Exam form: start, tick subjects, continue to payment ----
+export async function startExamForm(examId) {
+  const response = await http.post(`/exams/${examId}/form`);
+  return dataOf(response);
+}
+
+export async function fetchExamForm(formId) {
+  const response = await http.get(`/exam-forms/${formId}`);
+  return dataOf(response);
+}
+
+export async function saveExamFormSubjects(formId, subjectIds) {
+  const response = await http.put(`/exam-forms/${formId}/subjects`, { subjectIds });
+  return dataOf(response);
+}
+
+export async function continueExamForm(formId) {
+  const response = await http.post(`/exam-forms/${formId}/continue`);
+  return dataOf(response);
+}
+
+// Every published exam of the student's class, each with eligible: true/false and the reasons.
+export async function fetchExamEligibility() {
+  const response = await http.get("/exams/eligibility");
+  return dataOf(response);
+}
+
 export async function fetchHallTickets() {
   const response = await http.get("/exam-forms/hall-tickets/me");
   return dataOf(response);

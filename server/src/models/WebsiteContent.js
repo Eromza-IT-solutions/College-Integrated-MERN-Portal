@@ -3,6 +3,7 @@ import AppError from '../utils/AppError.js';
 import { slugify } from '../utils/slug.js';
 import {
   WEBSITE_CONTENT_TYPE as T, WEBSITE_CONTENT_TYPE_VALUES, WEBSITE_CONTENT_STATUS as S, WEBSITE_CONTENT_STATUS_VALUES, WEBSITE_LIMITS as L,
+  WEBSITE_PROFILE_TYPES,
 } from '../utils/constants.js';
 
 const { Schema } = mongoose;
@@ -30,6 +31,20 @@ const websiteContentSchema = new Schema(
     imageUrl: url, // one main picture
     images: { type: [imageSchema], validate: { validator: (a) => a.length <= L.imagesMax, message: `A gallery can have at most ${L.imagesMax} pictures` } },
     attachments: { type: [attachmentSchema], validate: { validator: (a) => a.length <= L.attachmentsMax, message: `At most ${L.attachmentsMax} attachments` } },
+
+    // A free label the admin pages group and filter by (for example "Admission" for a notice, "Campus" for a photo).
+    category: { type: String, trim: true, maxlength: L.categoryMax },
+    // Small named details for structured items (a faculty member's designation, a course's duration, a notice's audience).
+    // Plain text only; the number of keys and the length of each value are capped.
+    meta: {
+      type: Map,
+      of: { type: String, trim: true, maxlength: L.metaValueMax },
+      default: undefined,
+      validate: {
+        validator: (m) => !m || (m.size <= L.metaKeysMax && [...m.keys()].every((k) => /^[A-Za-z][A-Za-z0-9]{0,39}$/.test(k))),
+        message: `Details can have at most ${L.metaKeysMax} simple names (letters and digits)`,
+      },
+    },
 
     // Empty = for the whole college. A department notice (written by a Head of Department) carries that department.
     departmentId: { type: Schema.Types.ObjectId, ref: 'Department', default: null, index: true },
@@ -69,6 +84,10 @@ websiteContentSchema.statics.problemsBeforePublish = function problemsBeforePubl
   const problems = [];
   if (doc.type === T.GALLERY) {
     if (!doc.images || doc.images.length === 0) problems.push('A gallery needs at least one picture');
+  } else if (doc.type === T.DOCUMENT) {
+    if (!doc.attachments || doc.attachments.length === 0) problems.push('A document needs a file');
+  } else if (WEBSITE_PROFILE_TYPES.includes(doc.type)) {
+    // structured profile: the title and its details are enough
   } else if (!doc.body && !(doc.attachments && doc.attachments.length)) {
     problems.push(doc.type === T.NOTICE ? 'A notice needs text or an attachment' : 'It needs some text');
   }
