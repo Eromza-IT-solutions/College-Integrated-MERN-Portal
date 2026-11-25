@@ -82,9 +82,8 @@ export default function TeacherSidebar({ open = false, onClose, onLogout }) {
 
       <div className="ts-brand">
         <span className="ts-logo">
-          <img src="/images/aisc-logo.png" alt="" onError={(e) => (e.currentTarget.style.display = "none")} />
-          <GraduationCap size={34} aria-hidden="true" />
-        </span>
+  <img src="/logo.png" alt="Abeda Inamdar Senior College logo" />
+</span>
         <h2>Abeda Inamdar<span>Senior College</span></h2>
       </div>
 
@@ -153,8 +152,8 @@ const css = `
 .ts-close{display:none;position:absolute;top:12px;right:12px;width:36px;height:36px;border:0;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer;place-items:center}
 
 .ts-brand{padding:26px 16px 18px;text-align:center}
-.ts-logo{position:relative;width:84px;height:84px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#0f1d57;border:3px solid #e3b82b;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.3)}
-.ts-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}
+.ts-logo{position:relative;width:120px;height:120px;margin:0 auto 12px;display:grid;place-items:center;overflow:hidden;background:transparent}
+.ts-logo img{width:100%;height:100%;object-fit:contain;background:transparent}
 .ts-brand h2{margin:0;font:700 21px/1.25 'Playfair Display',Georgia,serif;color:#fff}
 .ts-brand h2 span{display:block;color:#e3b82b}
 
@@ -184,7 +183,10 @@ const css = `
 .ts-sublink.active::before{content:"";position:absolute;left:-17px;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:#e3b82b;box-shadow:0 0 0 3px rgba(227,184,43,.25)}
 
 .ts-foot{padding:10px;border-top:1px solid rgba(255,255,255,.1)}
-.ts-foot .ts-link:hover{background:rgba(155,18,48,.35)}
+.ts-foot .ts-link:hover{
+  background:#dc2626;
+  color:#fff;
+}
 
 @media(max-width:1023px){
   .ts{position:fixed;left:0;top:0;bottom:0;width:272px;transform:translateX(-100%);transition:transform .28s ease;box-shadow:none}
