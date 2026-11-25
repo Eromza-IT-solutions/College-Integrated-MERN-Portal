@@ -20,5 +20,5 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
-// jsdom does not implement scrollTo; layouts call it after route changes.
+// jsdom does not implement scrollTo; several layouts call it on scroll containers.
 Element.prototype.scrollTo = Element.prototype.scrollTo || function scrollTo() {}
