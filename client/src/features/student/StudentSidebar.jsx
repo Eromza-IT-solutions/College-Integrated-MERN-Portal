@@ -98,8 +98,8 @@ export default function Sidebar({
     >
       {/* Logo + college name */}
       <div className="flex flex-col items-center px-4 pb-5 pt-6">
-        <div className="h-[84px] w-[84px] overflow-hidden rounded-full border-[3px] border-[#c9971c] bg-white">
-          <img src={logo} alt="College logo" className="h-full w-full object-cover" />
+       <div className="h-[120px] w-[120px] overflow-hidden bg-transparent">
+          <img src={logo} alt="College logo" className="h-full w-full object-contain" />
         </div>
         <h1
           className="mt-4 text-center text-[22px] font-bold leading-tight"
