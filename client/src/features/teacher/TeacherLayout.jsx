@@ -32,7 +32,7 @@ const TEACHER_PAGES = TEACHER_MENU.flatMap((item) =>
  *     ...
  *   </Route>
  */
-export default function TeacherLayout({ teacher = DEFAULT_TEACHER, notifications = [], onLogout }) {
+export default function TeacherLayout({ teacher = DEFAULT_TEACHER, notifications = [] }) {
   const navigate = useNavigate();
   const { logout: authLogout } = useAuth();
   const { pathname } = useLocation();

@@ -166,14 +166,7 @@ const STATUS_DOT = {
   Draft: "bg-amber-500",
 };
 
-const initialsOf = (name = "") =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+
 
 const pageList = (total, current) => {
   if (total <= 5) {

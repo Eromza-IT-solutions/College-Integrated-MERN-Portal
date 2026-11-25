@@ -746,7 +746,7 @@ export default function ExamTimetables() {
 
     try {
       const payload = schedule.map(
-        ({ _rowId, isDemo: demoFlag, ...row }) => ({
+        ({ _rowId, isDemo: _isDemo, ...row }) => ({
           subjectId: row.subjectId,
           date: row.date,
           startTime: row.startTime,

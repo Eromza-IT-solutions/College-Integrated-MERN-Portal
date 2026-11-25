@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Download, BarChart3 } from "lucide-react";
-import { Card, Pill, Stat, Bar, Avatar, ClassPicker, Empty, PageShell, useTeacher, CLASSES, MIN_ATT, studentsOf, studentStats, downloadCsv, fmt } from "./TeacherShared";
+import { Card, Pill, Stat, Bar, Avatar, ClassPicker, Empty, PageShell, useTeacher, CLASSES, MIN_ATT, studentsOf, downloadCsv, fmt } from "./TeacherShared";
 
 export default function AttendanceReport() {
   const { attendance } = useTeacher();

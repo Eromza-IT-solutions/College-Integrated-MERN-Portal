@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Search, Download, Printer, Receipt } from "lucide-react";
-import { Card, Pill, Stat, inr, fmt, receiptsHtml, receiptBlock, saveHtml, printHtml, usePayments } from "./PaymentsShared";
+import { Card, Pill, Stat, inr, fmt, receiptsHtml, saveHtml, printHtml, usePayments } from "./PaymentsShared";
 
 /** source: "online" (payments made on the portal) or "college" (receipts issued at the college office) */
 export default function ReceiptsList({ source }) {

@@ -16,8 +16,6 @@ const PAGE_TITLES = {
 
 export default function SuperAdmin_Topbar({
   titleOverride,
-  roleName = "Super Admin",
-  roleInitials = "SA",
 }) {
   const location = useLocation();
 
