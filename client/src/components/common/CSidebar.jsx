@@ -55,33 +55,32 @@ export default function CSidebar({
         ${collapsed ? "w-[72px]" : "w-[240px]"}
         ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
       >
-        {/* College Branding */}
-        <div className="flex shrink-0 flex-col items-center border-b border-white/10 px-3 py-7 text-center">
-          <img
-            src={collegeLogo}
-            alt="College Logo"
-            className={`${collapsed ? "h-12 w-12" : "h-20 w-20"} object-contain`}
-          />
+        {/* College Branding - Super Admin Style */}
+        <div className="relative shrink-0 border-b border-white/10 px-5 pb-6 pt-8 text-center">
+          <span
+            className={`mx-auto grid place-items-center rounded-full bg-white p-1.5 shadow-lg ring-4 ring-[#f2c200]/60 ${
+              collapsed ? "h-12 w-12" : "h-20 w-20"
+            }`}
+          >
+            <img
+              src={collegeLogo}
+              alt="Abeda Inamdar Senior College Logo"
+              className="h-full w-full object-contain"
+            />
+          </span>
 
           {!collapsed && (
-            <div className="mt-3">
-              <h2 className="font-serif text-lg font-bold leading-tight">
+            <>
+              <h1 className="mt-4 font-['Playfair_Display',serif] text-xl font-bold leading-tight">
                 Abeda Inamdar
-              </h2>
-              <h2 className="font-serif text-lg font-bold leading-tight text-[#FFC900]">
-                Senior College
-              </h2>
-            </div>
-          )}
+                <span className="block text-[#f2c200]">
+                  Senior College
+                </span>
+              </h1>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-white/70 hover:bg-white/10 lg:hidden"
-            aria-label="Close sidebar"
-          >
-            <X size={18} />
-          </button>
+              <div className="mx-auto mt-4 h-px w-full bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+            </>
+          )}
         </div>
 
         {/* Navigation */}
@@ -147,14 +146,7 @@ export default function CSidebar({
             onClick={onToggleCollapse}
             className="mt-2 hidden min-h-[38px] w-full items-center justify-center gap-2 rounded-lg text-xs text-slate-400 hover:bg-white/10 hover:text-white lg:flex"
           >
-            {collapsed ? (
-              <ChevronRight size={17} />
-            ) : (
-              <>
-                <ChevronLeft size={17} />
-                Collapse Sidebar
-              </>
-            )}
+            
           </button>
         </div>
       </aside>
