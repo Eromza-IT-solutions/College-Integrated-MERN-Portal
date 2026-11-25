@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import request from 'supertest';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import User from '../src/models/User.js';
 import Teacher from '../src/models/Teacher.js';
 import AcademicYear from '../src/models/AcademicYear.js';
@@ -17,7 +17,7 @@ const superAdmin = () => as({ id: w.superAdmin._id, role: 'superAdmin' });
 const examAdmin = () => as({ id: w.examAdmin._id, role: 'examAdmin' });
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri(), { dbName: 'management_test' });
   await prepareDatabase();
   w = await buildWorld();

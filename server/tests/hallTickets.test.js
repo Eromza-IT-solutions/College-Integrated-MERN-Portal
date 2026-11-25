@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import request from 'supertest';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import { prepareDatabase, appFor, buildWorld } from './helpers/academicsWorld.js';
 
 jest.setTimeout(60000);
@@ -14,7 +14,7 @@ const student1 = () => as({ id: w.stu1User._id, role: 'student' });
 const student2 = () => as({ id: w.stu2User._id, role: 'student' });
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri(), { dbName: 'hall_tickets_test' });
   await prepareDatabase();
   w = await buildWorld();

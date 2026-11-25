@@ -43,6 +43,7 @@ function summary(application) {
 function detail(application) {
   const data = application.toObject ? application.toObject() : { ...application };
   delete data.aadhaarNumber;
+  if (data.student) delete data.student.mobileHash;
   delete data.__v;
   data.isEditable = application.isEditable ? application.isEditable() : false;
   if (!application.isSelected || application.isSelected('aadhaarNumber')) {

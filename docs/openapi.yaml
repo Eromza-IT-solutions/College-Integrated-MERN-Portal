@@ -441,6 +441,10 @@ paths:
         - name: status
           in: query
           schema: { type: string }
+        - name: mobile
+          in: query
+          description: Exact 10-digit student mobile; matched with a keyed blind index, not by decrypting rows.
+          schema: { type: string, pattern: '^\d{10}$' }
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         default: { $ref: '#/components/responses/DefaultError' }
@@ -516,14 +520,19 @@ paths:
     post:
       tags: [Admissions]
       summary: Upload application document
+      description: >-
+        JPG or PNG only, max 500 KB. The file extension, client MIME type and actual bytes must agree.
+        Image dimensions are read from the bytes; photo must be 80x100 px and signature 80x50 px.
+        SVG, archives, executables, PDFs, empty files and malformed images are rejected with 400.
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
-              required: [file]
+              required: [file, type]
               properties:
+                type: { type: string, description: 'One of the admission document types' }
                 file: { type: string, format: binary }
       responses:
         '201': { $ref: '#/components/responses/Created' }
@@ -1642,7 +1651,11 @@ components:
         _id: { type: string }
         purpose: { type: string, enum: [admission, exam] }
         amountPaise: { type: integer }
-        status: { type: string, enum: [created, paid, failed] }
+        status:
+          type: string
+          enum: [created, paid, failed]
+          description: Refunds are separate Refund rows; a refunded payment remains paid.
+        reservedRefundPaise: { type: integer, description: Approved or requested refund headroom; not a status. }
         gateway: { type: string, enum: [razorpay, fake] }
         receiptNumber: { type: string }
         paidAt: { type: string, format: date-time }

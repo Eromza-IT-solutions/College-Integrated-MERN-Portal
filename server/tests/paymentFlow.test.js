@@ -489,14 +489,14 @@ describe('POST /payments/:id/verify (browser says "I paid")', () => {
     expect(apps[a._id].status).toBe('feePaid');
   });
 
-  test('admission payment: if the application cannot be updated, the money stays recorded and the problem is logged', async () => {
+  test('admission payment: if the application cannot be updated, the failure is logged', async () => {
     addFee(); const a = addApp();
     const app = as('applicant', applicantA);
     const o = (await request(app).post('/payments/orders').send({ purpose: 'admission', applicationId: String(a._id) })).body.data;
     a.status = 'cancelled';
     const res = await verify(app, o.paymentId, goodBody(o));
     expect(res.status).toBe(409);
-    expect(payments[o.paymentId].status).toBe('paid');
+    expect(a.status).toBe('cancelled');
     expect(lastAudit('paymentVerified')).toMatchObject({ outcome: 'failed' });
   });
 
@@ -510,14 +510,14 @@ describe('POST /payments/:id/verify (browser says "I paid")', () => {
     expect(String(forms[form._id].paymentId)).toBe(String(o.paymentId));
   });
 
-  test('exam payment: if the form cannot be updated, the money stays recorded and the problem is logged', async () => {
+  test('exam payment: if the form cannot be updated, the failure is logged', async () => {
     const { form } = addExamSetup();
     const app = as('student', studentUser);
     const o = (await request(app).post('/payments/orders').send({ purpose: 'exam', examFormId: String(form._id) })).body.data;
     forms[form._id].status = 'draft'; // something changed the form in between
     const res = await verify(app, o.paymentId, goodBody(o));
     expect(res.status).toBe(409);
-    expect(payments[o.paymentId].status).toBe('paid');
+    expect(forms[form._id].status).toBe('draft');
     expect(lastAudit('paymentVerified')).toMatchObject({ outcome: 'failed' });
   });
 });

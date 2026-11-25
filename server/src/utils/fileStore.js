@@ -4,12 +4,6 @@ import path from 'node:path';
 
 const root = () => path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'));
 
-function extensionFor(file) {
-  const ext = path.extname(file.originalname || '').toLowerCase();
-  if (ext === '.jpg' || ext === '.jpeg' || ext === '.png') return ext;
-  return file.mimetype === 'image/png' ? '.png' : '.jpg';
-}
-
 function fullPathOf(storageKey) {
   const base = root();
   const full = path.resolve(base, ...String(storageKey || '').split('/'));
@@ -17,8 +11,8 @@ function fullPathOf(storageKey) {
   return full;
 }
 
-async function saveUploadedFile({ applicationId, type, file }) {
-  const name = `${type}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${extensionFor(file)}`;
+async function saveUploadedFile({ applicationId, type, file, extension }) {
+  const name = `${type}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${extension}`;
   const storageKey = path.posix.join('admissions', String(applicationId), name);
   const full = fullPathOf(storageKey);
   await fs.mkdir(path.dirname(full), { recursive: true });

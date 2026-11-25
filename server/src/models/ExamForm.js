@@ -1,11 +1,24 @@
 import mongoose from 'mongoose';
 import AppError from '../utils/AppError.js';
+import { decryptField, encryptField, isEncrypted } from '../utils/fieldCrypto.js';
 import { yearOfSemester } from '../utils/academic.js';
 import {
   EXAM_FORM_STATUS, EXAM_FORM_STATUS_VALUES, STUDENT_STATUS, ENROLLMENT_STATUS, PAYMENT_STATUS, PAYMENT_PURPOSE, SUBJECT_CATEGORIES, DEFAULT_DIVISION,
 } from '../utils/constants.js';
 
 const { Schema } = mongoose;
+// Snapshot of the applicant's mobile. Stored encrypted; the getter exposes the original value to the API.
+const encryptedMobile = {
+  type: String,
+  get: decryptField,
+  set(value) {
+    if (value === undefined || value === null || value === '') return value;
+    if (isEncrypted(value)) return value;
+    const text = String(value);
+    if (!/^\d{10}$/.test(text)) throw new Error('Mobile number must be 10 digits');
+    return encryptField(text);
+  },
+};
 
 // A student's exam form. The details are filled in automatically from the admission record; the student only ticks
 // the subjects they are appearing for, and then pays the fee.
@@ -16,7 +29,7 @@ const examFormSchema = new Schema(
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true, index: true },
     // Copied when the form is started, so a later change to the student record does not change a filed form.
     details: {
-      enrollmentNumber: String, fullName: String, mobile: String, email: String,
+      enrollmentNumber: String, fullName: String, mobile: encryptedMobile, email: String,
       semester: Number, feesCategory: String, divisionType: String,
     },
     subjects: [
@@ -35,7 +48,7 @@ const examFormSchema = new Schema(
     decidedAt: Date,
     decisionNote: { type: String, trim: true },
   },
-  { timestamps: true }
+  { timestamps: true, toObject: { getters: true }, toJSON: { getters: true } }
 );
 
 // One form per student per exam.

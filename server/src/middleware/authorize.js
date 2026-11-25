@@ -36,7 +36,8 @@ const forbidden = (message = 'You do not have permission to do this') => new App
 // Records a refused request. Best effort: a failure to write the log must never change the answer.
 function auditDenied(req, action, entityType, details) {
   const actor = getActor(req);
-  Promise.resolve(
+  // Promise.resolve(
+  return Promise.resolve(
     AuditLog.record({
       actorUserId: actor?.id ?? null,
       action,
@@ -58,15 +59,18 @@ export function authorizeRole(...roles) {
   if (allowed.length === 0) throw new Error('authorizeRole: give at least one role');
   for (const r of allowed) if (!ROLE_VALUES.includes(r)) throw new Error(`authorizeRole: unknown role "${r}"`); // typo -> stops at start-up
 
-  return (req, res, next) => {
+  // return (req, res, next) => {
+  return asyncHandler(async (req, res, next) => {
     const actor = getActor(req);
     if (!actor) return next(notSignedIn());
     if (!allowed.includes(actor.role)) {
-      auditDenied(req, 'roleDenied', 'route', { required: allowed });
+      // auditDenied(req, 'roleDenied', 'route', { required: allowed });
+      await auditDenied(req, 'roleDenied', 'route', { required: allowed });
       return next(forbidden());
     }
     return next();
-  };
+  // };
+  });
 }
 
 /**
@@ -85,7 +89,8 @@ function recordGuard(label, loadRecord, decide) {
     if (!record) throw new AppError('Not found', 404, undefined, 'NOT_FOUND');
 
     if (!decide(req, record)) {
-      auditDenied(req, 'recordAccessDenied', req.permission.resource, { scope: req.permission.scope, guard: label, attempted: req.permission.action });
+      // auditDenied(req, 'recordAccessDenied', req.permission.resource, { scope: req.permission.scope, guard: label, attempted: req.permission.action });
+      await auditDenied(req, 'recordAccessDenied', req.permission.resource, { scope: req.permission.scope, guard: label, attempted: req.permission.action });
       throw forbidden('You do not have access to this record');
     }
     req.record = record; // handed on, so the route does not have to load it a second time

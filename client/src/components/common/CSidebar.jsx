@@ -1,6 +1,5 @@
 
 import { NavLink, useNavigate } from "react-router-dom";
-import logo from "../../assets/images/image.png";
 import { useAuth } from "../../hooks/useAuth";
 import {
   LayoutDashboard,
@@ -10,44 +9,29 @@ import {
   Images,
   Megaphone,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from "lucide-react";
 
-function CSidebar() {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
+import collegeLogo from "../../assets/images/image.png";
 
-  const menuItems = [
-    {
-      name: "Dashboard",
-      path: "/website-admin/dashboard",
-      icon: LayoutDashboard,
-      end: true,
-    },
-    {
-      name: "Manage Content",
-      path: "/website-admin/content",
-      icon: FileText,
-    },
-    {
-      name: "Departments & Courses",
-      path: "/website-admin/departments",
-      icon: GraduationCap,
-    },
-    {
-      name: "Faculty Profiles",
-      path: "/website-admin/faculty",
-      icon: Users,
-    },
-    {
-      name: "Gallery & Documents",
-      path: "/website-admin/gallery",
-      icon: Images,
-    },
-    {
-      name: "Notices & Announcements",
-      path: "/website-admin/notices",
-      icon: Megaphone,
-    },
+export default function CSidebar({
+  open = false,
+  onClose = () => {},
+  collapsed = false,
+  onToggleCollapse = () => {},
+}) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const navItems = [
+    { label: "Dashboard", to: "/website-admin/dashboard", icon: LayoutDashboard, end: true },
+    { label: "Manage Content", to: "/website-admin/content", icon: FileText },
+    { label: "Departments & Courses", to: "/website-admin/departments", icon: GraduationCap },
+    { label: "Faculty Profiles", to: "/website-admin/faculty", icon: Users },
+    { label: "Gallery & Documents", to: "/website-admin/gallery", icon: Images },
+    { label: "Notices & Announcements", to: "/website-admin/notices", icon: Megaphone },
   ];
 
   const handleLogout = async () => {
@@ -56,80 +40,124 @@ function CSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-50 flex h-screen w-[220px] flex-col overflow-hidden bg-gradient-to-b from-[#172951] via-[#14264A] to-[#101B38] text-white shadow-xl">
-
-      {/* College Branding */}
-      <div className="flex shrink-0 flex-col items-center border-b border-white/10 px-4 pb-5 pt-5">
-
-        <img
-                    src={logo}
-                    alt="college logo"
-                    className="h-15 w-15 rounded-full border border-gray-200 object-cover"
-                  />
-
-        <h2 className="text-center font-serif text-[18px] font-bold leading-tight text-white">
-          Abeda Inamdar
-          <span className="mt-0.5 block text-[#FFD43B]">
-            Senior College
-          </span>
-        </h2>
-
-        <div className="mt-4 h-px w-full bg-white/10" />
-      </div>
-
-      {/* Navigation Menu */}
-      <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-5">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              end={item.end}
-              className={({ isActive }) =>
-                `group flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-semibold transition-all duration-300 ${
-                  isActive
-                    ? "bg-white text-[#8E0018] shadow-md shadow-black/10"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    size={19}
-                    strokeWidth={isActive ? 2.5 : 2}
-                    className={`shrink-0 transition-colors ${
-                      isActive
-                        ? "text-[#8E0018]"
-                        : "text-slate-300 group-hover:text-[#FFD43B]"
-                    }`}
-                  />
-
-                  <span className="leading-5">
-                    {item.name}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Logout */}
-      <div className="shrink-0 border-t border-white/10 p-3">
+    <>
+      {open && (
         <button
-          onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-300 transition-all duration-300 hover:bg-red-500/15 hover:text-white"
-        >
-          <LogOut size={19} />
-          <span>Logout</span>
-        </button>
-      </div>
+          type="button"
+          aria-label="Close sidebar"
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+        />
+      )}
 
-    </aside>
+      <aside
+        className={`fixed left-0 top-0 z-50 flex h-screen flex-col overflow-hidden bg-[#142448] text-white shadow-xl transition-all duration-300
+        ${collapsed ? "w-[72px]" : "w-[240px]"}
+        ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+      >
+        {/* College Branding */}
+        <div className="flex shrink-0 flex-col items-center border-b border-white/10 px-3 py-7 text-center">
+          <img
+            src={collegeLogo}
+            alt="College Logo"
+            className={`${collapsed ? "h-12 w-12" : "h-20 w-20"} object-contain`}
+          />
+
+          {!collapsed && (
+            <div className="mt-3">
+              <h2 className="font-serif text-lg font-bold leading-tight">
+                Abeda Inamdar
+              </h2>
+              <h2 className="font-serif text-lg font-bold leading-tight text-[#FFC900]">
+                Senior College
+              </h2>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-white/70 hover:bg-white/10 lg:hidden"
+            aria-label="Close sidebar"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-6">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={onClose}
+                title={collapsed ? item.label : undefined}
+                className={({ isActive }) =>
+                  `group relative flex min-h-[44px] items-center rounded-xl transition-all duration-200
+                  ${collapsed ? "justify-center px-2" : "gap-3 px-3"}
+                  ${
+                    isActive
+                      ? "bg-white text-[#A30D20] font-semibold shadow-sm"
+                      : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <span className="absolute -left-3 top-2 bottom-2 w-1.5 rounded-r-full bg-[#FFC900]" />
+                    )}
+
+                    <Icon
+                      size={19}
+                      className={isActive ? "shrink-0 text-[#A30D20]" : "shrink-0"}
+                    />
+
+                    {!collapsed && (
+                      <span className="truncate text-[13px]">
+                        {item.label}
+                      </span>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        {/* Logout */}
+        <div className="shrink-0 border-t border-white/10 p-3">
+          <button
+            type="button"
+            onClick={handleLogout}
+            title={collapsed ? "Logout" : undefined}
+            className={`flex min-h-[44px] w-full items-center rounded-xl text-sm font-medium text-slate-300 transition hover:bg-red-500/10 hover:text-red-400
+            ${collapsed ? "justify-center" : "gap-3 px-3"}`}
+          >
+            <LogOut size={19} />
+            {!collapsed && <span>Logout</span>}
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="mt-2 hidden min-h-[38px] w-full items-center justify-center gap-2 rounded-lg text-xs text-slate-400 hover:bg-white/10 hover:text-white lg:flex"
+          >
+            {collapsed ? (
+              <ChevronRight size={17} />
+            ) : (
+              <>
+                <ChevronLeft size={17} />
+                Collapse Sidebar
+              </>
+            )}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
-
-export default CSidebar;

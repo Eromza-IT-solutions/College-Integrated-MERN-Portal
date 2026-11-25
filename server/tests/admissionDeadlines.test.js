@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import Application from '../src/models/Application.js';
 import AuditLog from '../src/models/AuditLog.js';
 import { runAdmissionDeadlineJob } from '../src/jobs/admissionDeadlines.js';
@@ -7,7 +7,7 @@ import { runAdmissionDeadlineJob } from '../src/jobs/admissionDeadlines.js';
 let mongod;
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri());
 }, 120000);
 afterAll(async () => {

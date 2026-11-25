@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import Application from '../src/models/Application.js';
 import Result from '../src/models/Result.js';
 import admissionRoutes from '../src/modules/admission/admission.routes.js';
@@ -34,7 +34,7 @@ function mountedApp(user, path, router) {
 }
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri(), { dbName: 'pdf_test' });
   await prepareDatabase();
   w = await buildWorld();

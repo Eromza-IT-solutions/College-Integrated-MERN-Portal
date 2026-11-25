@@ -30,7 +30,7 @@ counterSchema.statics.next = async function next(key, { session } = {}) {
   } catch (err) {
     // Two requests creating the very first number of a new key at the same moment:
     // one of them can get a duplicate-key error. Just try once more.
-    if (err && err.code === 11000) {
+    if (err && err.code === 11000 && !session) {
       const doc = await this.findOneAndUpdate({ _id: key }, { $inc: { seq: 1 } }, options);
       return doc.seq;
     }
@@ -48,6 +48,22 @@ counterSchema.statics.format = function format({ prefix, yearLabel, seq, width =
   if (yearLabel) parts.push(yearLabel);
   parts.push(String(seq).padStart(width, '0'));
   return parts.join('-');
+};
+
+counterSchema.statics.seedForYear = async function seedForYear(label, { session } = {}) {
+  if (!label || typeof label !== 'string') throw new Error('Academic year label is required to seed counters');
+  const prefixes = ['receipt', 'application', 'enrollment'];
+  await Promise.all(prefixes.map(async (prefix) => {
+    try {
+      await this.updateOne(
+        { _id: `${prefix}:${label}` },
+        { $setOnInsert: { seq: 0 } },
+        { upsert: true, session }
+      );
+    } catch (err) {
+      if (err?.code !== 11000 || session) throw err;
+    }
+  }));
 };
 
 export default mongoose.model('Counter', counterSchema);

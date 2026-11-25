@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import request from 'supertest';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { createTestMongo } from './helpers/memoryMongo.js';
 import Attendance from '../src/models/Attendance.js';
 import AuditLog from '../src/models/AuditLog.js';
 import Marks from '../src/models/Marks.js';
@@ -17,7 +17,7 @@ const as = (u) => appFor(u);
 const hodAOf = () => as({ id: w.hodA._id, role: 'hod', departmentId: w.deptA._id });
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await createTestMongo();
   await mongoose.connect(mongod.getUri(), { dbName: 'academics_test' });
   await prepareDatabase();
   w = await buildWorld();

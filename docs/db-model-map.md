@@ -43,6 +43,8 @@ Scope values are `own`, `department`, and `all`. `requirePermission()` stores th
 
 Application statuses are `draft`, `submitted`, `returned`, `waitlisted`, `approved`, `feePaid`, `admitted`, `rejected`, and `cancelled`. Use `application.status` as the source of truth.
 
+Full Aadhaar, student/parent mobile numbers, and date of birth on `Application`, plus the mobile snapshot on `ExamForm.details`, are encrypted at rest with AES-256-GCM. See `docs/pii-storage.md` for the field list, the `FIELD_ENCRYPTION_KEY` requirement and the documented `User.mobile` exception.
+
 ## Examinations and results
 
 | Model | Purpose | Key relationships |
