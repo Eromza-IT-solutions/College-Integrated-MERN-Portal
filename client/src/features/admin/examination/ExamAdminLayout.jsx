@@ -1,70 +1,105 @@
 import "../../../assets/styles/aisc-superadmin-reference.css";
-import { useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard, CalendarDays, CalendarClock, BookOpen, Ticket,
-  ChartNoAxesCombined, Menu, X, ExternalLink, Bell
-} from "lucide-react";
-const logo = "/aisc-logo.png";
 
-const navItems = [
-  { label: "Dashboard", path: "/exam-admin/dashboard", icon: LayoutDashboard },
-  { label: "Exam Sessions", path: "/exam-admin/sessions", icon: CalendarDays },
-  { label: "Exam Timetables", path: "/exam-admin/timetables", icon: CalendarClock },
-  { label: "Subjects & Forms", path: "/exam-admin/subjects", icon: BookOpen },
-  { label: "Hall Tickets", path: "/exam-admin/hall-tickets", icon: Ticket },
-  { label: "Marks & Results", path: "/exam-admin/marks", icon: ChartNoAxesCombined },
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  CalendarClock,
+  BookOpen,
+  Ticket,
+  ChartNoAxesCombined,
+} from "lucide-react";
+
+import SuperAdmin_Sidebar from "../super/SuperAdmin_Sidebar";
+import SuperAdmin_Topbar from "../super/SuperAdmin_Topbar";
+import { useAuth } from "../../../hooks/useAuth";
+
+const BASE_PATH = "/exam-admin";
+
+const EXAM_MENU = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    path: "/dashboard",
+  },
+  {
+    id: "sessions",
+    label: "Exam Sessions",
+    icon: CalendarDays,
+    path: "/sessions",
+  },
+  {
+    id: "timetables",
+    label: "Exam Timetables",
+    icon: CalendarClock,
+    path: "/timetables",
+  },
+  {
+    id: "subjects",
+    label: "Subjects & Exam Forms",
+    icon: BookOpen,
+    path: "/subjects",
+  },
+  {
+    id: "hall-tickets",
+    label: "Hall Tickets",
+    icon: Ticket,
+    path: "/hall-tickets",
+  },
+  {
+    id: "marks",
+    label: "Marks & Results",
+    icon: ChartNoAxesCombined,
+    path: "/marks",
+  },
 ];
 
+const PAGE_TITLES = {
+  dashboard: "Examination Dashboard",
+  sessions: "Exam Sessions",
+  timetables: "Exam Timetables",
+  subjects: "Subjects & Exam Forms",
+  "hall-tickets": "Hall Tickets",
+  marks: "Marks & Results",
+};
+
 export default function ExamAdminLayout() {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const currentPage = navItems.find((item) => item.path === location.pathname)?.label || "Examination";
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const activeItem =
+    location.pathname.replace(`${BASE_PATH}/`, "") || "dashboard";
+
+  const currentPage = PAGE_TITLES[activeItem] || "Examination";
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
-    <div className="aisc-layout">
-      <aside className={`aisc-sidebar ${mobileOpen ? "open" : ""}`}>
-        <div className="aisc-brand">
-          <div className="aisc-brand-logo"><img src={logo} alt="Abeda Inamdar Senior College emblem" /></div>
-          <div>
-            <div className="aisc-brand-name">ABEDA INAMDAR<br />SENIOR COLLEGE</div>
-            <div className="aisc-brand-caption">Arts · Science · Commerce</div>
-          </div>
-        </div>
-        <div className="aisc-nav-label">Examination Cell</div>
-        <nav className="aisc-nav">
-          {navItems.map(({ label, path, icon: Icon }) => (
-            <NavLink key={path} to={path} end onClick={() => setMobileOpen(false)}>
-              <Icon size={17} strokeWidth={2} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-        </nav>
-        <div className="aisc-sidebar-foot">
-          <strong>Academic Administration</strong>
-          <span>Examination management workspace for authorised college staff.</span>
-          <a href="https://www.abedainamdarcollege.org.in/" target="_blank" rel="noreferrer">
-            College website <ExternalLink size={11} />
-          </a>
-        </div>
-      </aside>
+    <div className="min-h-screen bg-[#f7f3ef]">
+      <SuperAdmin_Sidebar
+        activeItem={activeItem}
+        menuItems={EXAM_MENU}
+        onNavigate={(item) =>
+          navigate(`${BASE_PATH}${item.path}`)
+        }
+        onLogout={handleLogout}
+      />
 
-      {mobileOpen && <div className="aisc-overlay show" onClick={() => setMobileOpen(false)} />}
-      <main className="aisc-main">
-        <header className="aisc-topbar">
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <button className="aisc-mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu size={18}/></button>
-            <div className="aisc-crumb">College Portal <span style={{padding:"0 7px"}}>/</span><strong>{currentPage}</strong></div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:15}}>
-            <Bell size={17} color="#71809A"/>
-            <div className="aisc-top-user">
-              <div className="aisc-avatar">EC</div>
-              <div><strong>Examination Cell</strong><small>Administrator</small></div>
-            </div>
-          </div>
-        </header>
-        <div className="aisc-content"><Outlet /></div>
+      <SuperAdmin_Topbar
+        titleOverride={currentPage}
+        roleName="Examination Admin"
+        roleInitials="EA"
+      />
+
+      <main className="min-h-screen pt-24 lg:pl-64">
+        <div className="aisc-content">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

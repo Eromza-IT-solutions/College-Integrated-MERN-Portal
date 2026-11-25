@@ -1,533 +1,1834 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  CalendarClock,
-  CalendarDays,
-  CheckCircle2,
-  Download,
-  Eye,
-  FileText,
-  GraduationCap,
-  Plus,
-  Sparkles,
+  Search, Plus, Eye, Pencil, Trash2,
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
+  ArrowUpDown, X, Download, Undo2, CheckCircle2,
+  SearchX, CalendarDays, CalendarCheck, Clock,
+  CheckCircle, GraduationCap, AlertTriangle,
 } from "lucide-react";
 
-import Badge from "../../../components/ui/Badge";
-import Button from "../../../components/ui/Button";
-import DataTable from "../../../components/ui/Table";
-import ErrorState from "../../../components/ui/ErrorState";
-import Input from "../../../components/ui/Input";
-import Loader from "../../../components/ui/Loader";
-import Modal from "../../../components/ui/Modal";
-import Pagination from "../../../components/ui/Pagination";
-import SearchInput from "../../../components/ui/SearchInput";
-import Select from "../../../components/ui/Select";
-import {
-  createExam,
-  fetchExamReference,
-  fetchExams,
-  updateExam,
-} from "../../../services/adminApi";
+import { fetchExams } from "../../../services/adminApi";
 import { useApiData } from "../../../hooks/useApiData";
-import { downloadCsv } from "../../../utils/csv";
-import { formatDateTime, toDateTimeLocal } from "../../../utils/examAdmin";
-import { formatDate } from "../../../utils/format";
-import { formatStatus, getStatusVariant } from "../../../utils/status";
-
 import "../../../assets/styles/aisc-premium.css";
 
-const PAGE_SIZE = 6;
+/* -------------------------------------------------------
+   DEMO DATA
+------------------------------------------------------- */
 
-const EMPTY_FORM = {
-  name: "",
-  academicYearId: "",
-  programId: "",
-  semester: "1",
-  formOpensAt: "",
-  formClosesAt: "",
-  status: "draft",
+const SEED_SESSIONS = [
+  {
+    _id: "session-demo-001",
+    name: "First Semester Examination 2026-27",
+    programName: "B.Com CA",
+    semester: "V",
+    term: "Odd Semester 2026-27",
+    startDate: "2026-11-10",
+    endDate: "2026-11-28",
+    status: "Active",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-002",
+    name: "Internal Assessment I",
+    programName: "B.Com CA",
+    semester: "V",
+    term: "Odd Semester 2026-27",
+    startDate: "2026-09-15",
+    endDate: "2026-09-22",
+    status: "Completed",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-003",
+    name: "Practical Examination",
+    programName: "B.Com CA",
+    semester: "V",
+    term: "Odd Semester 2026-27",
+    startDate: "2026-11-03",
+    endDate: "2026-11-08",
+    status: "Scheduled",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-004",
+    name: "Second Semester Examination 2026-27",
+    programName: "B.Com CA",
+    semester: "II",
+    term: "Even Semester 2026-27",
+    startDate: "2027-04-12",
+    endDate: "2027-04-30",
+    status: "Draft",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-005",
+    name: "Internal Assessment II",
+    programName: "B.Com CA",
+    semester: "VI",
+    term: "Even Semester 2026-27",
+    startDate: "2027-02-10",
+    endDate: "2027-02-17",
+    status: "Scheduled",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-006",
+    name: "Supplementary Examination",
+    programName: "B.Com CA",
+    semester: "V",
+    term: "Odd Semester 2026-27",
+    startDate: "2027-01-05",
+    endDate: "2027-01-12",
+    status: "Draft",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-007",
+    name: "TY B.Com CA Final Examination",
+    programName: "B.Com CA",
+    semester: "VI",
+    term: "Even Semester 2026-27",
+    startDate: "2027-04-20",
+    endDate: "2027-05-05",
+    status: "Scheduled",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-008",
+    name: "FY B.Com CA Semester I",
+    programName: "B.Com CA",
+    semester: "I",
+    term: "Odd Semester 2026-27",
+    startDate: "2026-11-12",
+    endDate: "2026-11-25",
+    status: "Active",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-009",
+    name: "Mid-Term Assessment",
+    programName: "B.Com CA",
+    semester: "III",
+    term: "Odd Semester 2026-27",
+    startDate: "2026-10-05",
+    endDate: "2026-10-12",
+    status: "Completed",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-010",
+    name: "Revaluation / Repeat Session",
+    programName: "B.Com CA",
+    semester: "V",
+    term: "Even Semester 2026-27",
+    startDate: "2027-05-15",
+    endDate: "2027-05-22",
+    status: "Draft",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-011",
+    name: "SY B.Com CA Semester III",
+    programName: "B.Com CA",
+    semester: "III",
+    term: "Odd Semester 2026-27",
+    startDate: "2026-11-15",
+    endDate: "2026-11-29",
+    status: "Active",
+    isDemo: true,
+  },
+  {
+    _id: "session-demo-012",
+    name: "TY B.Com CA Internal Assessment",
+    programName: "B.Com CA",
+    semester: "VI",
+    term: "Even Semester 2026-27",
+    startDate: "2027-03-01",
+    endDate: "2027-03-08",
+    status: "Scheduled",
+    isDemo: true,
+  },
+];
+
+const STATUS_OPTIONS = ["Active", "Scheduled", "Completed", "Draft"];
+
+const STATUS_STYLE = {
+  Active: "bg-emerald-50 text-emerald-700",
+  Scheduled: "bg-blue-50 text-blue-700",
+  Completed: "bg-slate-100 text-slate-600",
+  Draft: "bg-amber-50 text-amber-700",
 };
 
-export default function ExamSessions() {
-  const exams = useApiData(() => fetchExams());
-  const reference = useApiData(() => fetchExamReference());
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [mutationError, setMutationError] = useState("");
-  const [selected, setSelected] = useState(null);
+const STATUS_DOT = {
+  Active: "bg-emerald-500",
+  Scheduled: "bg-blue-500",
+  Completed: "bg-slate-400",
+  Draft: "bg-amber-500",
+};
 
-  const rows = useMemo(() => exams.data ?? [], [exams.data]);
-  const years = useMemo(() => reference.data?.academicYears ?? [], [reference.data]);
-  const programs = useMemo(() => reference.data?.programs ?? [], [reference.data]);
+const initialsOf = (name = "") =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
-  const filteredRows = useMemo(() => {
-    const search = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      const matchesSearch =
-        !search ||
-        row.name?.toLowerCase().includes(search) ||
-        String(row.semester).includes(search);
-      const matchesStatus =
-        statusFilter === "all" || row.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [query, rows, statusFilter]);
+const pageList = (total, current) => {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = filteredRows.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
+  const numbers = [...new Set([
+    1,
+    total,
+    current - 1,
+    current,
+    current + 1,
+  ])]
+    .filter((number) => number >= 1 && number <= total)
+    .sort((a, b) => a - b);
+
+  const result = [];
+
+  numbers.forEach((number, index) => {
+    if (index && number - numbers[index - 1] > 1) {
+      result.push(`gap-${number}`);
+    }
+    result.push(number);
+  });
+
+  return result;
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const normalizeStatus = (value = "") => {
+  const status = String(value).toLowerCase();
+
+  if (status === "active" || status === "ongoing") return "Active";
+  if (status === "completed" || status === "finished") return "Completed";
+  if (status === "scheduled" || status === "upcoming") return "Scheduled";
+
+  return "Draft";
+};
+
+const getSessionId = (session, index) =>
+  session._id || session.id || `backend-session-${index}`;
+
+const normalizeBackendSession = (session, index) => ({
+  ...session,
+  _id: getSessionId(session, index),
+  name: session.name || session.examName || "Untitled Examination",
+  programName: session.programName || session.program || "—",
+  semester: session.semester ?? "—",
+  term: session.term || session.academicTerm || "—",
+  startDate: session.startDate || session.start_date || "",
+  endDate: session.endDate || session.end_date || "",
+  status: normalizeStatus(session.status),
+  isDemo: false,
+});
+
+/* -------------------------------------------------------
+   REUSABLE COMPONENTS
+------------------------------------------------------- */
+
+function StatusBadge({ status }) {
+  const label = status || "Draft";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+        STATUS_STYLE[label] || STATUS_STYLE.Draft
+      }`}
+    >
+      <span
+        className={`h-2 w-2 rounded-full ${
+          STATUS_DOT[label] || STATUS_DOT.Draft
+        }`}
+      />
+      {label}
+    </span>
+  );
+}
+
+function Modal({ title, onClose, children, wide = false }) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <button
+        type="button"
+        className="fade absolute inset-0 cursor-default bg-[#14234b]/60 backdrop-blur-sm"
+        onClick={onClose}
+        aria-label="Close modal"
+      />
+
+      <div
+        className={`pop relative my-auto w-full ${
+          wide ? "max-w-xl" : "max-w-md"
+        } overflow-hidden rounded-3xl bg-white shadow-2xl`}
+      >
+        <div className="h-1.5 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
+
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h2 className="font-['Playfair_Display',serif] text-xl font-bold text-[#14234b]">
+            {title}
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function StatItem({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  selected,
+  onClick,
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={selected}
+        className="group relative flex w-full items-center gap-4 bg-[#14234b]/70 px-5 py-5 text-left backdrop-blur-sm transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f2c200] sm:px-6"
+      >
+        <span
+          className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ring-1 transition duration-300 group-hover:scale-110 ${
+            selected
+              ? "bg-[#f2c200] text-[#14234b] ring-[#f2c200]"
+              : "bg-white/10 text-[#f2c200] ring-white/20 group-hover:bg-[#f2c200] group-hover:text-[#14234b]"
+          }`}
+        >
+          <Icon size={22} />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-semibold tracking-wider text-white/60 uppercase sm:text-[11px]">
+            {label}
+          </span>
+
+          <span className="mt-1 block font-['Playfair_Display',serif] text-3xl font-bold leading-none tabular-nums text-white">
+            {value}
+          </span>
+        </span>
+
+        <span className="hidden text-[11px] font-medium text-white/50 xl:block">
+          {hint}
+        </span>
+
+        <span
+          className={`absolute inset-x-0 bottom-0 h-[3px] origin-left bg-[#f2c200] transition-transform duration-300 ${
+            selected ? "scale-x-100" : "scale-x-0"
+          }`}
+        />
+      </button>
+    </li>
+  );
+}
+
+/* -------------------------------------------------------
+   SESSION FORM
+------------------------------------------------------- */
+
+function SessionForm({ initial, onSave, onClose }) {
+  const [form, setForm] = useState(
+    initial || {
+      name: "",
+      programName: "B.Com CA",
+      semester: "V",
+      term: "Odd Semester 2026-27",
+      startDate: "",
+      endDate: "",
+      status: "Draft",
+    }
   );
 
-  const counts = {
-    total: rows.length,
-    open: rows.filter((row) => row.status === "open").length,
-    closed: rows.filter((row) => row.status === "closed").length,
-    draft: rows.filter((row) => row.status === "draft").length,
+  const [error, setError] = useState("");
+
+  const set = (key, value) => {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
   };
 
-  const updateField = (field, value) => {
-    setForm((current) => ({ ...current, [field]: value }));
-    setMutationError("");
-  };
+  const inputClass =
+    "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#8f0014] focus:ring-4 focus:ring-[#8f0014]/10";
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({
-      ...EMPTY_FORM,
-      academicYearId:
-        years.find((year) => year.status === "current")?._id || years[0]?._id || "",
-      programId: programs[0]?._id || "",
-    });
-    setMutationError("");
-    setFormOpen(true);
-  };
-
-  const openEdit = (exam) => {
-    setEditing(exam);
-    setForm({
-      name: exam.name || "",
-      academicYearId: String(exam.academicYearId || ""),
-      programId: String(exam.programId || ""),
-      semester: String(exam.semester || 1),
-      formOpensAt: toDateTimeLocal(exam.formOpensAt),
-      formClosesAt: toDateTimeLocal(exam.formClosesAt),
-      status: exam.status || "draft",
-    });
-    setMutationError("");
-    setSelected(null);
-    setFormOpen(true);
-  };
-
-  const closeForm = () => {
-    setFormOpen(false);
-    setEditing(null);
-    setForm(EMPTY_FORM);
-    setMutationError("");
-  };
-
-  const handleSave = async (event) => {
+  const submit = (event) => {
     event.preventDefault();
 
     if (
       !form.name.trim() ||
-      !form.academicYearId ||
-      !form.programId ||
-      !form.formOpensAt ||
-      !form.formClosesAt
+      !form.term.trim() ||
+      !form.startDate ||
+      !form.endDate
     ) {
-      setMutationError("Fill every required examination session field.");
+      setError("Please complete all required fields.");
       return;
     }
 
-    const payload = {
+    if (form.endDate < form.startDate) {
+      setError("End date cannot be earlier than start date.");
+      return;
+    }
+
+    setError("");
+
+    onSave({
+      ...form,
       name: form.name.trim(),
-      academicYearId: form.academicYearId,
-      programId: form.programId,
-      semester: Number(form.semester),
-      formOpensAt: new Date(form.formOpensAt).toISOString(),
-      formClosesAt: new Date(form.formClosesAt).toISOString(),
-    };
-
-    if (payload.formClosesAt <= payload.formOpensAt) {
-      setMutationError("The form must close after it opens.");
-      return;
-    }
-
-    setSaving(true);
-    setMutationError("");
-    try {
-      if (editing) {
-        await updateExam(editing._id, { ...payload, status: form.status });
-      } else {
-        const created = await createExam(payload);
-        if (form.status !== "draft") {
-          await updateExam(created._id, { status: form.status });
-        }
-      }
-      closeForm();
-      exams.reload();
-    } catch (err) {
-      setMutationError(err.message);
-    } finally {
-      setSaving(false);
-    }
+      programName: form.programName.trim(),
+      term: form.term.trim(),
+    });
   };
-
-  const handleExport = () => {
-    downloadCsv("aisc-exam-sessions.csv", [
-      ["Session", "Academic Year", "Program", "Semester", "Forms Open", "Forms Close", "Status"],
-      ...filteredRows.map((row) => [
-        row.name,
-        years.find((year) => String(year._id) === String(row.academicYearId))?.label || "",
-        programs.find((program) => String(program._id) === String(row.programId))?.name || "",
-        row.semester,
-        row.formOpensAt,
-        row.formClosesAt,
-        row.status,
-      ]),
-    ]);
-  };
-
-  const columns = [
-    {
-      key: "name",
-      header: "Examination Session",
-      render: (row) => (
-        <div>
-          <div className="aisc-table-primary">{row.name}</div>
-          <div className="aisc-table-secondary">
-            Semester {row.semester} · {formatDate(row.formClosesAt)}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "program",
-      header: "Program & Year",
-      render: (row) => (
-        <div>
-          <div className="text-xs font-semibold text-[#14264B]">
-            {programs.find((program) => String(program._id) === String(row.programId))?.name || "Program"}
-          </div>
-          <div className="aisc-table-secondary">
-            {years.find((year) => String(year._id) === String(row.academicYearId))?.label || "Academic year"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "window",
-      header: "Form Window",
-      render: (row) => (
-        <div className="text-xs text-slate-600">
-          <div>Opens {formatDateTime(row.formOpensAt)}</div>
-          <div className="aisc-table-secondary">Closes {formatDateTime(row.formClosesAt)}</div>
-        </div>
-      ),
-    },
-    {
-      key: "schedule",
-      header: "Papers",
-      render: (row) => <span className="font-bold text-[#14264B]">{row.schedule?.length ?? 0}</span>,
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => (
-        <Badge variant={getStatusVariant(row.status)}>{formatStatus(row.status)}</Badge>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      render: (row) => (
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            title="View session"
-            className="aisc-action-btn"
-            onClick={() => setSelected(row)}
-          >
-            <Eye size={14} />
-          </button>
-          <button
-            type="button"
-            title="Edit session"
-            className="aisc-action-btn"
-            onClick={() => openEdit(row)}
-          >
-            <FileText size={14} />
-          </button>
-        </div>
-      ),
-    },
-  ];
-
-  const stats = [
-    { label: "Total Sessions", value: counts.total, icon: CalendarDays, color: "#315FCE", soft: "#EEF3FF" },
-    { label: "Open Sessions", value: counts.open, icon: CheckCircle2, color: "#2C9271", soft: "#EAF7F1" },
-    { label: "Closed Sessions", value: counts.closed, icon: CalendarClock, color: "#B58A16", soft: "#FFF7DF" },
-    { label: "Draft Sessions", value: counts.draft, icon: FileText, color: "#A8212F", soft: "#F9ECEE" },
-  ];
 
   return (
-    <div className="aisc-premium space-y-6">
-      <section className="aisc-page-head">
+    <Modal
+      title={initial ? "Edit Examination Session" : "Add Examination Session"}
+      onClose={onClose}
+      wide
+    >
+      <form onSubmit={submit} className="space-y-4 px-6 pb-6 pt-4">
         <div>
-          <div className="aisc-eyebrow"><Sparkles size={13} /> Examination Cell</div>
-          <h1 className="aisc-page-title">Exam Sessions</h1>
-          <p className="aisc-page-subtitle">
-            Create examination sessions, set the form window and control when students can apply.
-          </p>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+            Session / Examination Name *
+          </label>
+
+          <input
+            className={inputClass}
+            value={form.name}
+            onChange={(event) => set("name", event.target.value)}
+            placeholder="e.g. First Semester Examination 2026-27"
+          />
         </div>
-        <div className="aisc-date-chip"><CalendarDays size={14} /> Examination Administration</div>
-      </section>
 
-      <section className="aisc-hero">
-        <div className="aisc-hero-copy">
-          <div className="aisc-hero-kicker"><GraduationCap size={12} /> ABEDA INAMDAR SENIOR COLLEGE</div>
-          <h2 className="aisc-hero-title">Every examination begins with a well-planned session.</h2>
-          <p className="aisc-hero-text">
-            Open a session for the right program and semester, publish its dates, then build the paper schedule and hall tickets from the same record.
-          </p>
-          <div className="aisc-hero-actions">
-            <button type="button" className="aisc-btn aisc-btn-primary" onClick={openCreate}>
-              <Plus size={15} /> Create new session
-            </button>
-            <button type="button" className="aisc-btn aisc-btn-glass" onClick={handleExport}>
-              <Download size={15} /> Export sessions
-            </button>
-          </div>
-        </div>
-        <div className="aisc-hero-seal"><CalendarDays size={76} strokeWidth={1.1} /></div>
-      </section>
-
-      <section className="aisc-grid aisc-kpis">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <article
-              className="aisc-kpi"
-              key={stat.label}
-              style={{ "--kpi-color": stat.color, "--kpi-soft": stat.soft, "--progress": counts.total ? `${(stat.value / counts.total) * 100}%` : "0%" }}
-            >
-              <div className="aisc-kpi-top"><div className="aisc-kpi-icon"><Icon size={19} /></div></div>
-              <div className="aisc-kpi-label">{stat.label}</div>
-              <div className="aisc-kpi-value">{stat.value}</div>
-              <div className="aisc-kpi-note">Live examination records</div>
-              <div className="aisc-kpi-track"><span /></div>
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="aisc-panel">
-        <div className="aisc-panel-head">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <h3 className="aisc-panel-title">Session Calendar</h3>
-            <p className="aisc-panel-sub">Examination cycles loaded from the API</p>
-          </div>
-          <span className="aisc-panel-link">{filteredRows.length} sessions</span>
-        </div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+              Programme
+            </label>
 
-        <div className="flex flex-col gap-3 border-b border-slate-100 bg-[#FBF6EE] p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="w-full lg:max-w-sm">
-            <SearchInput
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Search session name or semester..."
-              className="w-full"
+            <input
+              className={inputClass}
+              value={form.programName}
+              onChange={(event) => set("programName", event.target.value)}
+              placeholder="e.g. B.Com CA"
             />
           </div>
-          <Select
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter sessions by status"
-            className="min-w-[170px]"
-          >
-            <option value="all">All statuses</option>
-            <option value="draft">Draft</option>
-            <option value="open">Open</option>
-            <option value="closed">Closed</option>
-          </Select>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+              Semester
+            </label>
+
+            <select
+              className={inputClass}
+              value={form.semester}
+              onChange={(event) => set("semester", event.target.value)}
+            >
+              {["I", "II", "III", "IV", "V", "VI"].map((semester) => (
+                <option key={semester} value={semester}>
+                  Semester {semester}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {exams.loading || reference.loading ? (
-          <Loader label="Loading examination sessions..." />
-        ) : exams.error || reference.error ? (
-          <ErrorState
-            title="Could not load examination sessions"
-            description={exams.error?.message || reference.error?.message}
-            onRetry={() => {
-              exams.reload();
-              reference.reload();
-            }}
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+            Academic Term *
+          </label>
+
+          <input
+            className={inputClass}
+            value={form.term}
+            onChange={(event) => set("term", event.target.value)}
+            placeholder="e.g. Odd Semester 2026-27"
           />
-        ) : (
-          <DataTable
-            columns={columns}
-            rows={pageRows}
-            getRowKey={(row) => row._id}
-            emptyTitle="No examination sessions found"
-            emptyDescription="Create a session to start the examination cycle."
-          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+              Start Date *
+            </label>
+
+            <input
+              type="date"
+              className={inputClass}
+              value={form.startDate}
+              onChange={(event) => set("startDate", event.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+              End Date *
+            </label>
+
+            <input
+              type="date"
+              className={inputClass}
+              min={form.startDate || undefined}
+              value={form.endDate}
+              onChange={(event) => set("endDate", event.target.value)}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+            Session Status
+          </label>
+
+          <select
+            className={inputClass}
+            value={form.status}
+            onChange={(event) => set("status", event.target.value)}
+          >
+            {STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {error && (
+          <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600">
+            {error}
+          </p>
         )}
 
-        <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-medium text-slate-500">
-            Showing <strong>{pageRows.length}</strong> of <strong>{filteredRows.length}</strong> sessions
-          </p>
-          <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
+        <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
+          Demo sessions are stored only in this page's local state. They are
+          not saved to the college database.
+        </p>
+
+        <div className="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#8f0014]/20 transition hover:brightness-110"
+          >
+            {initial ? "Save Changes" : "Add Session"}
+          </button>
         </div>
-      </section>
+      </form>
+    </Modal>
+  );
+}
 
-      <Modal
-        open={formOpen}
-        onClose={closeForm}
-        title={editing ? "Edit Examination Session" : "Create Examination Session"}
-        description="Set the program, semester and student form window."
-        footer={
-          <>
-            <Button variant="secondary" onClick={closeForm}>Cancel</Button>
-            <Button type="submit" form="exam-session-form" disabled={saving}>
-              {saving ? "Saving..." : editing ? "Save changes" : "Create session"}
-            </Button>
-          </>
+/* -------------------------------------------------------
+   MAIN COMPONENT
+------------------------------------------------------- */
+
+export default function ExamSessions() {
+  const examsResource = useApiData(
+    () => fetchExams(),
+    "examination-sessions"
+  );
+
+  const backendExams = examsResource.data ?? [];
+
+  const [demoSessions, setDemoSessions] = useState(() =>
+    SEED_SESSIONS.map((session) => ({ ...session }))
+  );
+
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [termFilter, setTermFilter] = useState("All");
+
+  const [sort, setSort] = useState({
+    key: "startDate",
+    dir: "desc",
+  });
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  const [modal, setModal] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
+  /* Normalize API records and combine demo records */
+
+  const databaseSessions = useMemo(
+    () => backendExams.map(normalizeBackendSession),
+    [backendExams]
+  );
+
+  const allSessions = useMemo(
+    () => [...databaseSessions, ...demoSessions],
+    [databaseSessions, demoSessions]
+  );
+
+  /* Statistics */
+
+  const counts = useMemo(
+    () => ({
+      All: allSessions.length,
+      Active: allSessions.filter((item) => item.status === "Active").length,
+      Scheduled: allSessions.filter((item) => item.status === "Scheduled").length,
+      Completed: allSessions.filter((item) => item.status === "Completed").length,
+      Draft: allSessions.filter((item) => item.status === "Draft").length,
+    }),
+    [allSessions]
+  );
+
+  /* Term dropdown options */
+
+  const terms = useMemo(() => {
+    const uniqueTerms = [
+      ...new Set(
+        allSessions
+          .map((session) => session.term)
+          .filter((term) => term && term !== "—")
+      ),
+    ];
+
+    return uniqueTerms.sort((a, b) => a.localeCompare(b));
+  }, [allSessions]);
+
+  /* Search, filter and sorting */
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    const result = allSessions.filter((session) => {
+      const statusMatch =
+        statusFilter === "All" || session.status === statusFilter;
+
+      const termMatch =
+        termFilter === "All" || session.term === termFilter;
+
+      const searchMatch =
+        !q ||
+        [
+          session._id,
+          session.name,
+          session.programName,
+          session.semester,
+          session.term,
+          session.status,
+        ].some((value) =>
+          String(value ?? "").toLowerCase().includes(q)
+        );
+
+      return statusMatch && termMatch && searchMatch;
+    });
+
+    return [...result].sort((a, b) => {
+      const left = String(a[sort.key] ?? "");
+      const right = String(b[sort.key] ?? "");
+
+      const comparison = left.localeCompare(
+        right,
+        undefined,
+        {
+          numeric: true,
+          sensitivity: "base",
         }
-      >
-        <form id="exam-session-form" onSubmit={handleSave} className="space-y-4">
-          {mutationError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-              {mutationError}
-            </div>
-          ) : null}
+      );
 
-          <Input
-            label="Session name *"
-            value={form.name}
-            onChange={(event) => updateField("name", event.target.value)}
-            placeholder="e.g. End Semester Examination"
-            required
+      return sort.dir === "asc" ? comparison : -comparison;
+    });
+  }, [allSessions, query, statusFilter, termFilter, sort]);
+
+  /* Pagination */
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filtered.length / pageSize)
+  );
+
+  const start = (page - 1) * pageSize;
+
+  const rows = filtered.slice(
+    start,
+    start + pageSize
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, statusFilter, termFilter, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  /* Toast notifications */
+
+  const toast = (message, undo) => {
+    const id = Date.now() + Math.random();
+
+    setToasts((current) => [
+      ...current,
+      { id, message, undo },
+    ]);
+
+    window.setTimeout(() => {
+      setToasts((current) =>
+        current.filter((item) => item.id !== id)
+      );
+    }, 5500);
+  };
+
+  const dismissToast = (id) => {
+    setToasts((current) =>
+      current.filter((item) => item.id !== id)
+    );
+  };
+
+  /* Sorting */
+
+  const toggleSort = (key) => {
+    setSort((current) =>
+      current.key === key
+        ? {
+            key,
+            dir: current.dir === "asc" ? "desc" : "asc",
+          }
+        : {
+            key,
+            dir: "asc",
+          }
+    );
+  };
+
+  /* Add / Edit session */
+
+  const saveSession = (data) => {
+    const target = modal?.session;
+
+    if (!target) {
+      const nextNumber =
+        demoSessions.reduce((max, session) => {
+          const number = Number(
+            String(session._id).match(/\d+$/)?.[0] || 0
+          );
+
+          return Math.max(max, number);
+        }, 0) + 1;
+
+      const newSession = {
+        ...data,
+        _id: `session-demo-${String(nextNumber).padStart(3, "0")}`,
+        isDemo: true,
+      };
+
+      setDemoSessions((current) => [
+        ...current,
+        newSession,
+      ]);
+
+      toast(`${newSession.name} was added successfully.`);
+      setModal(null);
+      return;
+    }
+
+    if (!target.isDemo) {
+      toast("Database session editing requires the backend update API.");
+      setModal(null);
+      return;
+    }
+
+    setDemoSessions((current) =>
+      current.map((session) =>
+        session._id === target._id
+          ? { ...session, ...data }
+          : session
+      )
+    );
+
+    toast(`${data.name} was updated successfully.`);
+    setModal(null);
+  };
+
+  /* Delete session */
+
+  const confirmDelete = () => {
+    const target = modal?.session;
+
+    if (!target) return;
+
+    if (!target.isDemo) {
+      setModal({
+        type: "backend-delete-info",
+        session: target,
+      });
+      return;
+    }
+
+    const index = demoSessions.findIndex(
+      (session) => session._id === target._id
+    );
+
+    setDemoSessions((current) =>
+      current.filter(
+        (session) => session._id !== target._id
+      )
+    );
+
+    toast(
+      `${target.name} was deleted.`,
+      () => {
+        setDemoSessions((current) => {
+          const next = [...current];
+
+          next.splice(
+            Math.min(index, next.length),
+            0,
+            target
+          );
+
+          return next;
+        });
+      }
+    );
+
+    setModal(null);
+  };
+
+  /* Status update for demo sessions */
+
+  const changeStatus = (session) => {
+    if (!session.isDemo) {
+      toast("Database status changes require the backend update API.");
+      return;
+    }
+
+    const currentIndex = STATUS_OPTIONS.indexOf(session.status);
+
+    const nextStatus =
+      STATUS_OPTIONS[(currentIndex + 1) % STATUS_OPTIONS.length];
+
+    setDemoSessions((current) =>
+      current.map((item) =>
+        item._id === session._id
+          ? { ...item, status: nextStatus }
+          : item
+      )
+    );
+
+    toast(`${session.name}: status changed to ${nextStatus}.`);
+  };
+
+  /* CSV Export */
+
+  const exportCsv = () => {
+    const escapeCsv = (value) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const columns = [
+      ["Session ID", "_id"],
+      ["Session Name", "name"],
+      ["Programme", "programName"],
+      ["Semester", "semester"],
+      ["Academic Term", "term"],
+      ["Start Date", "startDate"],
+      ["End Date", "endDate"],
+      ["Status", "status"],
+      ["Record Type", "isDemo"],
+    ];
+
+    const csv = [
+      columns
+        .map(([label]) => escapeCsv(label))
+        .join(","),
+
+      ...filtered.map((session) =>
+        columns
+          .map(([, key]) =>
+            escapeCsv(
+              key === "isDemo"
+                ? session.isDemo
+                  ? "Demo"
+                  : "Database"
+                : session[key]
+            )
+          )
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob(
+      ["\uFEFF" + csv],
+      { type: "text/csv;charset=utf-8;" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = "aisc-examination-sessions.csv";
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+
+    toast(`Exported ${filtered.length} examination sessions.`);
+  };
+
+  /* Clear filters */
+
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("All");
+    setTermFilter("All");
+  };
+
+  const filtersActive =
+    Boolean(query) ||
+    statusFilter !== "All" ||
+    termFilter !== "All";
+
+  const loading = examsResource.loading;
+
+  const inputClass =
+    "rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 outline-none transition focus:border-[#8f0014] focus:ring-4 focus:ring-[#8f0014]/10";
+
+  return (
+    <div className="exam-sessions-page relative flex min-h-screen w-full flex-col overflow-hidden bg-[#f7f3ef] font-['Poppins',sans-serif] text-slate-700">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
+
+        @keyframes rise {
+          from { opacity: 0; transform: translateY(14px) }
+          to { opacity: 1; transform: none }
+        }
+
+        @keyframes rowIn {
+          from { opacity: 0; transform: translateY(8px) }
+          to { opacity: 1; transform: none }
+        }
+
+        @keyframes pop {
+          from { opacity: 0; transform: translateY(10px) scale(.97) }
+          to { opacity: 1; transform: none }
+        }
+
+        @keyframes fade {
+          from { opacity: 0 }
+          to { opacity: 1 }
+        }
+
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateX(24px) }
+          to { opacity: 1; transform: none }
+        }
+
+        .exam-sessions-page .rise {
+          animation: rise .55s cubic-bezier(.2,.7,.2,1) both;
+        }
+
+        .exam-sessions-page .row-in {
+          animation: rowIn .35s ease both;
+        }
+
+        .exam-sessions-page .pop {
+          animation: pop .25s cubic-bezier(.2,.7,.2,1) both;
+        }
+
+        .exam-sessions-page .fade {
+          animation: fade .2s ease both;
+        }
+
+        .exam-sessions-page .toast-in {
+          animation: toastIn .3s ease both;
+        }
+
+        .exam-sessions-page button:focus-visible,
+        .exam-sessions-page input:focus-visible,
+        .exam-sessions-page select:focus-visible {
+          outline: 2px solid #f2c200;
+          outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .exam-sessions-page .rise,
+          .exam-sessions-page .row-in,
+          .exam-sessions-page .pop,
+          .exam-sessions-page .fade,
+          .exam-sessions-page .toast-in {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      {/* Background decoration */}
+
+      <div
+        className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#8f0014]/10 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <div
+        className="pointer-events-none absolute -left-24 bottom-0 h-80 w-80 rounded-full bg-[#14234b]/10 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <main className="relative flex w-full flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+
+        {/* Page heading */}
+
+        <header className="rise mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-[10px] font-bold tracking-[.22em] text-[#8f0014] uppercase">
+              Examination Cell · Read to Lead
+            </p>
+
+            <h1 className="font-['Playfair_Display',serif] text-3xl font-bold tracking-tight text-[#14234b] sm:text-4xl">
+              Exam Sessions
+            </h1>
+
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
+              Create, organize and monitor examination sessions across
+              academic terms and programmes.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-full border border-[#f2c200]/50 bg-white/80 px-4 py-2 text-xs font-semibold text-[#14234b] shadow-sm">
+            <GraduationCap size={16} className="text-[#8f0014]" />
+            Examination Administration
+          </div>
+        </header>
+
+        {/* Statistics */}
+
+        <section className="rise relative overflow-hidden rounded-3xl bg-[#14234b] shadow-xl">
+          <div
+            className="absolute inset-0 bg-gradient-to-br from-[#14234b]/95 via-[#1b2f63]/90 to-[#3a1230]/90"
+            aria-hidden="true"
           />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select
-              label="Academic year *"
-              value={form.academicYearId}
-              onChange={(event) => updateField("academicYearId", event.target.value)}
-              required
-            >
-              <option value="">Select academic year</option>
-              {years.map((year) => <option key={year._id} value={year._id}>{year.label}</option>)}
-            </Select>
+          <span
+            className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-[#8f0014]/30"
+            aria-hidden="true"
+          />
 
-            <Select
-              label="Program *"
-              value={form.programId}
-              onChange={(event) => updateField("programId", event.target.value)}
-              required
-            >
-              <option value="">Select program</option>
-              {programs.map((program) => (
-                <option key={program._id} value={program._id}>{program.name}</option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Select
-              label="Semester *"
-              value={form.semester}
-              onChange={(event) => updateField("semester", event.target.value)}
-            >
-              {Array.from({ length: 12 }, (_, index) => index + 1).map((semester) => (
-                <option key={semester} value={semester}>{semester}</option>
-              ))}
-            </Select>
-
-            <Input
-              label="Form opens *"
-              type="datetime-local"
-              value={form.formOpensAt}
-              onChange={(event) => updateField("formOpensAt", event.target.value)}
-              required
-            />
-
-            <Input
-              label="Form closes *"
-              type="datetime-local"
-              value={form.formClosesAt}
-              onChange={(event) => updateField("formClosesAt", event.target.value)}
-              required
-            />
-          </div>
-
-          <Select
-            label="Session status"
-            value={form.status}
-            onChange={(event) => updateField("status", event.target.value)}
+          <ul
+            className="relative grid grid-cols-2 gap-px bg-white/10 lg:grid-cols-4"
+            aria-label="Examination session statistics"
           >
-            <option value="draft">Draft</option>
-            <option value="open">Open</option>
-            <option value="closed">Closed</option>
-          </Select>
-        </form>
-      </Modal>
+            <StatItem
+              icon={CalendarDays}
+              label="Total Sessions"
+              value={counts.All}
+              hint="Show all"
+              selected={statusFilter === "All"}
+              onClick={() => setStatusFilter("All")}
+            />
 
-      <Modal
-        open={Boolean(selected)}
-        onClose={() => setSelected(null)}
-        title={selected?.name || "Examination Session"}
-        description={selected ? `Semester ${selected.semester}` : undefined}
-        footer={<Button variant="secondary" onClick={() => setSelected(null)}>Close</Button>}
-      >
-        {selected ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant={getStatusVariant(selected.status)}>{formatStatus(selected.status)}</Badge>
-              <Badge variant="neutral">{selected.schedule?.length ?? 0} papers</Badge>
+            <StatItem
+              icon={CalendarCheck}
+              label="Active Sessions"
+              value={counts.Active}
+              hint="Filter active"
+              selected={statusFilter === "Active"}
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === "Active" ? "All" : "Active"
+                )
+              }
+            />
+
+            <StatItem
+              icon={Clock}
+              label="Scheduled Sessions"
+              value={counts.Scheduled}
+              hint="Filter scheduled"
+              selected={statusFilter === "Scheduled"}
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === "Scheduled" ? "All" : "Scheduled"
+                )
+              }
+            />
+
+            <StatItem
+              icon={CheckCircle}
+              label="Completed Sessions"
+              value={counts.Completed}
+              hint="Filter completed"
+              selected={statusFilter === "Completed"}
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === "Completed" ? "All" : "Completed"
+                )
+              }
+            />
+          </ul>
+
+          <div className="relative h-1 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
+        </section>
+
+        {/* Main table panel */}
+
+        <section
+          className="rise mt-6 flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-slate-100"
+          style={{ animationDelay: "120ms" }}
+        >
+          <div className="h-1.5 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
+
+          {/* Toolbar */}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <div
+                className="flex flex-wrap rounded-xl bg-slate-100 p-1"
+                role="group"
+                aria-label="Filter by status"
+              >
+                {["All", ...STATUS_OPTIONS].map((status) => (
+                  <button
+                    type="button"
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    aria-pressed={statusFilter === status}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition sm:px-3 ${
+                      statusFilter === status
+                        ? "bg-white text-[#14234b] shadow"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {status}
+                    <span className="ml-1 tabular-nums text-slate-400">
+                      {counts[status]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {filtersActive && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#8f0014] transition hover:bg-[#8f0014]/10"
+                >
+                  <X size={13} />
+                  Clear filters
+                </button>
+              )}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="aisc-detail-box">
-                <div className="aisc-kpi-label">Program</div>
-                <div className="mt-2 text-sm font-bold text-[#14264B]">
-                  {programs.find((program) => String(program._id) === String(selected.programId))?.name || "Program"}
-                </div>
+
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+              <select
+                value={termFilter}
+                onChange={(event) => setTermFilter(event.target.value)}
+                aria-label="Filter by academic term"
+                className={`${inputClass} max-w-full sm:max-w-[210px]`}
+              >
+                <option value="All">All Academic Terms</option>
+
+                {terms.map((term) => (
+                  <option key={term} value={term}>
+                    {term}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 transition focus-within:border-[#8f0014] focus-within:ring-4 focus-within:ring-[#8f0014]/10 sm:w-48 sm:flex-none">
+                <Search size={16} className="shrink-0 text-slate-400" />
+
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search sessions..."
+                  aria-label="Search examination sessions"
+                  className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                />
+
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                    className="text-slate-400 hover:text-slate-700"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
-              <div className="aisc-detail-box">
-                <div className="aisc-kpi-label">Academic year</div>
-                <div className="mt-2 text-sm font-bold text-[#14264B]">
-                  {years.find((year) => String(year._id) === String(selected.academicYearId))?.label || "Academic year"}
-                </div>
-              </div>
-              <div className="aisc-detail-box">
-                <div className="aisc-kpi-label">Form opens</div>
-                <div className="mt-2 text-sm font-bold text-[#14264B]">{formatDateTime(selected.formOpensAt)}</div>
-              </div>
-              <div className="aisc-detail-box">
-                <div className="aisc-kpi-label">Form closes</div>
-                <div className="mt-2 text-sm font-bold text-[#14264B]">{formatDateTime(selected.formClosesAt)}</div>
-              </div>
+
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={!filtered.length}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-[#14234b] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download size={16} />
+                Export
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModal({ type: "add" })}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-3.5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#8f0014]/25 transition hover:-translate-y-0.5 hover:brightness-110"
+              >
+                <Plus size={16} />
+                Add Session
+              </button>
             </div>
           </div>
-        ) : null}
-      </Modal>
 
-      <div className="aisc-note">
-        <CheckCircle2 size={13} />
-        Session records are live. Exam forms and hall tickets use the same program, semester and academic year.
+          {/* Table */}
+
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full min-w-[1000px] text-left text-sm">
+              <thead>
+                <tr className="bg-[#14234b]/[0.04] text-xs tracking-wide text-[#14234b]/70 uppercase">
+                  {[
+                    ["_id", "Session ID"],
+                    ["name", "Examination Session"],
+                    ["term", "Academic Term"],
+                    ["startDate", "Start Date"],
+                    ["endDate", "End Date"],
+                    ["status", "Status"],
+                  ].map(([key, label]) => (
+                    <th
+                      key={key}
+                      scope="col"
+                      className="px-5 py-3.5 font-semibold"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(key)}
+                        className="inline-flex items-center gap-1.5 uppercase transition hover:text-[#8f0014]"
+                      >
+                        {label}
+
+                        {sort.key === key ? (
+                          sort.dir === "asc" ? (
+                            <ChevronUp
+                              size={14}
+                              className="text-[#8f0014]"
+                            />
+                          ) : (
+                            <ChevronDown
+                              size={14}
+                              className="text-[#8f0014]"
+                            />
+                          )
+                        ) : (
+                          <ArrowUpDown size={12} className="opacity-40" />
+                        )}
+                      </button>
+                    </th>
+                  ))}
+
+                  <th
+                    scope="col"
+                    className="px-5 py-3.5 text-right font-semibold"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {loading &&
+                  Array.from({ length: pageSize }).map((_, index) => (
+                    <tr key={`loading-${index}`}>
+                      {Array.from({ length: 7 }).map((__, cell) => (
+                        <td key={cell} className="px-5 py-4">
+                          <div
+                            className="h-4 animate-pulse rounded bg-slate-100"
+                            style={{
+                              width: `${55 + ((index + cell) % 4) * 12}%`,
+                            }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+
+                {!loading &&
+                  rows.map((session, index) => (
+                    <tr
+                      key={session._id}
+                      className="row-in group transition hover:bg-[#14234b]/[0.03]"
+                      style={{ animationDelay: `${index * 40}ms` }}
+                    >
+                      {/* Session ID */}
+
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#14234b] to-[#4a5a86] text-xs font-bold text-white shadow ring-2 ring-white transition group-hover:scale-105">
+                            <CalendarDays size={16} />
+                          </span>
+
+                          <span className="font-semibold tabular-nums text-[#14234b]">
+                            {String(session._id).startsWith("session-demo-")
+                              ? `SES-${String(session._id).slice(-3)}`
+                              : String(session._id).slice(-8)}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Session name */}
+
+                      <td className="px-5 py-3.5">
+                        <span className="block max-w-[230px] truncate font-semibold text-[#14234b]">
+                          {session.name}
+                        </span>
+
+                        <span className="mt-0.5 block text-[10px] text-slate-400">
+                          {session.programName || "Programme not specified"}
+                          {session.semester && session.semester !== "—"
+                            ? ` · Semester ${session.semester}`
+                            : ""}
+                        </span>
+                      </td>
+
+                      {/* Academic term */}
+
+                      <td className="px-5 py-3.5">
+                        <span className="font-medium text-slate-600">
+                          {session.term || "—"}
+                        </span>
+                      </td>
+
+                      {/* Start date */}
+
+                      <td className="px-5 py-3.5 text-slate-500">
+                        {formatDate(session.startDate)}
+                      </td>
+
+                      {/* End date */}
+
+                      <td className="px-5 py-3.5 text-slate-500">
+                        {formatDate(session.endDate)}
+                      </td>
+
+                      {/* Status */}
+
+                      <td className="px-5 py-3.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => changeStatus(session)}
+                            title={
+                              session.isDemo
+                                ? "Click to change demo status"
+                                : "Database status"
+                            }
+                            className="rounded-full transition hover:scale-105"
+                          >
+                            <StatusBadge status={session.status} />
+                          </button>
+
+                          {session.isDemo && (
+                            <span className="rounded-full bg-[#f2c200]/20 px-2 py-1 text-[10px] font-bold text-[#946500]">
+                              DEMO
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+
+                      <td className="px-5 py-3.5">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setModal({
+                                type: "view",
+                                session,
+                              })
+                            }
+                            aria-label={`View ${session.name}`}
+                            title="View"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-[#14234b]/10 hover:text-[#14234b]"
+                          >
+                            <Eye size={17} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setModal({
+                                type: "edit",
+                                session,
+                              })
+                            }
+                            aria-label={`Edit ${session.name}`}
+                            title="Edit"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-[#f2c200]/25 hover:text-[#946500]"
+                          >
+                            <Pencil size={17} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setModal({
+                                type: "delete",
+                                session,
+                              })
+                            }
+                            aria-label={`Delete ${session.name}`}
+                            title="Delete"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+
+            {/* Empty state */}
+
+            {!loading && rows.length === 0 && (
+              <div className="grid place-items-center px-6 py-16 text-center">
+                <span className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-slate-400">
+                  <SearchX size={28} />
+                </span>
+
+                <p className="mt-4 font-['Playfair_Display',serif] text-lg font-bold text-[#14234b]">
+                  No examination sessions found
+                </p>
+
+                <p className="mt-1 max-w-sm text-sm text-slate-500">
+                  {filtersActive
+                    ? "Try a different search or clear the filters."
+                    : "Add an examination session to get started."}
+                </p>
+
+                {filtersActive && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-4 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-4 sm:px-5">
+            <div className="flex items-center gap-3 text-xs text-slate-500">
+              <span>
+                {filtered.length === 0
+                  ? "No results"
+                  : `Showing ${start + 1}–${Math.min(
+                      start + pageSize,
+                      filtered.length
+                    )} of ${filtered.length} sessions`}
+              </span>
+
+              <label className="flex items-center gap-2">
+                <span className="sr-only">Rows per page</span>
+
+                <select
+                  value={pageSize}
+                  onChange={(event) =>
+                    setPageSize(Number(event.target.value))
+                  }
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-[#8f0014]/20"
+                >
+                  {[5, 10, 20].map((number) => (
+                    <option key={number} value={number}>
+                      {number} / page
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <nav
+              className="flex items-center gap-1.5"
+              aria-label="Pagination"
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  setPage((current) => Math.max(1, current - 1))
+                }
+                disabled={page === 1}
+                aria-label="Previous page"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {pageList(totalPages, page).map((number) =>
+                typeof number === "string" ? (
+                  <span
+                    key={number}
+                    className="px-1 text-slate-400"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    key={number}
+                    onClick={() => setPage(number)}
+                    aria-current={number === page ? "page" : undefined}
+                    className={`grid h-9 min-w-9 place-items-center rounded-lg px-2 text-sm font-semibold transition ${
+                      number === page
+                        ? "bg-gradient-to-b from-[#a30018] to-[#6d000f] text-white shadow-md shadow-[#8f0014]/30"
+                        : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {number}
+                  </button>
+                )
+              )}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+                disabled={page === totalPages}
+                aria-label="Next page"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </nav>
+          </div>
+        </section>
+
+        <p className="mt-3 text-center text-[10px] text-slate-400">
+          Demo sessions are sample records for preview only. Database
+          examination records are fetched through the examination API.
+        </p>
+      </main>
+
+      {/* Add / Edit session */}
+
+      {(modal?.type === "add" || modal?.type === "edit") && (
+        modal.type === "edit" && !modal.session.isDemo ? (
+          <Modal
+            title="Database Session"
+            onClose={() => setModal(null)}
+          >
+            <div className="px-6 pb-6 pt-4">
+              <div className="flex gap-3">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-600">
+                  <AlertTriangle size={22} />
+                </span>
+
+                <p className="text-sm leading-relaxed text-slate-600">
+                  This examination session comes from the database.
+                  An update API has not been confirmed in the available
+                  frontend service functions, so it cannot safely be
+                  edited from this page yet.
+                </p>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setModal(null)}
+                  className="rounded-xl bg-[#14234b] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </Modal>
+        ) : (
+          <SessionForm
+            initial={
+              modal.type === "edit"
+                ? {
+                    name: modal.session.name || "",
+                    programName: modal.session.programName || "",
+                    semester: modal.session.semester || "V",
+                    term: modal.session.term || "",
+                    startDate: modal.session.startDate || "",
+                    endDate: modal.session.endDate || "",
+                    status: modal.session.status || "Draft",
+                  }
+                : null
+            }
+            onSave={saveSession}
+            onClose={() => setModal(null)}
+          />
+        )
+      )}
+
+      {/* View session details */}
+
+      {modal?.type === "view" && (
+        <Modal
+          title="Examination Session Details"
+          onClose={() => setModal(null)}
+          wide
+        >
+          <div className="px-6 pb-6 pt-5">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-[#14234b] to-[#4a5a86] text-xl font-bold text-white shadow-lg ring-4 ring-[#f2c200]/40">
+                <CalendarDays size={28} />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <h3 className="font-['Playfair_Display',serif] text-2xl font-bold text-[#14234b]">
+                  {modal.session.name}
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {modal.session.programName} · Semester{" "}
+                  {modal.session.semester}
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={modal.session.status} />
+
+                  {modal.session.isDemo && (
+                    <span className="rounded-full bg-[#f2c200]/20 px-2 py-1 text-[10px] font-bold text-[#946500]">
+                      DEMO RECORD
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-cols-3">
+              {[
+                ["Session ID", modal.session._id],
+                ["Academic Term", modal.session.term],
+                ["Programme", modal.session.programName],
+                ["Semester", modal.session.semester],
+                ["Start Date", formatDate(modal.session.startDate)],
+                ["End Date", formatDate(modal.session.endDate)],
+                ["Status", modal.session.status],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="min-w-0 rounded-xl bg-slate-50 p-3"
+                >
+                  <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                    {label}
+                  </p>
+
+                  <p className="mt-1 break-words text-sm font-bold text-[#14234b]">
+                    {value || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {modal.session.isDemo && (
+              <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                This is a sample demo record. It is not stored in the
+                college database.
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setModal({
+                    type: "edit",
+                    session: modal.session,
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                <Pencil size={15} />
+                Edit
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete confirmation */}
+
+      {modal?.type === "delete" && (
+        <Modal
+          title="Delete examination session?"
+          onClose={() => setModal(null)}
+        >
+          <div className="px-6 pb-6 pt-4">
+            <div className="flex gap-4">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600">
+                <Trash2 size={22} />
+              </span>
+
+              <p className="text-sm leading-relaxed text-slate-600">
+                {modal.session.isDemo ? (
+                  <>
+                    You are about to delete the demo session{" "}
+                    <strong className="text-[#14234b]">
+                      {modal.session.name}
+                    </strong>
+                    . You can undo this action immediately.
+                  </>
+                ) : (
+                  <>
+                    This session is stored in the college database.
+                    A delete API has not been confirmed, so this record
+                    cannot be deleted from the database through this page.
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+
+              {modal.session.isDemo && (
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-600/20 hover:bg-rose-700"
+                >
+                  Delete Session
+                </button>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Backend delete information */}
+
+      {modal?.type === "backend-delete-info" && (
+        <Modal
+          title="Backend API required"
+          onClose={() => setModal(null)}
+        >
+          <div className="px-6 pb-6 pt-4">
+            <div className="flex gap-3">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-600">
+                <AlertTriangle size={22} />
+              </span>
+
+              <p className="text-sm leading-relaxed text-slate-600">
+                The available frontend service functions do not confirm
+                a delete operation for examination sessions. A backend
+                delete API is required before database records can be
+                deleted safely.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                className="rounded-xl bg-[#14234b] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Toast notifications */}
+
+      <div
+        className="fixed bottom-5 right-5 z-[90] flex w-80 max-w-[calc(100vw-2.5rem)] flex-col gap-2"
+        aria-live="polite"
+      >
+        {toasts.map((item) => (
+          <div
+            key={item.id}
+            className="toast-in flex items-center gap-3 rounded-xl bg-[#14234b] px-4 py-3 text-sm text-white shadow-2xl ring-1 ring-[#f2c200]/30"
+          >
+            <CheckCircle2
+              size={18}
+              className="shrink-0 text-[#6ee7a0]"
+            />
+
+            <span className="flex-1">
+              {item.message}
+            </span>
+
+            {item.undo && (
+              <button
+                type="button"
+                onClick={() => {
+                  item.undo();
+                  dismissToast(item.id);
+                }}
+                className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-1 text-xs font-semibold transition hover:bg-white/25"
+              >
+                <Undo2 size={13} />
+                Undo
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => dismissToast(item.id)}
+              aria-label="Dismiss notification"
+              className="text-white/60 hover:text-white"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

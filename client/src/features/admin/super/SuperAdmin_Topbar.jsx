@@ -14,12 +14,17 @@ const PAGE_TITLES = {
   "/academic-data": "Academic Data",
 };
 
-export default function SuperAdmin_Topbar() {
+export default function SuperAdmin_Topbar({
+  titleOverride,
+  roleName = "Super Admin",
+  roleInitials = "SA",
+}) {
   const location = useLocation();
 
-  const pageTitle =
-    PAGE_TITLES[location.pathname.replace("/super-admin", "")] || "Super Admin Dashboard";
-
+ const pageTitle =
+  titleOverride ||
+  PAGE_TITLES[location.pathname.replace("/super-admin", "")] ||
+  "Super Admin Dashboard";
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",

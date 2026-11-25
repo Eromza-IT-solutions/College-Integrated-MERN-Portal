@@ -14,14 +14,16 @@ import StudentLayout from "../features/student/StudentLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import TeacherLayout from "../features/teacher/TeacherLayout";
 import { TeacherProvider } from "../features/teacher/TeacherShared";
-
-
+import ExamAdminLayout from "../features/admin/examination/ExamAdminLayout";
+import HODLayout from "../features/hod/HODLayout";
 // Roles that have their own original layout (sidebar + topbar).
 // Any role not listed here falls back to the shared AppLayout.
 const ROLE_LAYOUTS = {
   superAdmin: SuperAdminLayout,
   websiteAdmin: WebsiteAdminLayout,
   admissionAdmin: AdmissionAdminLayout,
+  examAdmin: ExamAdminLayout,
+  hod: HODLayout, 
   student: StudentLayout,
  teacher: TeacherRouteLayout,
 };

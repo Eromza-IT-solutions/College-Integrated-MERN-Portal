@@ -1,690 +1,1596 @@
-import { useMemo, useState } from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
-  BookOpen,
-  ClipboardCheck,
-  Clock,
-  Download,
-  Users,
+  Search,
   Plus,
+  Eye,
   Pencil,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
   X,
+  Download,
+  Undo2,
+  CheckCircle2,
+  SearchX,
+  GraduationCap,
+  AlertTriangle,
+  CalendarCheck,
+  CheckCircle,
+  FileText,
+  FilePen,
+  Users,
 } from "lucide-react";
 
-import ProgressRing from "../../components/charts/ProgressRing";
-import TrendChart from "../../components/charts/TrendChart";
+import * as adminApi from "../../services/adminApi";
+import { useApiData } from "../../hooks/useApiData";
+import "../../assets/styles/aisc-premium.css";
 
-import {
-  hodAttendanceRows,
-  hodAttendanceSeries,
-} from "../../mocks/hodData";
+/* -------------------------------------------------------
+   DEMO DATA
+------------------------------------------------------- */
 
-import { downloadCsv } from "../../utils/csv";
-import { formatStatus, getStatusVariant } from "../../utils/status";
+/* Change this to your college's minimum attendance rule */
+const MIN_ATTENDANCE = 75;
 
-const emptyForm = {
-  className: "",
-  faculty: "",
-  students: "",
-  present: "",
-  status: "submitted",
+const SEED_STUDENTS = [
+  {"_id": "students-demo-001", "name": "Demo Student 01", "rollNo": "DEMO-001", "subject": "Cost Accounting", "month": "2026-10", "held": 24, "attended": 22, "status": "Verified", "isDemo": true},
+  {"_id": "students-demo-002", "name": "Demo Student 02", "rollNo": "DEMO-002", "subject": "Cost Accounting", "month": "2026-10", "held": 24, "attended": 17, "status": "Verified", "isDemo": true},
+  {"_id": "students-demo-003", "name": "Demo Student 03", "rollNo": "DEMO-003", "subject": "Cost Accounting", "month": "2026-10", "held": 24, "attended": 18, "status": "Submitted", "isDemo": true},
+  {"_id": "students-demo-004", "name": "Demo Student 01", "rollNo": "DEMO-001", "subject": "Java Programming", "month": "2026-10", "held": 20, "attended": 19, "status": "Submitted", "isDemo": true},
+  {"_id": "students-demo-005", "name": "Demo Student 02", "rollNo": "DEMO-002", "subject": "Java Programming", "month": "2026-10", "held": 20, "attended": 12, "status": "Draft", "isDemo": true},
+  {"_id": "students-demo-006", "name": "Demo Student 03", "rollNo": "DEMO-003", "subject": "Business Taxation", "month": "2026-10", "held": 18, "attended": 16, "status": "Verified", "isDemo": true},
+  {"_id": "students-demo-007", "name": "Demo Student 04", "rollNo": "DEMO-004", "subject": "Business Taxation", "month": "2026-10", "held": 18, "attended": 11, "status": "Draft", "isDemo": true},
+];
+
+const SEED_FACULTY = [
+  {"_id": "faculty-demo-001", "name": "Demo Faculty 01", "employeeId": "DEMO-T01", "month": "2026-10", "held": 24, "attended": 23, "status": "Verified", "isDemo": true},
+  {"_id": "faculty-demo-002", "name": "Demo Faculty 02", "employeeId": "DEMO-T02", "month": "2026-10", "held": 24, "attended": 21, "status": "Verified", "isDemo": true},
+  {"_id": "faculty-demo-003", "name": "Demo Faculty 03", "employeeId": "DEMO-T03", "month": "2026-10", "held": 24, "attended": 24, "status": "Submitted", "isDemo": true},
+  {"_id": "faculty-demo-004", "name": "Demo Faculty 04", "employeeId": "DEMO-T04", "month": "2026-10", "held": 24, "attended": 19, "status": "Submitted", "isDemo": true},
+  {"_id": "faculty-demo-005", "name": "Demo Faculty 05", "employeeId": "DEMO-T05", "month": "2026-10", "held": 24, "attended": 12, "status": "Draft", "isDemo": true},
+];
+
+/* -------------------------------------------------------
+   TAB CONFIGURATION
+------------------------------------------------------- */
+
+const SEMESTERS = ["I", "II", "III", "IV", "V", "VI"];
+
+const CONFIG = {
+  students: {
+    label: "Student Attendance",
+    singular: "Attendance Record",
+    noun: "attendance records",
+    icon: CalendarCheck,
+    idPrefix: "ATT",
+    demoPrefix: "students-demo-",
+    derive: (record) => {
+      const value = (Number(record.attended) / Number(record.held)) * 100;
+    
+      return {
+        ...record,
+        percentage: value.toFixed(1),
+        standing: value >= MIN_ATTENDANCE ? "Regular" : "Shortage",
+      };
+    },
+    validate: (form) =>
+      Number(form.attended) > Number(form.held)
+        ? "Classes attended cannot be more than classes held."
+        : "",
+    subtitle: (record) =>
+      [record.rollNo].filter(Boolean).join(" · "),
+    filterKey: "subject",
+    filterAll: "All Subjects",
+    filterLabel: "Filter by subjects",
+    filterText: (value) => `${value}`,
+    defaultSort: { key: "rollNo", dir: "asc" },
+    statuses: ["Verified", "Submitted", "Draft"],
+    stats: [
+      ["All", "Total Records", CalendarCheck, "Show all"],
+      ["Verified", "Verified", CheckCircle, "Filter verified"],
+      ["Submitted", "Submitted", FileText, "Filter submitted"],
+      ["Draft", "Draft", FilePen, "Filter draft"],
+    ],
+    columns: [
+      ["_id", "Record ID"],
+      ["name", "Student"],
+      ["subject", "Subject"],
+      ["month", "Month"],
+      ["attended", "Attended"],
+      ["held", "Classes Held"],
+      ["percentage", "Attendance"],
+      ["standing", "Standing"],
+      ["status", "Status"],
+    ],
+    fields: [
+      {"key": "name", "label": "Student Name", "required": true, "full": true},
+      {"key": "rollNo", "label": "Roll Number", "required": true},
+      {"key": "subject", "label": "Subject", "required": true},
+      {"key": "month", "label": "Month", "required": true, "type": "month"},
+      {"key": "held", "label": "Classes Held", "required": true, "type": "number", "min": 1},
+      {"key": "attended", "label": "Classes Attended", "required": true, "type": "number", "min": 0},
+      {"key": "status", "label": "Status", "options": ["Verified", "Submitted", "Draft"], "full": true},
+    ],
+    blank: {"name": "", "rollNo": "", "subject": "", "month": "", "held": "", "attended": "", "status": "Draft"},
+    details: [["Roll Number", "rollNo"], ["Subject", "subject"], ["Month", "month"], ["Classes Held", "held"], ["Classes Attended", "attended"], ["Percentage", "percentage"], ["Standing", "standing"], ["Status", "status"]],
+  },
+  faculty: {
+    label: "Faculty Attendance",
+    singular: "Faculty Record",
+    noun: "faculty records",
+    icon: Users,
+    idPrefix: "FAT",
+    demoPrefix: "faculty-demo-",
+    derive: (record) => ({
+      ...record,
+      percentage:
+        Number(record.held) > 0
+          ? ((Number(record.attended) / Number(record.held)) * 100).toFixed(1)
+          : "—",
+    }),
+    validate: (form) =>
+      Number(form.attended) > Number(form.held)
+        ? "Days present cannot be more than working days."
+        : "",
+    subtitle: (record) =>
+      [record.employeeId].filter(Boolean).join(" · "),
+    filterKey: "month",
+    filterAll: "All Months",
+    filterLabel: "Filter by months",
+    filterText: (value) => `${value}`,
+    defaultSort: { key: "employeeId", dir: "asc" },
+    statuses: ["Verified", "Submitted", "Draft"],
+    stats: [
+      ["All", "Total Records", Users, "Show all"],
+      ["Verified", "Verified", CheckCircle, "Filter verified"],
+      ["Submitted", "Submitted", FileText, "Filter submitted"],
+      ["Draft", "Draft", FilePen, "Filter draft"],
+    ],
+    columns: [
+      ["_id", "Record ID"],
+      ["name", "Teacher"],
+      ["month", "Month"],
+      ["attended", "Days Present"],
+      ["held", "Working Days"],
+      ["percentage", "Attendance"],
+      ["status", "Status"],
+    ],
+    fields: [
+      {"key": "name", "label": "Teacher Name", "required": true, "full": true},
+      {"key": "employeeId", "label": "Employee Code", "required": true},
+      {"key": "month", "label": "Month", "required": true, "type": "month"},
+      {"key": "held", "label": "Working Days", "required": true, "type": "number", "min": 1, "max": 31},
+      {"key": "attended", "label": "Days Present", "required": true, "type": "number", "min": 0, "max": 31},
+      {"key": "status", "label": "Status", "options": ["Verified", "Submitted", "Draft"], "full": true},
+    ],
+    blank: {"name": "", "employeeId": "", "month": "", "held": "", "attended": "", "status": "Draft"},
+    details: [["Employee Code", "employeeId"], ["Month", "month"], ["Working Days", "held"], ["Days Present", "attended"], ["Percentage", "percentage"], ["Status", "status"]],
+  },
 };
 
-export default function Attendance() {
-  const [attendanceRows, setAttendanceRows] = useState(
-    hodAttendanceRows
-  );
+const STATUS_STYLE = {
+  "Verified": "bg-emerald-50 text-emerald-700",
+  "Submitted": "bg-blue-50 text-blue-700",
+  "Draft": "bg-amber-50 text-amber-700",
+};
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+const STATUS_DOT = {
+  "Verified": "bg-emerald-500",
+  "Submitted": "bg-blue-500",
+  "Draft": "bg-amber-500",
+};
+
+/* -------------------------------------------------------
+   HELPERS
+------------------------------------------------------- */
+
+const pageList = (total, current) => {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
+
+  const numbers = [...new Set([1, total, current - 1, current, current + 1])]
+    .filter((number) => number >= 1 && number <= total)
+    .sort((a, b) => a - b);
+
+  const result = [];
+
+  numbers.forEach((number, index) => {
+    if (index && number - numbers[index - 1] > 1) {
+      result.push(`gap-${number}`);
+    }
+    result.push(number);
+  });
+
+  return result;
+};
+
+const displayValue = (key, value) => {
+  if (value === "" || value === null || value === undefined) return "—";
+  if (value === "—") return value;
+  if (key === "percentage") return `${value}%`;
+
+  if (key.endsWith("On")) {
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+
+    return Number.isNaN(date.getTime())
+      ? "—"
+      : date.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+  }
+
+  return value;
+};
+
+const shortId = (config, id) =>
+  String(id).startsWith(config.demoPrefix)
+    ? `${config.idPrefix}-${String(id).slice(-3)}`
+    : String(id).slice(-8);
+
+const normalizeStatus = (type, value = "") => {
+  const status = String(value).toLowerCase();
+  const match = CONFIG[type].statuses.find(
+    (item) => item.toLowerCase() === status
+  );
+  return match || "Draft";
+};
+
+const normalizeBackendRecord = (type) => (record, index) => ({
+  ...record,
+  _id: record._id || record.id || `backend-${type}-${index}`,
+  name: record.name || record.title || record.studentName || "Untitled",
+  status: normalizeStatus(type, record.status),
+  isDemo: false,
+});
+
+/* Uses the API function only if it exists in adminApi */
+const optionalFetch = (functionName) => {
+  const api = { ...adminApi };
+  return typeof api[functionName] === "function"
+    ? api[functionName]()
+    : Promise.resolve([]);
+};
+
+/* -------------------------------------------------------
+   REUSABLE COMPONENTS
+------------------------------------------------------- */
+
+function StatusBadge({ status }) {
+  const label = status || "Draft";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+        STATUS_STYLE[label] || STATUS_STYLE.Draft
+      }`}
+    >
+      <span
+        className={`h-2 w-2 rounded-full ${
+          STATUS_DOT[label] || STATUS_DOT.Draft
+        }`}
+      />
+      {label}
+    </span>
+  );
+}
+
+function Modal({ title, onClose, children, wide = false }) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <button
+        type="button"
+        className="fade absolute inset-0 cursor-default bg-[#14234b]/60 backdrop-blur-sm"
+        onClick={onClose}
+        aria-label="Close modal"
+      />
+
+      <div
+        className={`pop relative my-auto w-full ${
+          wide ? "max-w-xl" : "max-w-md"
+        } overflow-hidden rounded-3xl bg-white shadow-2xl`}
+      >
+        <div className="h-1.5 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
+
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h2 className="font-['Playfair_Display',serif] text-xl font-bold text-[#14234b]">
+            {title}
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function StatItem({ icon: Icon, label, value, hint, selected, onClick }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={selected}
+        className="group relative flex w-full items-center gap-4 bg-[#14234b]/70 px-5 py-5 text-left backdrop-blur-sm transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f2c200] sm:px-6"
+      >
+        <span
+          className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ring-1 transition duration-300 group-hover:scale-110 ${
+            selected
+              ? "bg-[#f2c200] text-[#14234b] ring-[#f2c200]"
+              : "bg-white/10 text-[#f2c200] ring-white/20 group-hover:bg-[#f2c200] group-hover:text-[#14234b]"
+          }`}
+        >
+          <Icon size={22} />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-semibold tracking-wider text-white/60 uppercase sm:text-[11px]">
+            {label}
+          </span>
+
+          <span className="mt-1 block font-['Playfair_Display',serif] text-3xl font-bold leading-none tabular-nums text-white">
+            {value}
+          </span>
+        </span>
+
+        <span className="hidden text-[11px] font-medium text-white/50 xl:block">
+          {hint}
+        </span>
+
+        <span
+          className={`absolute inset-x-0 bottom-0 h-[3px] origin-left bg-[#f2c200] transition-transform duration-300 ${
+            selected ? "scale-x-100" : "scale-x-0"
+          }`}
+        />
+      </button>
+    </li>
+  );
+}
+
+/* -------------------------------------------------------
+   ADD / EDIT FORM
+------------------------------------------------------- */
+
+function RecordForm({ config, initial, onSave, onClose }) {
+  const [form, setForm] = useState(() => {
+    if (!initial) return { ...config.blank };
+
+    return Object.fromEntries(
+      Object.keys(config.blank).map((key) => [key, initial[key] ?? ""])
+    );
+  });
+
   const [error, setError] = useState("");
 
-  const totalClasses = attendanceRows.length;
-
-  const average = useMemo(() => {
-    return totalClasses > 0
-      ? Math.round(
-          (attendanceRows.reduce(
-            (sum, row) => sum + Number(row.attendance || 0),
-            0
-          ) / totalClasses) * 10
-        ) / 10
-      : 0;
-  }, [attendanceRows, totalClasses]);
-
-  const pending = attendanceRows.filter(
-    (row) => row.status === "pending"
-  ).length;
-
-  const reporting = totalClasses - pending;
-
-  const belowThreshold = attendanceRows.filter(
-    (row) => Number(row.attendance) < 75
-  ).length;
-
-  const totalStudents = attendanceRows.reduce(
-    (sum, row) => sum + Number(row.students || 0),
-    0
-  );
-
-  const totalPresent = attendanceRows.reduce(
-    (sum, row) => sum + Number(row.present || 0),
-    0
-  );
-
-  const openAddModal = () => {
-    setEditingId(null);
-    setForm(emptyForm);
-    setError("");
-    setShowModal(true);
+  const set = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }));
   };
 
-  const openEditModal = (row) => {
-    setEditingId(row.id);
-    setForm({
-      className: row.className || "",
-      faculty: row.faculty || "",
-      students: String(row.students ?? ""),
-      present: String(row.present ?? ""),
-      status: row.status || "submitted",
-    });
-    setError("");
-    setShowModal(true);
-  };
+  const inputClass =
+    "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#8f0014] focus:ring-4 focus:ring-[#8f0014]/10";
 
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingId(null);
-    setForm(emptyForm);
-    setError("");
-  };
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  const handleSave = (event) => {
+  const submit = (event) => {
     event.preventDefault();
 
-    const className = form.className.trim();
-    const faculty = form.faculty.trim();
-    const students = Number(form.students);
-    const present = Number(form.present);
+    const missing = config.fields.some(
+      (field) => field.required && !String(form[field.key]).trim()
+    );
 
-    if (!className || !faculty || !form.students || !form.present) {
-      setError("Please fill in all required fields.");
+    if (missing) {
+      setError("Please complete all required fields.");
       return;
     }
 
-    if (
-      !Number.isInteger(students) ||
-      !Number.isInteger(present) ||
-      students <= 0 ||
-      present < 0 ||
-      present > students
-    ) {
-      setError(
-        "Enter valid student numbers. Present students cannot exceed total students."
-      );
+    const invalidNumber = config.fields.some(
+      (field) =>
+        field.type === "number" &&
+        (Number(form[field.key]) < field.min ||
+          (field.max !== undefined && Number(form[field.key]) > field.max))
+    );
+
+    if (invalidNumber) {
+      setError("Please enter valid numbers.");
       return;
     }
 
-    const attendance = Math.round((present / students) * 1000) / 10;
+    const ruleError = config.validate(form);
 
-    const duplicateClass = attendanceRows.some(
-      (row) =>
-        row.className.trim().toLowerCase() === className.toLowerCase() &&
-        row.id !== editingId
-    );
-
-    if (duplicateClass) {
-      setError("A record for this class already exists.");
+    if (ruleError) {
+      setError(ruleError);
       return;
     }
 
-    const record = {
-      id: editingId || `ATT-${Date.now()}`,
-      className,
-      faculty,
-      students,
-      present,
-      attendance,
-      status: form.status,
-    };
-
-    if (editingId) {
-      setAttendanceRows((previous) =>
-        previous.map((row) =>
-          row.id === editingId ? record : row
-        )
-      );
-    } else {
-      setAttendanceRows((previous) => [
-        record,
-        ...previous,
-      ]);
+    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) {
+      setError("Please enter a valid email address.");
+      return;
     }
 
-    closeModal();
-  };
+    setError("");
 
-  const handleDelete = (id) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this attendance record?"
-    );
+    const cleaned = { ...form };
 
-    if (!confirmed) return;
+    config.fields.forEach((field) => {
+      if (field.type === "number") {
+        cleaned[field.key] = Number(form[field.key]);
+      } else if (typeof cleaned[field.key] === "string") {
+        cleaned[field.key] = cleaned[field.key].trim();
+      }
+    });
 
-    setAttendanceRows((previous) =>
-      previous.filter((row) => row.id !== id)
-    );
-  };
-
-  const handleExport = () => {
-    downloadCsv("eromza-department-attendance.csv", [
-      [
-        "Class",
-        "Faculty",
-        "Students",
-        "Present",
-        "Attendance",
-        "Status",
-      ],
-      ...attendanceRows.map((row) => [
-        row.className,
-        row.faculty,
-        row.students,
-        row.present,
-        `${row.attendance}%`,
-        row.status,
-      ]),
-    ]);
+    onSave(cleaned);
   };
 
   return (
-    <div>
-      {/* PAGE HEADER */}
-      <div className="hod-page-head">
-        <div>
-          <h2 className="hod-page-title">Attendance Management</h2>
-          <p className="hod-page-subtitle">
-            Monitor class-wise attendance, faculty submissions and
-            attendance performance across the department.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="hod-btn hod-btn-primary"
-            onClick={openAddModal}
-          >
-            <Plus size={15} />
-            Add Attendance
-          </button>
-
-          <button
-            type="button"
-            className="hod-btn hod-btn-secondary"
-            onClick={handleExport}
-          >
-            <Download size={15} />
-            Export Attendance
-          </button>
-        </div>
-      </div>
-
-      {/* ATTENDANCE SUMMARY */}
-      <section className="hod-kpi-grid">
-        <article className="hod-kpi-card">
-          <div>
-            <div className="hod-kpi-label">Average Attendance</div>
-            <div className="hod-kpi-value">{average}%</div>
-            <div className="hod-kpi-description">
-              Department class average
-            </div>
-          </div>
-
-          <div className="hod-kpi-icon green">
-            <ClipboardCheck size={21} />
-          </div>
-        </article>
-
-        <article className="hod-kpi-card">
-          <div>
-            <div className="hod-kpi-label">Classes Reporting</div>
-            <div className="hod-kpi-value">
-              {reporting}/{totalClasses}
-            </div>
-            <div className="hod-kpi-description">
-              Faculty submissions received
-            </div>
-          </div>
-
-          <div className="hod-kpi-icon blue">
-            <BookOpen size={21} />
-          </div>
-        </article>
-
-        <article className="hod-kpi-card">
-          <div>
-            <div className="hod-kpi-label">Classes Below 75%</div>
-            <div className="hod-kpi-value">{belowThreshold}</div>
-            <div className="hod-kpi-description">
-              Require attendance review
-            </div>
-          </div>
-
-          <div className="hod-kpi-icon orange">
-            <AlertTriangle size={21} />
-          </div>
-        </article>
-
-        <article className="hod-kpi-card">
-          <div>
-            <div className="hod-kpi-label">Pending Submissions</div>
-            <div className="hod-kpi-value">{pending}</div>
-            <div className="hod-kpi-description">
-              Awaiting faculty submission
-            </div>
-          </div>
-
-          <div className="hod-kpi-icon maroon">
-            <Clock size={21} />
-          </div>
-        </article>
-      </section>
-
-      {/* ATTENDANCE CHARTS */}
-      <section className="hod-grid-main">
-        <article className="hod-panel">
-          <div className="hod-panel-header">
-            <div>
-              <h3>Attendance Trend</h3>
-              <p>
-                Average department attendance across the last six months
-              </p>
-            </div>
-
-            <span className="hod-status success">
-              Monthly Trend
-            </span>
-          </div>
-
-          <div style={{ padding: "18px" }}>
-            <TrendChart
-              labels={hodAttendanceSeries.labels}
-              values={hodAttendanceSeries.values}
-              color="#14264B"
-              ariaLabel="Department attendance trend"
-            />
-          </div>
-        </article>
-
-        <article className="hod-panel">
-          <div className="hod-panel-header">
-            <div>
-              <h3>Attendance Health</h3>
-              <p>Current department attendance average</p>
-            </div>
-
-            <ClipboardCheck size={20} color="#A8212F" />
-          </div>
-
-          <div style={{ padding: "18px" }}>
-            <ProgressRing
-              value={average}
-              label="Present"
-              caption="Average attendance across all recorded department classes."
-            />
-
-            <div
-              style={{
-                marginTop: 22,
-                padding: 14,
-                background: "#fff8e8",
-                border: "1px solid #f4e4b7",
-                borderRadius: 9,
-              }}
+    <Modal
+      title={`${initial ? "Edit" : "Add"} ${config.singular}`}
+      onClose={onClose}
+      wide
+    >
+      <form onSubmit={submit} noValidate className="space-y-4 px-6 pb-6 pt-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {config.fields.map((field) => (
+            <label
+              key={field.key}
+              className={`block ${field.full ? "sm:col-span-2" : ""}`}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  color: "#9A6A08",
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                <AlertTriangle size={15} />
-                Attendance Attention
-              </div>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+                {field.label}
+                {field.required ? " *" : ""}
+              </span>
 
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: "#806C45",
-                  fontSize: 11,
-                  lineHeight: 1.7,
-                }}
-              >
-                {belowThreshold} recorded classes are below the 75%
-                attendance threshold and may require follow-up.
-              </p>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      {/* ATTENDANCE OVERVIEW */}
-      <section className="hod-grid-2">
-        <div className="hod-info-card">
-          <div className="hod-info-label">
-            <Users
-              size={14}
-              style={{ display: "inline", marginRight: 6 }}
-            />
-            Total Students in Recorded Classes
-          </div>
-
-          <div className="hod-info-value">{totalStudents}</div>
+              {field.options ? (
+                <select
+                  className={inputClass}
+                  value={form[field.key]}
+                  onChange={(event) => set(field.key, event.target.value)}
+                >
+                  {field.options.map((option) => (
+                    <option key={option} value={option}>
+                      {field.key === "semester"
+                        ? `Semester ${option}`
+                        : option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type || "text"}
+                  min={field.min}
+                  max={field.max}
+                  className={inputClass}
+                  value={form[field.key]}
+                  placeholder={field.placeholder}
+                  onChange={(event) => set(field.key, event.target.value)}
+                />
+              )}
+            </label>
+          ))}
         </div>
 
-        <div className="hod-info-card">
-          <div className="hod-info-label">
-            <ClipboardCheck
-              size={14}
-              style={{ display: "inline", marginRight: 6 }}
-            />
-            Total Students Present
-          </div>
+        {error && (
+          <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600">
+            {error}
+          </p>
+        )}
 
-          <div className="hod-info-value">{totalPresent}</div>
+        <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
+          Demo {config.noun} are stored only in this page's local state. They
+          are not saved to the college database.
+        </p>
+
+        <div className="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#8f0014]/20 transition hover:brightness-110"
+          >
+            {initial ? "Save Changes" : `Add ${config.singular}`}
+          </button>
         </div>
-      </section>
+      </form>
+    </Modal>
+  );
+}
 
-      {/* CLASS ATTENDANCE TABLE */}
-      <section className="hod-panel" style={{ marginTop: 22 }}>
-        <div className="hod-panel-header">
+/* -------------------------------------------------------
+   MAIN COMPONENT
+------------------------------------------------------- */
+
+export default function Attendance() {
+  const firstResource = useApiData(
+    () => optionalFetch("fetchHodStudentAttendance"),
+    "hod-Attendance-students"
+  );
+
+  const secondResource = useApiData(
+    () => optionalFetch("fetchHodFacultyAttendance"),
+    "hod-Attendance-faculty"
+  );
+
+  const [tab, setTab] = useState("students");
+
+  const [demo, setDemo] = useState(() => ({
+    students: SEED_STUDENTS.map((item) => ({ ...item })),
+    faculty: SEED_FACULTY.map((item) => ({ ...item })),
+  }));
+
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [dropdownFilter, setDropdownFilter] = useState("All");
+  const [sort, setSort] = useState(CONFIG.students.defaultSort);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [modal, setModal] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
+  const config = CONFIG[tab];
+  const TabIcon = config.icon;
+  const demoRecords = demo[tab];
+
+  const resource = tab === "students" ? firstResource : secondResource;
+  const apiData = resource.data;
+  const loading = resource.loading;
+
+  const setDemoRecords = (key, updater) => {
+    setDemo((current) => ({ ...current, [key]: updater(current[key]) }));
+  };
+
+  /* Normalize API records and combine demo records */
+
+  const allRecords = useMemo(
+    () => [
+      ...(Array.isArray(apiData) ? apiData : []).map(
+        normalizeBackendRecord(tab)
+      ),
+      ...demoRecords,
+    ].map(config.derive),
+    [apiData, demoRecords, tab, config]
+  );
+
+  /* Statistics */
+
+  const counts = useMemo(
+    () =>
+      Object.fromEntries([
+        ["All", allRecords.length],
+        ...config.statuses.map((status) => [
+          status,
+          allRecords.filter((item) => item.status === status).length,
+        ]),
+      ]),
+    [allRecords, config]
+  );
+
+  /* Dropdown options */
+
+  const dropdownOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          allRecords
+            .map((item) => String(item[config.filterKey] ?? ""))
+            .filter((value) => value && value !== "—")
+        ),
+      ].sort((a, b) =>
+        config.filterKey === "semester"
+          ? SEMESTERS.indexOf(a) - SEMESTERS.indexOf(b)
+          : a.localeCompare(b)
+      ),
+    [allRecords, config]
+  );
+
+  /* Search, filter and sorting */
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    const result = allRecords.filter((item) => {
+      const statusMatch =
+        statusFilter === "All" || item.status === statusFilter;
+
+      const dropdownMatch =
+        dropdownFilter === "All" ||
+        String(item[config.filterKey]) === dropdownFilter;
+
+      const searchMatch =
+        !q ||
+        [shortId(config, item._id), ...Object.values(item)].some((value) =>
+          String(value ?? "").toLowerCase().includes(q)
+        );
+
+      return statusMatch && dropdownMatch && searchMatch;
+    });
+
+    return result.sort((a, b) => {
+      const comparison = String(a[sort.key] ?? "").localeCompare(
+        String(b[sort.key] ?? ""),
+        undefined,
+        { numeric: true, sensitivity: "base" }
+      );
+
+      return sort.dir === "asc" ? comparison : -comparison;
+    });
+  }, [allRecords, query, statusFilter, dropdownFilter, sort, config]);
+
+  /* Pagination */
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const start = (page - 1) * pageSize;
+  const rows = filtered.slice(start, start + pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tab, query, statusFilter, dropdownFilter, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  /* Toast notifications */
+
+  const dismissToast = (id) => {
+    setToasts((current) => current.filter((item) => item.id !== id));
+  };
+
+  const toast = (message, undo) => {
+    const id = Date.now() + Math.random();
+
+    setToasts((current) => [...current, { id, message, undo }]);
+
+    window.setTimeout(() => dismissToast(id), 5500);
+  };
+
+  /* Filters and tabs */
+
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("All");
+    setDropdownFilter("All");
+  };
+
+  const switchTab = (key) => {
+    if (key === tab) return;
+
+    setTab(key);
+    clearFilters();
+    setSort(CONFIG[key].defaultSort);
+    setPage(1);
+    setModal(null);
+  };
+
+  const filtersActive =
+    Boolean(query) || statusFilter !== "All" || dropdownFilter !== "All";
+
+  const toggleSort = (key) => {
+    setSort((current) =>
+      current.key === key
+        ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" }
+    );
+  };
+
+  /* Add / Edit */
+
+  const saveRecord = (data) => {
+    const target = modal?.record;
+
+    if (!target) {
+      const nextNumber =
+        demoRecords.reduce((max, item) => {
+          const number = Number(
+            String(item._id).match(/\d+$/)?.[0] || 0
+          );
+          return Math.max(max, number);
+        }, 0) + 1;
+
+      const newRecord = {
+        ...data,
+        _id: `${config.demoPrefix}${String(nextNumber).padStart(3, "0")}`,
+        isDemo: true,
+      };
+
+      setDemoRecords(tab, (current) => [...current, newRecord]);
+      toast(`${newRecord.name} was added successfully.`);
+      setModal(null);
+      return;
+    }
+
+    setDemoRecords(tab, (current) =>
+      current.map((item) =>
+        item._id === target._id ? { ...item, ...data } : item
+      )
+    );
+
+    toast(`${data.name} was updated successfully.`);
+    setModal(null);
+  };
+
+  /* Delete */
+
+  const confirmDelete = () => {
+    const target = modal?.record;
+
+    if (!target?.isDemo) return;
+
+    const key = tab;
+    const index = demoRecords.findIndex((item) => item._id === target._id);
+
+    setDemoRecords(key, (current) =>
+      current.filter((item) => item._id !== target._id)
+    );
+
+    toast(`${target.name} was deleted.`, () => {
+      setDemoRecords(key, (current) => {
+        const next = [...current];
+        next.splice(Math.min(index, next.length), 0, target);
+        return next;
+      });
+    });
+
+    setModal(null);
+  };
+
+  /* Status update for demo records */
+
+  const changeStatus = (record) => {
+    if (!record.isDemo) {
+      toast("Database status changes require the backend update API.");
+      return;
+    }
+
+    const nextStatus =
+      config.statuses[
+        (config.statuses.indexOf(record.status) + 1) % config.statuses.length
+      ];
+
+    setDemoRecords(tab, (current) =>
+      current.map((item) =>
+        item._id === record._id ? { ...item, status: nextStatus } : item
+      )
+    );
+
+    toast(`${record.name}: status changed to ${nextStatus}.`);
+  };
+
+  /* CSV Export */
+
+  const exportCsv = () => {
+    const escapeCsv = (value) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const columns = [
+      [`${config.singular} ID`, "_id"],
+      [`${config.singular} Name`, "name"],
+      ...config.details.map(([label, key]) => [label, key]),
+    ];
+
+    const csv = [
+      [...columns.map(([label]) => label), "Record Type"]
+        .map(escapeCsv)
+        .join(","),
+
+      ...filtered.map((item) =>
+        [
+          ...columns.map(([, key]) => item[key]),
+          item.isDemo ? "Demo" : "Database",
+        ]
+          .map(escapeCsv)
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `aisc-attendance-${tab}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+
+    toast(`Exported ${filtered.length} ${config.noun}.`);
+  };
+
+  const inputClass =
+    "rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 outline-none transition focus:border-[#8f0014] focus:ring-4 focus:ring-[#8f0014]/10";
+
+  /* Table cell content */
+
+  const renderCell = (record, key) => {
+    if (key === "_id") {
+      return (
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#14234b] to-[#4a5a86] text-xs font-bold text-white shadow ring-2 ring-white transition group-hover:scale-105">
+            <TabIcon size={16} />
+          </span>
+          <span className="font-semibold tabular-nums text-[#14234b]">
+            {shortId(config, record._id)}
+          </span>
+        </div>
+      );
+    }
+
+    if (key === "name") {
+      return (
+        <>
+          <span className="block max-w-[230px] truncate font-semibold text-[#14234b]">
+            {record.name}
+          </span>
+          <span className="mt-0.5 block text-[10px] text-slate-400">
+            {config.subtitle(record)}
+          </span>
+        </>
+      );
+    }
+
+    if (key === "status") {
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => changeStatus(record)}
+            title={
+              record.isDemo
+                ? "Click to change demo status"
+                : "Database status"
+            }
+            className="rounded-full transition hover:scale-105"
+          >
+            <StatusBadge status={record.status} />
+          </button>
+
+          {record.isDemo && (
+            <span className="rounded-full bg-[#f2c200]/20 px-2 py-1 text-[10px] font-bold text-[#946500]">
+              DEMO
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    return displayValue(key, record[key]);
+  };
+
+  return (
+    <div className="exam-sessions-page relative flex min-h-screen w-full flex-col overflow-hidden bg-[#f7f3ef] font-['Poppins',sans-serif] text-slate-700">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
+
+        @keyframes rise {
+          from { opacity: 0; transform: translateY(14px) }
+          to { opacity: 1; transform: none }
+        }
+
+        @keyframes rowIn {
+          from { opacity: 0; transform: translateY(8px) }
+          to { opacity: 1; transform: none }
+        }
+
+        @keyframes pop {
+          from { opacity: 0; transform: translateY(10px) scale(.97) }
+          to { opacity: 1; transform: none }
+        }
+
+        @keyframes fade {
+          from { opacity: 0 }
+          to { opacity: 1 }
+        }
+
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateX(24px) }
+          to { opacity: 1; transform: none }
+        }
+
+        .exam-sessions-page .rise {
+          animation: rise .55s cubic-bezier(.2,.7,.2,1) both;
+        }
+
+        .exam-sessions-page .row-in {
+          animation: rowIn .35s ease both;
+        }
+
+        .exam-sessions-page .pop {
+          animation: pop .25s cubic-bezier(.2,.7,.2,1) both;
+        }
+
+        .exam-sessions-page .fade {
+          animation: fade .2s ease both;
+        }
+
+        .exam-sessions-page .toast-in {
+          animation: toastIn .3s ease both;
+        }
+
+        .exam-sessions-page button:focus-visible,
+        .exam-sessions-page input:focus-visible,
+        .exam-sessions-page select:focus-visible {
+          outline: 2px solid #f2c200;
+          outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .exam-sessions-page .rise,
+          .exam-sessions-page .row-in,
+          .exam-sessions-page .pop,
+          .exam-sessions-page .fade,
+          .exam-sessions-page .toast-in {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      {/* Background decoration */}
+
+      <div
+        className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#8f0014]/10 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <div
+        className="pointer-events-none absolute -left-24 bottom-0 h-80 w-80 rounded-full bg-[#14234b]/10 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <main className="relative flex w-full flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+
+        {/* Page heading */}
+
+        <header className="rise mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h3>Class-wise Attendance</h3>
-            <p>
-              Attendance submitted by faculty for department classes
+            <p className="mb-2 text-[10px] font-bold tracking-[.22em] text-[#8f0014] uppercase">
+              Department · Read to Lead
+            </p>
+
+            <h1 className="font-['Playfair_Display',serif] text-3xl font-bold tracking-tight text-[#14234b] sm:text-4xl">
+              Attendance
+            </h1>
+
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
+              Record, verify and monitor student attendance by subject and month.
             </p>
           </div>
 
-          <span className="hod-status info">
-            {totalClasses} Classes
-          </span>
+          <div className="flex items-center gap-2 rounded-full border border-[#f2c200]/50 bg-white/80 px-4 py-2 text-xs font-semibold text-[#14234b] shadow-sm">
+            <GraduationCap size={16} className="text-[#8f0014]" />
+            Department Administration
+          </div>
+        </header>
+
+        {/* Student Attendance / Faculty Attendance switch */}
+
+        <div
+          className="rise mb-4 inline-flex self-start rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-100"
+          role="group"
+          aria-label="Choose section"
+        >
+          {Object.entries(CONFIG).map(([key, item]) => (
+            <button
+              type="button"
+              key={key}
+              onClick={() => switchTab(key)}
+              aria-pressed={tab === key}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                tab === key
+                  ? "bg-gradient-to-b from-[#a30018] to-[#6d000f] text-white shadow-md shadow-[#8f0014]/30"
+                  : "text-slate-500 hover:text-[#14234b]"
+              }`}
+            >
+              <item.icon size={16} />
+              {item.label}
+            </button>
+          ))}
         </div>
 
-        <div className="hod-table-wrapper">
-          <table className="hod-table">
-            <thead>
-              <tr>
-                <th>Class</th>
-                <th>Faculty</th>
-                <th>Students Present</th>
-                <th>Attendance</th>
-                <th>Submission Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
+        {/* Statistics */}
 
-            <tbody>
-              {attendanceRows.map((row) => {
-                const attendanceStatus =
-                  Number(row.attendance) >= 85
-                    ? "success"
-                    : Number(row.attendance) >= 75
-                      ? "warning"
-                      : "danger";
+        <section className="rise relative overflow-hidden rounded-3xl bg-[#14234b] shadow-xl">
+          <div
+            className="absolute inset-0 bg-gradient-to-br from-[#14234b]/95 via-[#1b2f63]/90 to-[#3a1230]/90"
+            aria-hidden="true"
+          />
 
-                return (
-                  <tr key={row.id}>
-                    <td>
-                      <div>
-                        <strong
-                          style={{
-                            display: "block",
-                            color: "#14264B",
-                            fontSize: 11,
-                          }}
-                        >
-                          {row.className}
-                        </strong>
+          <span
+            className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-[#8f0014]/30"
+            aria-hidden="true"
+          />
 
-                        <span
-                          style={{
-                            display: "block",
-                            marginTop: 4,
-                            color: "#8993A5",
-                            fontSize: 10,
-                          }}
-                        >
-                          {row.id}
-                        </span>
-                      </div>
-                    </td>
+          <ul
+            className="relative grid grid-cols-2 gap-px bg-white/10 lg:grid-cols-4"
+            aria-label={`${config.label} statistics`}
+          >
+            {config.stats.map(([status, label, icon, hint]) => (
+              <StatItem
+                key={status}
+                icon={icon}
+                label={label}
+                value={counts[status]}
+                hint={hint}
+                selected={statusFilter === status}
+                onClick={() =>
+                  setStatusFilter(statusFilter === status ? "All" : status)
+                }
+              />
+            ))}
+          </ul>
 
-                    <td>{row.faculty}</td>
+          <div className="relative h-1 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
+        </section>
 
-                    <td>
-                      <strong
-                        style={{
-                          color: "#26344D",
-                          fontSize: 11,
-                        }}
-                      >
-                        {row.present}/{row.students}
-                      </strong>
-                    </td>
+        {/* Main table panel */}
 
-                    <td>
-                      <span className={`hod-status ${attendanceStatus}`}>
-                        {row.attendance}%
-                      </span>
-                    </td>
+        <section
+          className="rise mt-6 flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-slate-100"
+          style={{ animationDelay: "120ms" }}
+        >
+          <div className="h-1.5 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
 
-                    <td>
-                      <span
-                        className={`hod-status ${getStatusVariant(
-                          row.status
-                        )}`}
-                      >
-                        {formatStatus(row.status)}
-                      </span>
-                    </td>
+          {/* Toolbar */}
 
-                    <td>
-                      <div style={{ display: "flex", gap: 7 }}>
-                        <button
-                          type="button"
-                          className="hod-btn hod-btn-secondary"
-                          style={{ padding: "6px 9px" }}
-                          onClick={() => openEditModal(row)}
-                          title="Edit attendance"
-                        >
-                          <Pencil size={13} />
-                        </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <div
+                className="flex flex-wrap rounded-xl bg-slate-100 p-1"
+                role="group"
+                aria-label="Filter by status"
+              >
+                {["All", ...config.statuses].map((status) => (
+                  <button
+                    type="button"
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    aria-pressed={statusFilter === status}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition sm:px-3 ${
+                      statusFilter === status
+                        ? "bg-white text-[#14234b] shadow"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {status}
+                    <span className="ml-1 tabular-nums text-slate-400">
+                      {counts[status]}
+                    </span>
+                  </button>
+                ))}
+              </div>
 
-                        <button
-                          type="button"
-                          className="hod-btn hod-btn-secondary"
-                          style={{
-                            padding: "6px 9px",
-                            color: "#A8212F",
-                          }}
-                          onClick={() => handleDelete(row.id)}
-                          title="Delete attendance"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          {attendanceRows.length === 0 && (
-            <div className="hod-empty">
-              <ClipboardCheck size={30} />
-              <strong>No attendance records</strong>
-              <p>Class attendance records will appear here.</p>
+              {filtersActive && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#8f0014] transition hover:bg-[#8f0014]/10"
+                >
+                  <X size={13} />
+                  Clear filters
+                </button>
+              )}
             </div>
-          )}
-        </div>
 
-        <div
-          style={{
-            padding: "13px 18px",
-            borderTop: "1px solid #edf0f4",
-            color: "#8993A5",
-            fontSize: 10,
-          }}
-        >
-          Showing {totalClasses} class attendance records
-        </div>
-      </section>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+              <select
+                value={dropdownFilter}
+                onChange={(event) => setDropdownFilter(event.target.value)}
+                aria-label={config.filterLabel}
+                className={`${inputClass} max-w-full sm:max-w-[210px]`}
+              >
+                <option value="All">{config.filterAll}</option>
 
-      {/* ADD / EDIT MODAL */}
-      {showModal && (
-        <div
-          className="hod-modal-overlay"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) closeModal();
-          }}
-        >
-          <div className="hod-modal">
-            <div className="hod-modal-header">
-              <div>
-                <h3>
-                  {editingId ? "Update Attendance" : "Add Attendance"}
-                </h3>
-                <p>
-                  Enter class attendance details below.
-                </p>
+                {dropdownOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {config.filterText(value)}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 transition focus-within:border-[#8f0014] focus-within:ring-4 focus-within:ring-[#8f0014]/10 sm:w-48 sm:flex-none">
+                <Search size={16} className="shrink-0 text-slate-400" />
+
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={`Search ${config.noun}...`}
+                  aria-label={`Search ${config.noun}`}
+                  className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                />
+
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                    className="text-slate-400 hover:text-slate-700"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
 
               <button
                 type="button"
-                onClick={closeModal}
-                aria-label="Close modal"
+                onClick={exportCsv}
+                disabled={!filtered.length}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-[#14234b] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <X size={19} />
+                <Download size={16} />
+                Export
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModal({ type: "add" })}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-3.5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#8f0014]/25 transition hover:-translate-y-0.5 hover:brightness-110"
+              >
+                <Plus size={16} />
+                Add {config.singular}
               </button>
             </div>
+          </div>
 
-            <form onSubmit={handleSave}>
-              <div className="hod-form-grid">
-                <div className="hod-form-group">
-                  <label>Class Name *</label>
-                  <input
-                    type="text"
-                    name="className"
-                    value={form.className}
-                    onChange={handleChange}
-                    placeholder="e.g. B.Com FY"
-                    required
-                  />
-                </div>
+          {/* Table */}
 
-                <div className="hod-form-group">
-                  <label>Faculty Name *</label>
-                  <input
-                    type="text"
-                    name="faculty"
-                    value={form.faculty}
-                    onChange={handleChange}
-                    placeholder="Enter faculty name"
-                    required
-                  />
-                </div>
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full min-w-[1100px] text-left text-sm">
+              <thead>
+                <tr className="bg-[#14234b]/[0.04] text-xs tracking-wide text-[#14234b]/70 uppercase">
+                  {config.columns.map(([key, label]) => (
+                    <th key={key} scope="col" className="px-5 py-3.5 font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(key)}
+                        className="inline-flex items-center gap-1.5 uppercase transition hover:text-[#8f0014]"
+                      >
+                        {label}
 
-                <div className="hod-form-group">
-                  <label>Total Students *</label>
-                  <input
-                    type="number"
-                    name="students"
-                    value={form.students}
-                    onChange={handleChange}
-                    min="1"
-                    step="1"
-                    placeholder="Enter total students"
-                    required
-                  />
-                </div>
+                        {sort.key === key ? (
+                          sort.dir === "asc" ? (
+                            <ChevronUp size={14} className="text-[#8f0014]" />
+                          ) : (
+                            <ChevronDown size={14} className="text-[#8f0014]" />
+                          )
+                        ) : (
+                          <ArrowUpDown size={12} className="opacity-40" />
+                        )}
+                      </button>
+                    </th>
+                  ))}
 
-                <div className="hod-form-group">
-                  <label>Students Present *</label>
-                  <input
-                    type="number"
-                    name="present"
-                    value={form.present}
-                    onChange={handleChange}
-                    min="0"
-                    step="1"
-                    placeholder="Enter present students"
-                    required
-                  />
-                </div>
+                  <th scope="col" className="px-5 py-3.5 text-right font-semibold">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
 
-                <div className="hod-form-group">
-                  <label>Submission Status *</label>
-                  <select
-                    name="status"
-                    value={form.status}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="submitted">Submitted</option>
-                    <option value="pending">Pending</option>
-                  </select>
-                </div>
-              </div>
+              <tbody className="divide-y divide-slate-100">
+                {loading &&
+                  Array.from({ length: pageSize }).map((_, index) => (
+                    <tr key={`loading-${index}`}>
+                      {Array.from({ length: config.columns.length + 1 }).map((__, cell) => (
+                        <td key={cell} className="px-5 py-4">
+                          <div
+                            className="h-4 animate-pulse rounded bg-slate-100"
+                            style={{
+                              width: `${55 + ((index + cell) % 4) * 12}%`,
+                            }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
 
-              {error && (
-                <p
-                  style={{
-                    color: "#A8212F",
-                    fontSize: 12,
-                    marginTop: 12,
-                  }}
-                >
-                  {error}
+                {!loading &&
+                  rows.map((record, index) => (
+                    <tr
+                      key={`${tab}-${record._id}`}
+                      className="row-in group transition hover:bg-[#14234b]/[0.03]"
+                      style={{ animationDelay: `${index * 40}ms` }}
+                    >
+                      {config.columns.map(([key]) => (
+                        <td key={key} className="px-5 py-3.5 text-slate-500">
+                          {renderCell(record, key)}
+                        </td>
+                      ))}
+
+                      {/* Actions */}
+
+                      <td className="px-5 py-3.5">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setModal({ type: "view", record })}
+                            aria-label={`View ${record.name}`}
+                            title="View"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-[#14234b]/10 hover:text-[#14234b]"
+                          >
+                            <Eye size={17} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setModal({ type: "edit", record })}
+                            aria-label={`Edit ${record.name}`}
+                            title="Edit"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-[#f2c200]/25 hover:text-[#946500]"
+                          >
+                            <Pencil size={17} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setModal({ type: "delete", record })}
+                            aria-label={`Delete ${record.name}`}
+                            title="Delete"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+
+            {/* Empty state */}
+
+            {!loading && rows.length === 0 && (
+              <div className="grid place-items-center px-6 py-16 text-center">
+                <span className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-slate-400">
+                  <SearchX size={28} />
+                </span>
+
+                <p className="mt-4 font-['Playfair_Display',serif] text-lg font-bold text-[#14234b]">
+                  No {config.noun} found
                 </p>
+
+                <p className="mt-1 max-w-sm text-sm text-slate-500">
+                  {filtersActive
+                    ? "Try a different search or clear the filters."
+                    : `Use the Add ${config.singular} button to get started.`}
+                </p>
+
+                {filtersActive && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-4 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-4 sm:px-5">
+            <div className="flex items-center gap-3 text-xs text-slate-500">
+              <span>
+                {filtered.length === 0
+                  ? "No results"
+                  : `Showing ${start + 1}–${Math.min(
+                      start + pageSize,
+                      filtered.length
+                    )} of ${filtered.length} ${config.noun}`}
+              </span>
+
+              <label className="flex items-center gap-2">
+                <span className="sr-only">Rows per page</span>
+
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value))}
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-[#8f0014]/20"
+                >
+                  {[5, 10, 20].map((number) => (
+                    <option key={number} value={number}>
+                      {number} / page
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <nav className="flex items-center gap-1.5" aria-label="Pagination">
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+                aria-label="Previous page"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {pageList(totalPages, page).map((number) =>
+                typeof number === "string" ? (
+                  <span key={number} className="px-1 text-slate-400">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    key={number}
+                    onClick={() => setPage(number)}
+                    aria-current={number === page ? "page" : undefined}
+                    className={`grid h-9 min-w-9 place-items-center rounded-lg px-2 text-sm font-semibold transition ${
+                      number === page
+                        ? "bg-gradient-to-b from-[#a30018] to-[#6d000f] text-white shadow-md shadow-[#8f0014]/30"
+                        : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {number}
+                  </button>
+                )
               )}
 
-              <div className="hod-modal-actions">
+              <button
+                type="button"
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+                disabled={page === totalPages}
+                aria-label="Next page"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </nav>
+          </div>
+        </section>
+
+        <p className="mt-3 text-center text-[10px] text-slate-400">
+          Demo {config.noun} are sample records for preview only. Database
+          records appear when the matching API function is available.
+        </p>
+      </main>
+
+      {/* Add / Edit */}
+
+      {(modal?.type === "add" || modal?.type === "edit") &&
+        (modal.type === "edit" && !modal.record.isDemo ? (
+          <Modal title="Database Record" onClose={() => setModal(null)}>
+            <div className="px-6 pb-6 pt-4">
+              <div className="flex gap-3">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-600">
+                  <AlertTriangle size={22} />
+                </span>
+
+                <p className="text-sm leading-relaxed text-slate-600">
+                  This record comes from the database. An update API has not
+                  been confirmed in the available frontend service functions,
+                  so it cannot safely be edited from this page yet.
+                </p>
+              </div>
+
+              <div className="mt-6 flex justify-end">
                 <button
                   type="button"
-                  className="hod-btn hod-btn-secondary"
-                  onClick={closeModal}
+                  onClick={() => setModal(null)}
+                  className="rounded-xl bg-[#14234b] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110"
                 >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="hod-btn hod-btn-primary"
-                >
-                  {editingId ? "Update Attendance" : "Save Attendance"}
+                  Got it
                 </button>
               </div>
-            </form>
+            </div>
+          </Modal>
+        ) : (
+          <RecordForm
+            config={config}
+            initial={modal.type === "edit" ? modal.record : null}
+            onSave={saveRecord}
+            onClose={() => setModal(null)}
+          />
+        ))}
+
+      {/* View details */}
+
+      {modal?.type === "view" && (
+        <Modal
+          title={`${config.singular} Details`}
+          onClose={() => setModal(null)}
+          wide
+        >
+          <div className="px-6 pb-6 pt-5">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-[#14234b] to-[#4a5a86] text-xl font-bold text-white shadow-lg ring-4 ring-[#f2c200]/40">
+                <TabIcon size={28} />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <h3 className="font-['Playfair_Display',serif] text-2xl font-bold text-[#14234b]">
+                  {modal.record.name}
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {config.subtitle(modal.record)}
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={modal.record.status} />
+
+                  {modal.record.isDemo && (
+                    <span className="rounded-full bg-[#f2c200]/20 px-2 py-1 text-[10px] font-bold text-[#946500]">
+                      DEMO RECORD
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {[[`${config.singular} ID`, "_id"], ...config.details].map(
+                ([label, key]) => (
+                  <div key={label} className="min-w-0 rounded-xl bg-slate-50 p-3">
+                    <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                      {label}
+                    </p>
+
+                    <p className="mt-1 break-words text-sm font-bold text-[#14234b]">
+                      {displayValue(key, modal.record[key])}
+                    </p>
+                  </div>
+                )
+              )}
+            </div>
+
+            {modal.record.isDemo && (
+              <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                This is a sample demo record. It is not stored in the college
+                database.
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setModal({ type: "edit", record: modal.record })
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                <Pencil size={15} />
+                Edit
+              </button>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
+
+      {/* Delete confirmation */}
+
+      {modal?.type === "delete" && (
+        <Modal
+          title={`Delete ${config.singular.toLowerCase()}?`}
+          onClose={() => setModal(null)}
+        >
+          <div className="px-6 pb-6 pt-4">
+            <div className="flex gap-4">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600">
+                <Trash2 size={22} />
+              </span>
+
+              <p className="text-sm leading-relaxed text-slate-600">
+                {modal.record.isDemo ? (
+                  <>
+                    You are about to delete the demo record{" "}
+                    <strong className="text-[#14234b]">
+                      {modal.record.name}
+                    </strong>
+                    . You can undo this action immediately.
+                  </>
+                ) : (
+                  <>
+                    This record is stored in the college database. A delete
+                    API has not been confirmed, so it cannot be deleted from
+                    the database through this page.
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+
+              {modal.record.isDemo && (
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-600/20 hover:bg-rose-700"
+                >
+                  Delete {config.singular}
+                </button>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Toast notifications */}
+
+      <div
+        className="fixed bottom-5 right-5 z-[90] flex w-80 max-w-[calc(100vw-2.5rem)] flex-col gap-2"
+        aria-live="polite"
+      >
+        {toasts.map((item) => (
+          <div
+            key={item.id}
+            className="toast-in flex items-center gap-3 rounded-xl bg-[#14234b] px-4 py-3 text-sm text-white shadow-2xl ring-1 ring-[#f2c200]/30"
+          >
+            <CheckCircle2 size={18} className="shrink-0 text-[#6ee7a0]" />
+
+            <span className="flex-1">{item.message}</span>
+
+            {item.undo && (
+              <button
+                type="button"
+                onClick={() => {
+                  item.undo();
+                  dismissToast(item.id);
+                }}
+                className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-1 text-xs font-semibold transition hover:bg-white/25"
+              >
+                <Undo2 size={13} />
+                Undo
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => dismissToast(item.id)}
+              aria-label="Dismiss notification"
+              className="text-white/60 hover:text-white"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
