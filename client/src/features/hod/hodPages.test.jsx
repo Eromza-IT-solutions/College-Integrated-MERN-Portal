@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+﻿import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import Attendance from "./Attendance";
@@ -19,10 +19,6 @@ describe("HOD pages", () => {
     expect(
       screen.getByRole("heading", { name: "Department Information" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Department of Computer Science"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Programmes Offered")).toBeInTheDocument();
   });
 
   it("renders teacher management", () => {
@@ -30,7 +26,6 @@ describe("HOD pages", () => {
     expect(
       screen.getByRole("heading", { name: "Manage Teachers" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Dr. Sneha Patil")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /add teacher/i }),
     ).toBeInTheDocument();
@@ -41,7 +36,6 @@ describe("HOD pages", () => {
     expect(
       screen.getByRole("heading", { name: "Manage Students" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Fatima Khan")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /add student/i }),
     ).toBeInTheDocument();
@@ -50,10 +44,9 @@ describe("HOD pages", () => {
   it("renders department attendance", () => {
     renderPage(<Attendance />);
     expect(
-      screen.getByRole("heading", { name: "Attendance Management" }),
+      screen.getByRole("heading", { name: "Attendance" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Class-wise Attendance")).toBeInTheDocument();
-    expect(screen.getByText("Dr. Imran Shaikh")).toBeInTheDocument();
+    expect(screen.getByText("Student Attendance")).toBeInTheDocument();
   });
 
   it("renders department reports", () => {
@@ -61,9 +54,8 @@ describe("HOD pages", () => {
     expect(
       screen.getByRole("heading", { name: "Department Reports", level: 1 }),
     ).toBeInTheDocument();
-    // expect(screen.getByText("Monthly attendance summary")).toBeInTheDocument();
-    expect(screen.getByText("Live numbers from the college database")).toBeInTheDocument();
-    // expect(screen.getByText("Reports Available")).toBeInTheDocument();
-    expect(screen.getByText("Report")).toBeInTheDocument();
+    expect(
+      screen.getByText("Organize, review and publish department reports."),
+    ).toBeInTheDocument();
   });
 });

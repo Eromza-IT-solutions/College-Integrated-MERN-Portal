@@ -97,6 +97,13 @@ export function downloadAdminExamFormPdf(form) {
   );
 }
 
+export async function fetchMarks(params = {}) {
+  const response = await http.get("/marks", {
+    params: { limit: 100, ...params },
+  });
+  return dataOf(response);
+}
+
 export async function fetchResults(params = {}) {
   const response = await http.get("/results", {
     params: { limit: 100, ...params },

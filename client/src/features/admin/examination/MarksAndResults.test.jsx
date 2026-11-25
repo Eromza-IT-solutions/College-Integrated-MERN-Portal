@@ -26,6 +26,7 @@ function renderPage() {
 describe("MarksAndResults", () => {
   it("renders API-backed result sheets", async () => {
     renderPage();
+
     expect(await screen.findByText("Fatima Khan")).toBeInTheDocument();
     expect(screen.getByText("2024A001")).toBeInTheDocument();
     expect(screen.getByText(/87%/)).toBeInTheDocument();
@@ -34,11 +35,23 @@ describe("MarksAndResults", () => {
 
   it("saves marks with canonical subject and mark fields", async () => {
     renderPage();
+
     fireEvent.click(await screen.findByTitle("Enter marks"));
 
     const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText(/Internal marks/), { target: { value: "38" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save marks" }));
+
+    fireEvent.change(
+      within(dialog).getByRole("spinbutton", {
+        name: /Internal marks/i,
+      }),
+      { target: { value: "38" } },
+    );
+
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "Save marks",
+      }),
+    );
 
     await waitFor(() => {
       expect(enterMarks).toHaveBeenCalledWith(
@@ -59,11 +72,19 @@ describe("MarksAndResults", () => {
 
   it("publishes a result from the confirmation dialog", async () => {
     renderPage();
+
     fireEvent.click(await screen.findByTitle("Publish result"));
 
     const dialog = screen.getByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Publish result" }));
 
-    await waitFor(() => expect(publishResult).toHaveBeenCalledWith("result-1"));
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "Publish result",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(publishResult).toHaveBeenCalledWith("result-1");
+    });
   });
 });

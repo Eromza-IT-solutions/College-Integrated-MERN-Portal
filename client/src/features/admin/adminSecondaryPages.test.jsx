@@ -102,14 +102,15 @@ describe("secondary admin pages", () => {
       screen.getByRole("heading", { name: "Subjects & Exam Forms" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Subject & exam form register"),
+      screen.getByText(/Create, organize and monitor examination subjects/),
     ).toBeInTheDocument();
     await waitFor(
-      () => expect(screen.getByText(/Data Structures/)).toBeInTheDocument(),
+      () => expect(screen.getByText(/Cost Accounting/)).toBeInTheDocument(),
       { timeout: 2000 },
     );
-    fireEvent.click(await screen.findByTitle("View exam form"));
-    expect(await screen.findByText("2 papers")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Exam Forms/i }));
+   fireEvent.click(screen.getAllByTitle("View")[0]);
+expect(await screen.findByRole("dialog", { name: "Exam Form Details" })).toBeInTheDocument();
   });
 
   it("renders examination timetables", async () => {
@@ -117,7 +118,7 @@ describe("secondary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Exam Timetables" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Examination Schedule")).toBeInTheDocument();
+    expect(screen.getByText(/Prepare, organize and manage subject-wise examination/)).toBeInTheDocument();
     expect(await screen.findByText(/Advanced Accounting/)).toBeInTheDocument();
   });
 
@@ -126,7 +127,7 @@ describe("secondary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Hall Tickets" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Hall Ticket Register")).toBeInTheDocument();
+    expect(screen.getByText(/Generate, manage and monitor student hall tickets/)).toBeInTheDocument();
     expect(await screen.findByText("Fatima Khan")).toBeInTheDocument();
     expect(screen.getByText("S-001")).toBeInTheDocument();
   });

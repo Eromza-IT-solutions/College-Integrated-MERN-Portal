@@ -20,10 +20,10 @@ describe("ExamAdminDashboard", () => {
     expect(
       await screen.findByRole("heading", { name: "Examination Dashboard" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Active Sessions")).toBeInTheDocument();
-    expect(screen.getByText(/Hall ticket readiness/)).toBeInTheDocument();
-    expect(screen.getByText("Upcoming examinations")).toBeInTheDocument();
-    expect(screen.getByText("Examination activity")).toBeInTheDocument();
+    expect(screen.getByText("Total Exam Sessions")).toBeInTheDocument();
+    expect(screen.getByText(/Hall ticket issuance overview/)).toBeInTheDocument();
+    expect(screen.getByText(/Upcoming examinations/i)).toBeInTheDocument();
+    expect(screen.getByText("Recent Activities")).toBeInTheDocument();
     expect(await screen.findByText(/Advanced Accounting/)).toBeInTheDocument();
   });
 });

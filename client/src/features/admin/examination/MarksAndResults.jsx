@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Search, Plus, Eye, Pencil, Trash2,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
@@ -116,7 +116,7 @@ const deriveResult = (record) => {
 
   return {
     ...record,
-    percentage: percent.toFixed(2),
+    percentage: Number(percent.toFixed(2)),
     grade: getGrade(percent),
     result: percent >= PASS_PERCENT ? "Pass" : "Fail",
   };
@@ -195,7 +195,7 @@ const CONFIG = {
     filterLabel: "Filter by academic term",
     filterText: (value) => value,
     defaultSort: { key: "rollNo", dir: "asc" },
-    statuses: ["Published", "Pending", "Withheld", "Draft"],
+    statuses: ["Published", "Ready to publish", "Pending", "Withheld", "Draft"],
     stats: [
       ["All", "Total Results", Award, "Show all"],
       ["Published", "Published Results", CheckCircle, "Filter published"],
@@ -238,6 +238,7 @@ const CONFIG = {
 const STATUS_STYLE = {
   Verified: "bg-emerald-50 text-emerald-700",
   Published: "bg-emerald-50 text-emerald-700",
+  "Ready to publish": "bg-amber-50 text-amber-700",
   Submitted: "bg-blue-50 text-blue-700",
   Pending: "bg-slate-100 text-slate-600",
   Withheld: "bg-rose-50 text-rose-700",
@@ -247,6 +248,7 @@ const STATUS_STYLE = {
 const STATUS_DOT = {
   Verified: "bg-emerald-500",
   Published: "bg-emerald-500",
+  "Ready to publish": "bg-amber-500",
   Submitted: "bg-blue-500",
   Pending: "bg-slate-400",
   Withheld: "bg-rose-500",
@@ -300,17 +302,17 @@ const normalizeStatus = (type, value = "") => {
 const normalizeBackendRecord = (type) => (record, index) => ({
   ...record,
   _id: record._id || record.id || `backend-${type}-${index}`,
-  name: record.name || record.studentName || "Unnamed Student",
-  rollNo: record.rollNo || record.rollNumber || "—",
+  name: record.name || record.studentName || record.fullName || "Unnamed Student",
+  rollNo: record.rollNo || record.rollNumber || record.enrollmentNumber || record.details?.enrollmentNumber || "—",
   programName: record.programName || record.program || "—",
   semester: record.semester ?? "—",
   term: record.term || record.academicTerm || "—",
   subject: record.subjectName || record.subject?.name || record.subject || "—",
   internal: record.internal ?? record.internalMarks ?? "—",
   external: record.external ?? record.externalMarks ?? "—",
-  obtained: record.obtained ?? record.obtainedMarks ?? "—",
-  totalMarks: record.totalMarks ?? record.maxMarks ?? "—",
-  status: normalizeStatus(type, record.status),
+  obtained: record.obtained ?? record.obtainedMarks ?? record.totalObtained ?? "—",
+  totalMarks: record.totalMarks ?? record.maxMarks ?? record.totalMax ?? "—",
+  status: normalizeStatus(type, record.status || (type === "results" ? (record.isPublished ? "Published" : record.isComplete ? "Ready to publish" : "Pending") : "Draft")),
   isDemo: false,
 });
 
@@ -594,7 +596,7 @@ export default function MarksAndResults() {
     "examination-results"
   );
 
-  const [tab, setTab] = useState("marks");
+  const [tab, setTab] = useState("results");
 
   const [demo, setDemo] = useState(() => ({
     marks: SEED_MARKS.map((item) => ({ ...item })),
@@ -629,7 +631,7 @@ export default function MarksAndResults() {
       ...(Array.isArray(apiData) ? apiData : []).map(
         normalizeBackendRecord(tab)
       ),
-      ...demoRecords,
+      ...(Array.isArray(apiData) && apiData.length > 0 ? [] : demoRecords),
     ].map(config.derive),
     [apiData, demoRecords, tab, config]
   );
@@ -899,6 +901,69 @@ export default function MarksAndResults() {
   const inputClass =
     "rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 outline-none transition focus:border-[#8f0014] focus:ring-4 focus:ring-[#8f0014]/10";
 
+
+  const saveMarks = async (event) => {
+  event.preventDefault();
+
+  if (!modal?.record?._id) {
+    toast("Invalid result record.");
+    return;
+  }
+
+  const lines = modal.record.lines;
+
+  if (!Array.isArray(lines) || lines.length === 0) {
+    toast("No subject records available to save.");
+    return;
+  }
+
+  const values = new FormData(event.currentTarget);
+  const internalMarks = Number(values.get("internalMarks"));
+
+  if (
+    !Number.isFinite(internalMarks) ||
+    internalMarks < 0 ||
+    internalMarks > 40
+  ) {
+    toast("Enter valid internal marks between 0 and 40.");
+    return;
+  }
+
+  const entries = lines.map((line, index) => ({
+    subjectId: line.subjectId,
+    absent: Boolean(line.absent),
+    internalMarks:
+      index === 0 ? internalMarks : line.internalMarks,
+    externalMarks: line.externalMarks,
+    maxInternal: line.maxInternal ?? 40,
+    maxExternal: line.maxExternal ?? 60,
+  }));
+
+  if (entries.some((entry) => !entry.subjectId)) {
+    toast("Subject information is incomplete.");
+    return;
+  }
+
+  try {
+    await adminApi.enterMarks(modal.record._id, entries);
+    toast("Marks saved successfully.");
+    setModal(null);
+    resource.reload();
+  } catch (error) {
+    toast(error?.message || "Unable to save marks.");
+  }
+};
+
+  const confirmPublishResult = async () => {
+    try {
+      await adminApi.publishResult(modal.record._id);
+      toast("Result published successfully.");
+      setModal(null);
+      resource.reload();
+    } catch (error) {
+      toast(error?.message || "Unable to publish result.");
+    }
+  };
   /* Table cell content */
 
   const renderCell = (record, key) => {
@@ -922,10 +987,7 @@ export default function MarksAndResults() {
             {record.name}
           </span>
           <span className="mt-0.5 block text-[10px] text-slate-400">
-            {record.rollNo} · {record.programName || "Programme not specified"}
-            {record.semester && record.semester !== "—"
-              ? ` · Semester ${record.semester}`
-              : ""}
+            <span>{record.rollNo}</span><span> · {record.programName || "Programme not specified"}</span>
           </span>
         </>
       );
@@ -1302,7 +1364,16 @@ export default function MarksAndResults() {
 
                       <td className="px-5 py-3.5">
                         <div className="flex justify-end gap-1">
-                          <button
+                                                    {tab === "results" && !record.isPublished && (
+                            <>
+                              <button type="button" title="Enter marks" onClick={() => setModal({ type: "enter-marks", record })} className="rounded-lg p-2 text-slate-500 transition hover:bg-[#f2c200]/25 hover:text-[#946500]">
+                                <Pencil size={17} />
+                              </button>
+                              <button type="button" title="Publish result" onClick={() => setModal({ type: "publish-result", record })} className="rounded-lg p-2 text-emerald-600 transition hover:bg-emerald-50">
+                                <Award size={17} />
+                              </button>
+                            </>
+                          )}<button
                             type="button"
                             onClick={() => setModal({ type: "view", record })}
                             aria-label={`View ${record.name}`}
@@ -1452,6 +1523,33 @@ export default function MarksAndResults() {
           records appear when the matching API function is available.
         </p>
       </main>
+      {modal?.type === "enter-marks" && (
+        <Modal title="Enter marks" onClose={() => setModal(null)}>
+          <form onSubmit={saveMarks} className="space-y-4 px-6 pb-6 pt-4">
+            <p className="text-sm text-slate-600">{modal.record.name} · {modal.record.rollNo}</p>
+            <label className="block text-xs font-semibold text-[#14234b]">
+              Internal marks (out of 40)
+              <input name="internalMarks" aria-label="Internal marks" type="number" min="0" max="40" required defaultValue={modal.record.lines?.[0]?.internalMarks ?? ""} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </label>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setModal(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
+              <button type="submit" className="rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2 text-sm font-semibold text-white">Save marks</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {modal?.type === "publish-result" && (
+        <Modal title="Publish result" onClose={() => setModal(null)}>
+          <div className="space-y-4 px-6 pb-6 pt-4">
+            <p className="text-sm text-slate-600">Publish the result for <strong>{modal.record.name}</strong>?</p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setModal(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
+              <button type="button" onClick={confirmPublishResult} className="rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2 text-sm font-semibold text-white">Publish result</button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Add / Edit */}
 
