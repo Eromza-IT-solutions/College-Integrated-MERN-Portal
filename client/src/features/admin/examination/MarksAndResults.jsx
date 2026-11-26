@@ -1111,10 +1111,7 @@ export default function MarksAndResults() {
               Examination Cell · Read to Lead
             </p>
 
-            <h1 className="font-['Playfair_Display',serif] text-3xl font-bold tracking-tight text-[#14234b] sm:text-4xl">
-              Marks &amp; Results
-            </h1>
-
+           
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
               Enter, verify and publish student marks and examination
               results across semesters and programmes.

@@ -133,7 +133,9 @@ describe("super admin secondary routes", () => {
 describe("HOD routes", () => {
   it("renders the department info route", async () => {
     renderRoute("hod", "/hod/department");
-    await expectPageHeading("Department Information");
+    await expectPageText(
+      /Maintain department details, facilities and contact information\./
+    );
   });
 
   it("renders the manage teachers route", async () => {

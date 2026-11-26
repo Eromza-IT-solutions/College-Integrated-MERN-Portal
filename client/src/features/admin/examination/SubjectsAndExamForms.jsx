@@ -1006,10 +1006,7 @@ export default function SubjectsAndExamForms() {
               Examination Cell · Read to Lead
             </p>
 
-            <h1 className="font-['Playfair_Display',serif] text-3xl font-bold tracking-tight text-[#14234b] sm:text-4xl">
-              Subjects &amp; Exam Forms
-            </h1>
-
+          
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
               Create, organize and monitor examination subjects and exam
               forms across semesters and programmes.
