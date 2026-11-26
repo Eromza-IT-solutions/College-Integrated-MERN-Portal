@@ -1,744 +1,1772 @@
-import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
-  Award,
-  BookOpenCheck,
-  CalendarDays,
-  CheckCircle2,
-  ClipboardList,
-  Download,
-  FileCheck2,
-  Pencil,
-  RefreshCw,
-  Send,
-  Sparkles,
-  Users,
-  XCircle,
+  Search, Plus, Eye, Pencil, Trash2,
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
+  ArrowUpDown, X, Download, Undo2, CheckCircle2,
+  SearchX, Clock, CheckCircle, GraduationCap,
+  AlertTriangle, ClipboardList, Award, FileText, Ban,
 } from "lucide-react";
 
-import Badge from "../../../components/ui/Badge";
-import Button from "../../../components/ui/Button";
-import DataTable from "../../../components/ui/Table";
-import ErrorState from "../../../components/ui/ErrorState";
-import Input from "../../../components/ui/Input";
-import Loader from "../../../components/ui/Loader";
-import Modal from "../../../components/ui/Modal";
-import Pagination from "../../../components/ui/Pagination";
-import SearchInput from "../../../components/ui/SearchInput";
-import Select from "../../../components/ui/Select";
-import {
-  downloadAdminResultPdf,
-  enterMarks,
-  fetchExamForms,
-  fetchExams,
-  fetchResults,
-  openResult,
-  publishExamResults,
-  publishResult,
-  unpublishResult,
-} from "../../../services/adminApi";
+import * as adminApi from "../../../services/adminApi";
 import { useApiData } from "../../../hooks/useApiData";
-import { downloadCsv } from "../../../utils/csv";
-import { formatDate, formatPercent } from "../../../utils/format";
-import { formatStatus, getStatusVariant } from "../../../utils/status";
-
 import "../../../assets/styles/aisc-premium.css";
 
-const PAGE_SIZE = 6;
+/* -------------------------------------------------------
+   DEMO DATA
+------------------------------------------------------- */
 
-const EMPTY_MARK = {
-  internalMarks: "",
-  externalMarks: "",
-  absent: false,
-  maxInternal: 40,
-  maxExternal: 60,
+const ODD = "Odd Semester 2026-27";
+const EVEN = "Even Semester 2026-27";
+
+const student = (n) => ({
+  name: `Demo Student ${String(n).padStart(2, "0")}`,
+  rollNo: `DEMO-${String(n).padStart(3, "0")}`,
+});
+
+const makeMark = (n, studentNo, subject, internal, external, status) => ({
+  _id: `mark-demo-${String(n).padStart(3, "0")}`,
+  ...student(studentNo),
+  programName: "B.Com CA",
+  semester: "V",
+  term: ODD,
+  subject,
+  internal,
+  external,
+  status,
+  isDemo: true,
+});
+
+const SEED_MARKS = [
+  makeMark(1, 1, "Cost Accounting", 34, 48, "Verified"),
+  makeMark(2, 2, "Cost Accounting", 28, 39, "Verified"),
+  makeMark(3, 3, "Cost Accounting", 15, 18, "Submitted"),
+  makeMark(4, 4, "Java Programming", 37, 52, "Submitted"),
+  makeMark(5, 5, "Java Programming", 25, 31, "Pending"),
+  makeMark(6, 1, "Java Programming", 31, 44, "Verified"),
+  makeMark(7, 2, "Business Taxation", 22, 27, "Draft"),
+  makeMark(8, 3, "Business Taxation", 30, 41, "Pending"),
+];
+
+const makeResult = (n, semester, term, obtained, status) => ({
+  _id: `result-demo-${String(n).padStart(3, "0")}`,
+  ...student(n),
+  programName: "B.Com CA",
+  semester,
+  term,
+  obtained,
+  totalMarks: 500,
+  status,
+  isDemo: true,
+});
+
+const SEED_RESULTS = [
+  makeResult(1, "V", ODD, 392, "Published"),
+  makeResult(2, "V", ODD, 318, "Published"),
+  makeResult(3, "V", ODD, 174, "Withheld"),
+  makeResult(4, "III", ODD, 421, "Pending"),
+  makeResult(5, "III", ODD, 266, "Pending"),
+  makeResult(6, "VI", EVEN, 347, "Draft"),
+  makeResult(7, "I", ODD, 189, "Draft"),
+];
+
+/* -------------------------------------------------------
+   CALCULATIONS
+   Change these rules to match your college / university.
+------------------------------------------------------- */
+
+const MAX_INTERNAL = 40;
+const MAX_EXTERNAL = 60;
+const PASS_PERCENT = 40;
+
+const getGrade = (percent) => {
+  if (percent >= 75) return "A+";
+  if (percent >= 60) return "A";
+  if (percent >= 50) return "B";
+  if (percent >= PASS_PERCENT) return "C";
+  return "F";
 };
 
-function resultState(row) {
-  if (!row.result) return "not-opened";
-  if (row.result.isPublished) return "published";
-  return row.result.isComplete ? "ready" : "draft";
-}
+const isBlank = (value) =>
+  value === "" || value === null || value === undefined ||
+  Number.isNaN(Number(value));
 
-function validMark(value, max) {
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 0 && number <= max && Number.isInteger(number * 2);
-}
+const deriveMark = (record) => {
+  if (isBlank(record.internal) || isBlank(record.external)) {
+    return { ...record, total: "—", grade: "—", result: "—" };
+  }
 
-export default function MarksAndResults() {
-  const exams = useApiData(() => fetchExams());
-  const [selectedExamId, setSelectedExamId] = useState("");
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [marksOpen, setMarksOpen] = useState(false);
-  const [activeResult, setActiveResult] = useState(null);
-  const [markEntries, setMarkEntries] = useState({});
-  const [publishTarget, setPublishTarget] = useState(null);
-  const [publishExamOpen, setPublishExamOpen] = useState(false);
-  const [unpublishTarget, setUnpublishTarget] = useState(null);
-  const [unpublishReason, setUnpublishReason] = useState("");
+  const total = Number(record.internal) + Number(record.external);
+  const percent = (total / (MAX_INTERNAL + MAX_EXTERNAL)) * 100;
 
-  const examRows = useMemo(() => exams.data ?? [], [exams.data]);
-  const activeExam =
-    examRows.find((exam) => String(exam._id) === String(selectedExamId)) || examRows[0];
-  const forms = useApiData(
-    () => (activeExam
-      ? fetchExamForms({ examId: activeExam._id, status: "approved", limit: 100 })
-      : Promise.resolve([])),
-    activeExam?._id || "none",
+  return {
+    ...record,
+    total,
+    grade: getGrade(percent),
+    result: percent >= PASS_PERCENT ? "Pass" : "Fail",
+  };
+};
+
+const deriveResult = (record) => {
+  if (isBlank(record.obtained) || !(Number(record.totalMarks) > 0)) {
+    return { ...record, percentage: "—", grade: "—", result: "—" };
+  }
+
+  const percent =
+    (Number(record.obtained) / Number(record.totalMarks)) * 100;
+
+  return {
+    ...record,
+    percentage: Number(percent.toFixed(2)),
+    grade: getGrade(percent),
+    result: percent >= PASS_PERCENT ? "Pass" : "Fail",
+  };
+};
+
+/* -------------------------------------------------------
+   TAB CONFIGURATION
+------------------------------------------------------- */
+
+const SEMESTERS = ["I", "II", "III", "IV", "V", "VI"];
+
+const CONFIG = {
+  marks: {
+    label: "Marks",
+    singular: "Marks Entry",
+    noun: "marks entries",
+    icon: ClipboardList,
+    idPrefix: "MRK",
+    demoPrefix: "mark-demo-",
+    derive: deriveMark,
+    filterKey: "subject",
+    filterAll: "All Subjects",
+    filterLabel: "Filter by subject",
+    filterText: (value) => value,
+    defaultSort: { key: "rollNo", dir: "asc" },
+    statuses: ["Verified", "Submitted", "Pending", "Draft"],
+    stats: [
+      ["All", "Total Entries", ClipboardList, "Show all"],
+      ["Verified", "Verified Entries", CheckCircle, "Filter verified"],
+      ["Submitted", "Submitted Entries", FileText, "Filter submitted"],
+      ["Pending", "Pending Entries", Clock, "Filter pending"],
+    ],
+    columns: [
+      ["_id", "Entry ID"],
+      ["name", "Student"],
+      ["subject", "Subject"],
+      ["internal", "Internal"],
+      ["external", "External"],
+      ["total", "Total"],
+      ["grade", "Grade"],
+      ["status", "Status"],
+    ],
+    fields: [
+      { key: "name", label: "Student Name", required: true, placeholder: "Enter student name" },
+      { key: "rollNo", label: "Roll Number", required: true, placeholder: "Enter roll number" },
+      { key: "programName", label: "Programme", required: true },
+      { key: "semester", label: "Semester", options: SEMESTERS },
+      { key: "term", label: "Academic Term", required: true, full: true },
+      { key: "subject", label: "Subject", required: true, full: true, placeholder: "e.g. Cost Accounting" },
+      { key: "internal", label: "Internal Marks (out of 40)", type: "number", required: true, min: 0, max: MAX_INTERNAL },
+      { key: "external", label: "External Marks (out of 60)", type: "number", required: true, min: 0, max: MAX_EXTERNAL },
+      { key: "status", label: "Entry Status", options: ["Verified", "Submitted", "Pending", "Draft"], full: true },
+    ],
+    blank: {
+      name: "", rollNo: "", programName: "B.Com CA", semester: "V", term: ODD,
+      subject: "", internal: "", external: "", status: "Draft",
+    },
+    details: [
+      ["Roll Number", "rollNo"], ["Programme", "programName"],
+      ["Semester", "semester"], ["Academic Term", "term"],
+      ["Subject", "subject"], ["Internal Marks", "internal"],
+      ["External Marks", "external"], ["Total", "total"],
+      ["Grade", "grade"], ["Result", "result"], ["Status", "status"],
+    ],
+  },
+  results: {
+    label: "Results",
+    singular: "Result",
+    noun: "results",
+    icon: Award,
+    idPrefix: "RES",
+    demoPrefix: "result-demo-",
+    derive: deriveResult,
+    filterKey: "term",
+    filterAll: "All Academic Terms",
+    filterLabel: "Filter by academic term",
+    filterText: (value) => value,
+    defaultSort: { key: "rollNo", dir: "asc" },
+    statuses: ["Published", "Ready to publish", "Pending", "Withheld", "Draft"],
+    stats: [
+      ["All", "Total Results", Award, "Show all"],
+      ["Published", "Published Results", CheckCircle, "Filter published"],
+      ["Pending", "Pending Results", Clock, "Filter pending"],
+      ["Withheld", "Withheld Results", Ban, "Filter withheld"],
+    ],
+    columns: [
+      ["_id", "Result ID"],
+      ["name", "Student"],
+      ["obtained", "Marks Obtained"],
+      ["percentage", "Percentage"],
+      ["grade", "Grade"],
+      ["result", "Result"],
+      ["status", "Status"],
+    ],
+    fields: [
+      { key: "name", label: "Student Name", required: true, placeholder: "Enter student name" },
+      { key: "rollNo", label: "Roll Number", required: true, placeholder: "Enter roll number" },
+      { key: "programName", label: "Programme", required: true },
+      { key: "semester", label: "Semester", options: SEMESTERS },
+      { key: "term", label: "Academic Term", required: true, full: true },
+      { key: "obtained", label: "Marks Obtained", type: "number", required: true, min: 0 },
+      { key: "totalMarks", label: "Total Marks", type: "number", required: true, min: 1 },
+      { key: "status", label: "Result Status", options: ["Published", "Pending", "Withheld", "Draft"], full: true },
+    ],
+    blank: {
+      name: "", rollNo: "", programName: "B.Com CA", semester: "V", term: ODD,
+      obtained: "", totalMarks: 500, status: "Draft",
+    },
+    details: [
+      ["Roll Number", "rollNo"], ["Programme", "programName"],
+      ["Semester", "semester"], ["Academic Term", "term"],
+      ["Marks Obtained", "obtained"], ["Total Marks", "totalMarks"],
+      ["Percentage", "percentage"], ["Grade", "grade"],
+      ["Result", "result"], ["Status", "status"],
+    ],
+  },
+};
+
+const STATUS_STYLE = {
+  Verified: "bg-emerald-50 text-emerald-700",
+  Published: "bg-emerald-50 text-emerald-700",
+  "Ready to publish": "bg-amber-50 text-amber-700",
+  Submitted: "bg-blue-50 text-blue-700",
+  Pending: "bg-slate-100 text-slate-600",
+  Withheld: "bg-rose-50 text-rose-700",
+  Draft: "bg-amber-50 text-amber-700",
+};
+
+const STATUS_DOT = {
+  Verified: "bg-emerald-500",
+  Published: "bg-emerald-500",
+  "Ready to publish": "bg-amber-500",
+  Submitted: "bg-blue-500",
+  Pending: "bg-slate-400",
+  Withheld: "bg-rose-500",
+  Draft: "bg-amber-500",
+};
+
+/* -------------------------------------------------------
+   HELPERS
+------------------------------------------------------- */
+
+const pageList = (total, current) => {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
+
+  const numbers = [...new Set([1, total, current - 1, current, current + 1])]
+    .filter((number) => number >= 1 && number <= total)
+    .sort((a, b) => a - b);
+
+  const result = [];
+
+  numbers.forEach((number, index) => {
+    if (index && number - numbers[index - 1] > 1) {
+      result.push(`gap-${number}`);
+    }
+    result.push(number);
+  });
+
+  return result;
+};
+
+const displayValue = (key, value) => {
+  if (value === "" || value === null || value === undefined) return "—";
+  if (key === "percentage" && value !== "—") return `${value}%`;
+  return value;
+};
+
+const shortId = (config, id) =>
+  String(id).startsWith(config.demoPrefix)
+    ? `${config.idPrefix}-${String(id).slice(-3)}`
+    : String(id).slice(-8);
+
+const normalizeStatus = (type, value = "") => {
+  const status = String(value).toLowerCase();
+  const match = CONFIG[type].statuses.find(
+    (item) => item.toLowerCase() === status
   );
-  const results = useApiData(
-    () => (activeExam ? fetchResults({ examId: activeExam._id }) : Promise.resolve([])),
-    activeExam?._id || "none",
-  );
+  return match || "Draft";
+};
 
-  const rows = useMemo(() => {
-    const byForm = new Map((results.data ?? []).map((result) => [String(result.examFormId), result]));
-    return (forms.data ?? []).map((form) => {
-      const result = byForm.get(String(form._id)) || null;
-      return {
-        _id: String(form._id),
-        form,
-        result,
-        fullName: result?.fullName || form.details?.fullName || form.studentId?.fullName || "Unknown student",
-        enrollmentNumber: result?.enrollmentNumber || form.details?.enrollmentNumber || form.studentId?.enrollmentNumber || "—",
-        papers: result?.lines?.length || form.subjects?.length || 0,
-        status: resultState({ result }),
-      };
-    });
-  }, [forms.data, results.data]);
+const normalizeBackendRecord = (type) => (record, index) => ({
+  ...record,
+  _id: record._id || record.id || `backend-${type}-${index}`,
+  name: record.name || record.studentName || record.fullName || "Unnamed Student",
+  rollNo: record.rollNo || record.rollNumber || record.enrollmentNumber || record.details?.enrollmentNumber || "—",
+  programName: record.programName || record.program || "—",
+  semester: record.semester ?? "—",
+  term: record.term || record.academicTerm || "—",
+  subject: record.subjectName || record.subject?.name || record.subject || "—",
+  internal: record.internal ?? record.internalMarks ?? "—",
+  external: record.external ?? record.externalMarks ?? "—",
+  obtained: record.obtained ?? record.obtainedMarks ?? record.totalObtained ?? "—",
+  totalMarks: record.totalMarks ?? record.maxMarks ?? record.totalMax ?? "—",
+  status: normalizeStatus(type, record.status || (type === "results" ? (record.isPublished ? "Published" : record.isComplete ? "Ready to publish" : "Pending") : "Draft")),
+  isDemo: false,
+});
 
-  const filteredRows = useMemo(() => {
-    const search = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      const matchesSearch = !search
-        || row.fullName.toLowerCase().includes(search)
-        || row.enrollmentNumber.toLowerCase().includes(search);
-      const matchesStatus = statusFilter === "all"
-        || row.status === statusFilter
-        || (statusFilter === "pass" && row.result?.outcome === "pass")
-        || (statusFilter === "fail" && row.result?.outcome === "fail");
-      return matchesSearch && matchesStatus;
-    });
-  }, [query, rows, statusFilter]);
+/* Uses the API function only if it exists in adminApi */
+const optionalFetch = (functionName) => {
+  const api = { ...adminApi };
+  return typeof api[functionName] === "function"
+    ? api[functionName]()
+    : Promise.resolve([]);
+};
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+/* -------------------------------------------------------
+   REUSABLE COMPONENTS
+------------------------------------------------------- */
 
-  const counts = {
-    forms: rows.length,
-    opened: rows.filter((row) => row.result).length,
-    ready: rows.filter((row) => row.status === "ready").length,
-    published: rows.filter((row) => row.status === "published").length,
-  };
-
-  const reload = () => {
-    forms.reload();
-    results.reload();
-  };
-
-  const clearFeedback = () => {
-    setMessage("");
-    setError("");
-  };
-
-  const changeExam = (examId) => {
-    setSelectedExamId(examId);
-    setPage(1);
-    clearFeedback();
-  };
-
-  const handleOpenSheet = async (row) => {
-    setSaving(true);
-    clearFeedback();
-    try {
-      await openResult(row.form._id);
-      setMessage(`Result sheet opened for ${row.fullName}.`);
-      reload();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const openMarks = (result) => {
-    const lines = Array.isArray(result.lines) ? result.lines : [];
-    const entries = {};
-    for (const line of lines) {
-      entries[String(line.subjectId)] = {
-        internalMarks: line.internalMarks ?? "",
-        externalMarks: line.externalMarks ?? "",
-        absent: Boolean(line.absent),
-        maxInternal: line.maxInternal ?? 40,
-        maxExternal: line.maxExternal ?? 60,
-      };
-    }
-    setActiveResult(result);
-    setMarkEntries(entries);
-    clearFeedback();
-    setMarksOpen(true);
-  };
-
-  const closeMarks = () => {
-    setMarksOpen(false);
-    setActiveResult(null);
-    setMarkEntries({});
-  };
-
-  const updateMark = (subjectId, field, value) => {
-    setMarkEntries((current) => ({
-      ...current,
-      [subjectId]: { ...current[subjectId], [field]: value },
-    }));
-  };
-
-  const handleSaveMarks = async () => {
-    if (!activeResult) return;
-    clearFeedback();
-
-    const lines = Array.isArray(activeResult.lines) ? activeResult.lines : [];
-    const entries = [];
-    for (const line of lines) {
-      const subjectId = String(line.subjectId);
-      const values = markEntries[subjectId] || EMPTY_MARK;
-      const maxInternal = Number(values.maxInternal ?? line.maxInternal ?? 40);
-      const maxExternal = Number(values.maxExternal ?? line.maxExternal ?? 60);
-      if (values.absent) {
-        entries.push({ subjectId, absent: true, maxInternal, maxExternal });
-        continue;
-      }
-      if (values.internalMarks === "" || values.externalMarks === "") {
-        setError(`Enter both internal and external marks for ${line.name || line.code || subjectId}.`);
-        return;
-      }
-      if (!validMark(values.internalMarks, maxInternal) || !validMark(values.externalMarks, maxExternal)) {
-        setError(`Marks must be between 0 and the maximum, in steps of 0.5, for ${line.name || line.code || subjectId}.`);
-        return;
-      }
-      entries.push({
-        subjectId,
-        absent: false,
-        internalMarks: Number(values.internalMarks),
-        externalMarks: Number(values.externalMarks),
-        maxInternal,
-        maxExternal,
-      });
-    }
-
-    if (entries.length === 0) {
-      setError("This result sheet has no papers to update.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await enterMarks(activeResult._id, entries);
-      setMessage("Marks saved. Grades and SGPA were recalculated.");
-      closeMarks();
-      reload();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePublish = async () => {
-    if (!publishTarget) return;
-    setSaving(true);
-    clearFeedback();
-    try {
-      await publishResult(publishTarget._id);
-      setMessage(`Published the result for ${publishTarget.fullName}.`);
-      setPublishTarget(null);
-      reload();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePublishExam = async () => {
-    if (!activeExam) return;
-    setSaving(true);
-    clearFeedback();
-    try {
-      const outcome = await publishExamResults(activeExam._id);
-      setMessage(`Published ${outcome.published ?? 0} result(s); ${outcome.incomplete ?? 0} incomplete sheet(s) skipped.`);
-      setPublishExamOpen(false);
-      reload();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleUnpublish = async () => {
-    if (!unpublishTarget) return;
-    if (unpublishReason.trim().length < 3) {
-      setError("Give a reason of at least 3 characters.");
-      return;
-    }
-    setSaving(true);
-    clearFeedback();
-    try {
-      await unpublishResult(unpublishTarget._id, unpublishReason.trim());
-      setMessage(`Unpublished the result for ${unpublishTarget.fullName}.`);
-      setUnpublishTarget(null);
-      setUnpublishReason("");
-      reload();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleExport = () => {
-    downloadCsv("aisc-result-register.csv", [
-      ["Student", "Enrollment", "Papers", "Completion", "Outcome", "Percentage", "SGPA", "Status"],
-      ...filteredRows.map((row) => [
-        row.fullName,
-        row.enrollmentNumber,
-        row.papers,
-        row.result?.isComplete ? "Complete" : row.result ? "Incomplete" : "Not opened",
-        row.result?.outcome || "",
-        row.result?.percentage ?? "",
-        row.result?.sgpa ?? "",
-        formatStatus(row.status),
-      ]),
-    ]);
-  };
-
-  const columns = [
-    {
-      key: "student",
-      header: "Student",
-      render: (row) => (
-        <div>
-          <div className="aisc-table-primary">{row.fullName}</div>
-          <div className="aisc-table-secondary">{row.enrollmentNumber}</div>
-        </div>
-      ),
-    },
-    {
-      key: "papers",
-      header: "Papers",
-      render: (row) => <span className="font-bold text-[#14264B]">{row.papers}</span>,
-    },
-    {
-      key: "completion",
-      header: "Completion",
-      render: (row) => (
-        <Badge variant={row.result?.isComplete ? "success" : row.result ? "warning" : "neutral"}>
-          {row.result?.isComplete ? "Complete" : row.result ? "Incomplete" : "Not opened"}
-        </Badge>
-      ),
-    },
-    {
-      key: "outcome",
-      header: "Outcome",
-      render: (row) => (
-        <div>
-          <div>
-            <Badge variant={getStatusVariant(row.result?.outcome || "pending")}>
-              {row.result?.outcome ? formatStatus(row.result.outcome) : "Awaiting marks"}
-            </Badge>
-          </div>
-          <div className="aisc-table-secondary">
-            {formatPercent(row.result?.percentage)} · SGPA {row.result?.sgpa ?? "—"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "status",
-      header: "Publication",
-      render: (row) => (
-        <Badge variant={getStatusVariant(row.status)}>{formatStatus(row.status)}</Badge>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      render: (row) => (
-        <div className="flex items-center gap-1.5">
-          {!row.result ? (
-            <button
-              type="button"
-              title="Open result sheet"
-              className="aisc-action-btn"
-              disabled={saving}
-              onClick={() => handleOpenSheet(row)}
-            >
-              <RefreshCw size={14} />
-            </button>
-          ) : null}
-          {row.result && !row.result.isPublished ? (
-            <>
-              <button
-                type="button"
-                title="Enter marks"
-                className="aisc-action-btn"
-                onClick={() => openMarks(row.result)}
-              >
-                <Pencil size={14} />
-              </button>
-              <button
-                type="button"
-                title="Publish result"
-                className="aisc-action-btn"
-                onClick={() => {
-                  setPublishTarget({ ...row.result, fullName: row.fullName });
-                  clearFeedback();
-                }}
-              >
-                <Send size={14} />
-              </button>
-            </>
-          ) : null}
-          {row.result ? (
-            <button
-              type="button"
-              title="Download result PDF"
-              className="aisc-action-btn"
-              onClick={() => downloadAdminResultPdf(row.result)}
-            >
-              <Download size={14} />
-            </button>
-          ) : null}
-          {row.result?.isPublished ? (
-            <button
-              type="button"
-              title="Unpublish result"
-              className="aisc-action-btn"
-              onClick={() => {
-                setUnpublishTarget({ ...row.result, fullName: row.fullName });
-                setUnpublishReason("");
-                clearFeedback();
-              }}
-            >
-              <XCircle size={14} />
-            </button>
-          ) : null}
-        </div>
-      ),
-    },
-  ];
-
-  const stats = [
-    { label: "Approved Forms", value: counts.forms, icon: Users, color: "#315FCE", soft: "#EEF3FF" },
-    { label: "Sheets Opened", value: counts.opened, icon: BookOpenCheck, color: "#B58A16", soft: "#FFF7DF" },
-    { label: "Ready to Publish", value: counts.ready, icon: FileCheck2, color: "#2C9271", soft: "#EAF7F1" },
-    { label: "Published", value: counts.published, icon: Award, color: "#A8212F", soft: "#F9ECEE" },
-  ];
+function StatusBadge({ status }) {
+  const label = status || "Draft";
 
   return (
-    <div className="aisc-premium space-y-6">
-      <section className="aisc-page-head">
-        <div>
-          <div className="aisc-eyebrow"><Sparkles size={13} /> Examination Cell</div>
-          <h1 className="aisc-page-title">Marks &amp; Results</h1>
-          <p className="aisc-page-subtitle">
-            Examination marks register for approved forms, with calculated grades and publication control.
-          </p>
-        </div>
-        <div className="aisc-date-chip"><CalendarDays size={14} /> {formatDate(activeExam?.formClosesAt)}</div>
-      </section>
+    <span
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+        STATUS_STYLE[label] || STATUS_STYLE.Draft
+      }`}
+    >
+      <span
+        className={`h-2 w-2 rounded-full ${
+          STATUS_DOT[label] || STATUS_DOT.Draft
+        }`}
+      />
+      {label}
+    </span>
+  );
+}
 
-      <section className="aisc-hero">
-        <div className="aisc-hero-copy">
-          <div className="aisc-hero-kicker"><ClipboardList size={12} /> RESULT OPERATIONS</div>
-          <h2 className="aisc-hero-title">One sheet per student. Every mark audited.</h2>
-          <p className="aisc-hero-text">
-            Open sheets from approved exam forms, enter internal and external marks, then publish complete results for the session.
-          </p>
-          <div className="aisc-hero-actions">
-            <button
-              type="button"
-              className="aisc-btn aisc-btn-primary"
-              onClick={() => setPublishExamOpen(true)}
-              disabled={!activeExam || counts.ready === 0}
-            >
-              <Send size={15} /> Publish session results
-            </button>
-            <button type="button" className="aisc-btn aisc-btn-glass" onClick={handleExport}>
-              <Download size={15} /> Export register
-            </button>
-          </div>
-        </div>
-        <div className="aisc-hero-seal"><Award size={76} strokeWidth={1.1} /></div>
-      </section>
+function Modal({ title, onClose, children, wide = false }) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <button
+        type="button"
+        className="fade absolute inset-0 cursor-default bg-[#14234b]/60 backdrop-blur-sm"
+        onClick={onClose}
+        aria-label="Close modal"
+      />
 
-      <section className="aisc-grid aisc-kpis">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <article
-              className="aisc-kpi"
-              key={stat.label}
-              style={{ "--kpi-color": stat.color, "--kpi-soft": stat.soft, "--progress": counts.forms ? `${(stat.value / counts.forms) * 100}%` : "0%" }}
-            >
-              <div className="aisc-kpi-top"><div className="aisc-kpi-icon"><Icon size={19} /></div></div>
-              <div className="aisc-kpi-label">{stat.label}</div>
-              <div className="aisc-kpi-value">{stat.value}</div>
-              <div className="aisc-kpi-note">Current examination session</div>
-              <div className="aisc-kpi-track"><span /></div>
-            </article>
-          );
-        })}
-      </section>
+      <div
+        className={`pop relative my-auto w-full ${
+          wide ? "max-w-xl" : "max-w-md"
+        } overflow-hidden rounded-3xl bg-white shadow-2xl`}
+      >
+        <div className="h-1.5 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
 
-      <section className="aisc-panel">
-        <div className="aisc-panel-head">
-          <div>
-            <h3 className="aisc-panel-title">Examination marks register</h3>
-            <p className="aisc-panel-sub">Approved forms and result sheets for the selected session</p>
-          </div>
-          <Select
-            value={activeExam?._id || ""}
-            onChange={(event) => changeExam(event.target.value)}
-            aria-label="Choose examination session"
-            className="min-w-[260px]"
-            disabled={!examRows.length}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h2 className="font-['Playfair_Display',serif] text-xl font-bold text-[#14234b]">
+            {title}
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
           >
-            {examRows.length === 0 ? <option value="">No sessions available</option> : null}
-            {examRows.map((exam) => (
-              <option key={exam._id} value={exam._id}>
-                {exam.name} · Semester {exam.semester}
-              </option>
-            ))}
-          </Select>
+            <X size={18} />
+          </button>
         </div>
 
-        <div className="grid gap-4 border-b border-slate-100 bg-[#FBF6EE] p-4 lg:grid-cols-[1fr_auto_auto]">
-          <SearchInput
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search student or enrollment..."
-            className="max-w-md"
-          />
-          <Select
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter by result status"
-            className="min-w-[170px]"
-          >
-            <option value="all">All result status</option>
-            <option value="not-opened">Not opened</option>
-            <option value="draft">Incomplete</option>
-            <option value="ready">Ready to publish</option>
-            <option value="published">Published</option>
-            <option value="pass">Passed</option>
-            <option value="fail">Failed</option>
-          </Select>
-          <Badge variant="neutral">{rows.length} approved forms</Badge>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function StatItem({ icon: Icon, label, value, hint, selected, onClick }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={selected}
+        className="group relative flex w-full items-center gap-4 bg-[#14234b]/70 px-5 py-5 text-left backdrop-blur-sm transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f2c200] sm:px-6"
+      >
+        <span
+          className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ring-1 transition duration-300 group-hover:scale-110 ${
+            selected
+              ? "bg-[#f2c200] text-[#14234b] ring-[#f2c200]"
+              : "bg-white/10 text-[#f2c200] ring-white/20 group-hover:bg-[#f2c200] group-hover:text-[#14234b]"
+          }`}
+        >
+          <Icon size={22} />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-semibold tracking-wider text-white/60 uppercase sm:text-[11px]">
+            {label}
+          </span>
+
+          <span className="mt-1 block font-['Playfair_Display',serif] text-3xl font-bold leading-none tabular-nums text-white">
+            {value}
+          </span>
+        </span>
+
+        <span className="hidden text-[11px] font-medium text-white/50 xl:block">
+          {hint}
+        </span>
+
+        <span
+          className={`absolute inset-x-0 bottom-0 h-[3px] origin-left bg-[#f2c200] transition-transform duration-300 ${
+            selected ? "scale-x-100" : "scale-x-0"
+          }`}
+        />
+      </button>
+    </li>
+  );
+}
+
+/* -------------------------------------------------------
+   ADD / EDIT FORM
+------------------------------------------------------- */
+
+function RecordForm({ config, initial, onSave, onClose }) {
+  const [form, setForm] = useState(() => {
+    if (!initial) return { ...config.blank };
+
+    return Object.fromEntries(
+      Object.keys(config.blank).map((key) => [key, initial[key] ?? ""])
+    );
+  });
+
+  const [error, setError] = useState("");
+
+  const set = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const inputClass =
+    "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#8f0014] focus:ring-4 focus:ring-[#8f0014]/10";
+
+  const submit = (event) => {
+    event.preventDefault();
+
+    const missing = config.fields.some(
+      (field) => field.required && !String(form[field.key]).trim()
+    );
+
+    if (missing) {
+      setError("Please complete all required fields.");
+      return;
+    }
+
+    const invalidNumber = config.fields.some(
+      (field) =>
+        field.type === "number" &&
+        (Number(form[field.key]) < field.min ||
+          (field.max !== undefined && Number(form[field.key]) > field.max))
+    );
+
+    if (invalidNumber) {
+      setError("Please enter valid numbers.");
+      return;
+    }
+
+    if (
+      form.totalMarks !== undefined &&
+      Number(form.obtained) > Number(form.totalMarks)
+    ) {
+      setError("Marks obtained cannot be more than total marks.");
+      return;
+    }
+
+    setError("");
+
+    const cleaned = { ...form };
+
+    config.fields.forEach((field) => {
+      if (field.type === "number") {
+        cleaned[field.key] = Number(form[field.key]);
+      } else if (typeof cleaned[field.key] === "string") {
+        cleaned[field.key] = cleaned[field.key].trim();
+      }
+    });
+
+    onSave(cleaned);
+  };
+
+  return (
+    <Modal
+      title={`${initial ? "Edit" : "Add"} ${config.singular}`}
+      onClose={onClose}
+      wide
+    >
+      <form onSubmit={submit} noValidate className="space-y-4 px-6 pb-6 pt-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {config.fields.map((field) => (
+            <label
+              key={field.key}
+              className={`block ${field.full ? "sm:col-span-2" : ""}`}
+            >
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
+                {field.label}
+                {field.required ? " *" : ""}
+              </span>
+
+              {field.options ? (
+                <select
+                  className={inputClass}
+                  value={form[field.key]}
+                  onChange={(event) => set(field.key, event.target.value)}
+                >
+                  {field.options.map((option) => (
+                    <option key={option} value={option}>
+                      {field.key === "semester"
+                        ? `Semester ${option}`
+                        : option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type || "text"}
+                  min={field.min}
+                  max={field.max}
+                  className={inputClass}
+                  value={form[field.key]}
+                  placeholder={field.placeholder}
+                  onChange={(event) => set(field.key, event.target.value)}
+                />
+              )}
+            </label>
+          ))}
         </div>
 
-        {exams.loading || forms.loading || results.loading ? (
-          <Loader label="Loading marks and results..." />
-        ) : exams.error || forms.error || results.error ? (
-          <ErrorState
-            title="Could not load marks and results"
-            description={exams.error?.message || forms.error?.message || results.error?.message}
-            onRetry={() => {
-              exams.reload();
-              reload();
-            }}
-          />
-        ) : (
-          <DataTable
-            columns={columns}
-            rows={pageRows}
-            getRowKey={(row) => row._id}
-            emptyTitle="No result sheets found"
-            emptyDescription="Approve exam forms first, then open a result sheet for each student."
-          />
+        {error && (
+          <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600">
+            {error}
+          </p>
         )}
 
-        <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs font-medium">
-            {message ? (
-              <span className="inline-flex items-center gap-1.5 text-emerald-700">
-                <CheckCircle2 size={14} /> {message}
-              </span>
-            ) : null}
-            {error ? <span className="text-red-600">{error}</span> : null}
-            {!message && !error ? (
-              <span className="text-slate-500">Showing {pageRows.length} of {filteredRows.length} students</span>
-            ) : null}
-          </div>
-          <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
-        </div>
-      </section>
+        <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
+          Demo {config.noun} are stored only in this page's local state. They
+          are not saved to the college database.
+        </p>
 
-      <Modal
-        open={marksOpen}
-        onClose={closeMarks}
-        title="Enter Marks"
-        description={activeResult ? `${activeResult.fullName || "Student"} · ${activeResult.enrollmentNumber || "—"}` : undefined}
-        footer={
-          <>
-            <Button variant="secondary" onClick={closeMarks}>Cancel</Button>
-            <Button onClick={handleSaveMarks} disabled={saving}>
-              {saving ? "Saving..." : "Save marks"}
-            </Button>
-          </>
+        <div className="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#8f0014]/20 transition hover:brightness-110"
+          >
+            {initial ? "Save Changes" : `Add ${config.singular}`}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* -------------------------------------------------------
+   MAIN COMPONENT
+------------------------------------------------------- */
+
+export default function MarksAndResults() {
+  const marksResource = useApiData(
+    () => optionalFetch("fetchMarks"),
+    "examination-marks"
+  );
+
+  const resultsResource = useApiData(
+    () => optionalFetch("fetchResults"),
+    "examination-results"
+  );
+
+  const [tab, setTab] = useState("results");
+
+  const [demo, setDemo] = useState(() => ({
+    marks: SEED_MARKS.map((item) => ({ ...item })),
+    results: SEED_RESULTS.map((item) => ({ ...item })),
+  }));
+
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [dropdownFilter, setDropdownFilter] = useState("All");
+  const [sort, setSort] = useState(CONFIG.marks.defaultSort);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [modal, setModal] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
+  const config = CONFIG[tab];
+  const TabIcon = config.icon;
+  const demoRecords = demo[tab];
+
+  const resource = tab === "marks" ? marksResource : resultsResource;
+  const apiData = resource.data;
+  const loading = resource.loading;
+
+  const setDemoRecords = (key, updater) => {
+    setDemo((current) => ({ ...current, [key]: updater(current[key]) }));
+  };
+
+  /* Normalize API records and combine demo records */
+
+  const allRecords = useMemo(
+    () => [
+      ...(Array.isArray(apiData) ? apiData : []).map(
+        normalizeBackendRecord(tab)
+      ),
+      ...(Array.isArray(apiData) && apiData.length > 0 ? [] : demoRecords),
+    ].map(config.derive),
+    [apiData, demoRecords, tab, config]
+  );
+
+  /* Statistics */
+
+  const counts = useMemo(
+    () =>
+      Object.fromEntries([
+        ["All", allRecords.length],
+        ...config.statuses.map((status) => [
+          status,
+          allRecords.filter((item) => item.status === status).length,
+        ]),
+      ]),
+    [allRecords, config]
+  );
+
+  /* Dropdown options */
+
+  const dropdownOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          allRecords
+            .map((item) => String(item[config.filterKey] ?? ""))
+            .filter((value) => value && value !== "—")
+        ),
+      ].sort((a, b) =>
+        config.filterKey === "semester"
+          ? SEMESTERS.indexOf(a) - SEMESTERS.indexOf(b)
+          : a.localeCompare(b)
+      ),
+    [allRecords, config]
+  );
+
+  /* Search, filter and sorting */
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    const result = allRecords.filter((item) => {
+      const statusMatch =
+        statusFilter === "All" || item.status === statusFilter;
+
+      const dropdownMatch =
+        dropdownFilter === "All" ||
+        String(item[config.filterKey]) === dropdownFilter;
+
+      const searchMatch =
+        !q ||
+        [
+          item._id,
+          shortId(config, item._id),
+          item.name,
+          item.rollNo,
+          item.subject,
+          item.grade,
+          item.result,
+          item.programName,
+          item.semester,
+          item.term,
+          item.status,
+        ].some((value) =>
+          String(value ?? "").toLowerCase().includes(q)
+        );
+
+      return statusMatch && dropdownMatch && searchMatch;
+    });
+
+    return result.sort((a, b) => {
+      const comparison = String(a[sort.key] ?? "").localeCompare(
+        String(b[sort.key] ?? ""),
+        undefined,
+        { numeric: true, sensitivity: "base" }
+      );
+
+      return sort.dir === "asc" ? comparison : -comparison;
+    });
+  }, [allRecords, query, statusFilter, dropdownFilter, sort, config]);
+
+  /* Pagination */
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const start = (page - 1) * pageSize;
+  const rows = filtered.slice(start, start + pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tab, query, statusFilter, dropdownFilter, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  /* Toast notifications */
+
+  const dismissToast = (id) => {
+    setToasts((current) => current.filter((item) => item.id !== id));
+  };
+
+  const toast = (message, undo) => {
+    const id = Date.now() + Math.random();
+
+    setToasts((current) => [...current, { id, message, undo }]);
+
+    window.setTimeout(() => dismissToast(id), 5500);
+  };
+
+  /* Filters and tabs */
+
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("All");
+    setDropdownFilter("All");
+  };
+
+  const switchTab = (key) => {
+    if (key === tab) return;
+
+    setTab(key);
+    clearFilters();
+    setSort(CONFIG[key].defaultSort);
+    setPage(1);
+    setModal(null);
+  };
+
+  const filtersActive =
+    Boolean(query) || statusFilter !== "All" || dropdownFilter !== "All";
+
+  const toggleSort = (key) => {
+    setSort((current) =>
+      current.key === key
+        ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" }
+    );
+  };
+
+  /* Add / Edit */
+
+  const saveRecord = (data) => {
+    const target = modal?.record;
+
+    if (!target) {
+      const nextNumber =
+        demoRecords.reduce((max, item) => {
+          const number = Number(
+            String(item._id).match(/\d+$/)?.[0] || 0
+          );
+          return Math.max(max, number);
+        }, 0) + 1;
+
+      const newRecord = {
+        ...data,
+        _id: `${config.demoPrefix}${String(nextNumber).padStart(3, "0")}`,
+        isDemo: true,
+      };
+
+      setDemoRecords(tab, (current) => [...current, newRecord]);
+      toast(`${newRecord.name} was added successfully.`);
+      setModal(null);
+      return;
+    }
+
+    setDemoRecords(tab, (current) =>
+      current.map((item) =>
+        item._id === target._id ? { ...item, ...data } : item
+      )
+    );
+
+    toast(`${data.name} was updated successfully.`);
+    setModal(null);
+  };
+
+  /* Delete */
+
+  const confirmDelete = () => {
+    const target = modal?.record;
+
+    if (!target?.isDemo) return;
+
+    const key = tab;
+    const index = demoRecords.findIndex((item) => item._id === target._id);
+
+    setDemoRecords(key, (current) =>
+      current.filter((item) => item._id !== target._id)
+    );
+
+    toast(`${target.name} was deleted.`, () => {
+      setDemoRecords(key, (current) => {
+        const next = [...current];
+        next.splice(Math.min(index, next.length), 0, target);
+        return next;
+      });
+    });
+
+    setModal(null);
+  };
+
+  /* Status update for demo records */
+
+  const changeStatus = (record) => {
+    if (!record.isDemo) {
+      toast("Database status changes require the backend update API.");
+      return;
+    }
+
+    const nextStatus =
+      config.statuses[
+        (config.statuses.indexOf(record.status) + 1) % config.statuses.length
+      ];
+
+    setDemoRecords(tab, (current) =>
+      current.map((item) =>
+        item._id === record._id ? { ...item, status: nextStatus } : item
+      )
+    );
+
+    toast(`${record.name}: status changed to ${nextStatus}.`);
+  };
+
+  /* CSV Export */
+
+  const exportCsv = () => {
+    const escapeCsv = (value) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const columns = [
+      [`${config.singular} ID`, "_id"],
+      [`${config.singular} Name`, "name"],
+      ...config.details.map(([label, key]) => [label, key]),
+    ];
+
+    const csv = [
+      [...columns.map(([label]) => label), "Record Type"]
+        .map(escapeCsv)
+        .join(","),
+
+      ...filtered.map((item) =>
+        [
+          ...columns.map(([, key]) => item[key]),
+          item.isDemo ? "Demo" : "Database",
+        ]
+          .map(escapeCsv)
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `aisc-${tab}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+
+    toast(`Exported ${filtered.length} ${config.noun}.`);
+  };
+
+  const inputClass =
+    "rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 outline-none transition focus:border-[#8f0014] focus:ring-4 focus:ring-[#8f0014]/10";
+
+
+  const saveMarks = async (event) => {
+  event.preventDefault();
+
+  if (!modal?.record?._id) {
+    toast("Invalid result record.");
+    return;
+  }
+
+  const lines = modal.record.lines;
+
+  if (!Array.isArray(lines) || lines.length === 0) {
+    toast("No subject records available to save.");
+    return;
+  }
+
+  const values = new FormData(event.currentTarget);
+  const internalMarks = Number(values.get("internalMarks"));
+
+  if (
+    !Number.isFinite(internalMarks) ||
+    internalMarks < 0 ||
+    internalMarks > 40
+  ) {
+    toast("Enter valid internal marks between 0 and 40.");
+    return;
+  }
+
+  const entries = lines.map((line, index) => ({
+    subjectId: line.subjectId,
+    absent: Boolean(line.absent),
+    internalMarks:
+      index === 0 ? internalMarks : line.internalMarks,
+    externalMarks: line.externalMarks,
+    maxInternal: line.maxInternal ?? 40,
+    maxExternal: line.maxExternal ?? 60,
+  }));
+
+  if (entries.some((entry) => !entry.subjectId)) {
+    toast("Subject information is incomplete.");
+    return;
+  }
+
+  try {
+    await adminApi.enterMarks(modal.record._id, entries);
+    toast("Marks saved successfully.");
+    setModal(null);
+    resource.reload();
+  } catch (error) {
+    toast(error?.message || "Unable to save marks.");
+  }
+};
+
+  const confirmPublishResult = async () => {
+    try {
+      await adminApi.publishResult(modal.record._id);
+      toast("Result published successfully.");
+      setModal(null);
+      resource.reload();
+    } catch (error) {
+      toast(error?.message || "Unable to publish result.");
+    }
+  };
+  /* Table cell content */
+
+  const renderCell = (record, key) => {
+    if (key === "_id") {
+      return (
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#14234b] to-[#4a5a86] text-xs font-bold text-white shadow ring-2 ring-white transition group-hover:scale-105">
+            <TabIcon size={16} />
+          </span>
+          <span className="font-semibold tabular-nums text-[#14234b]">
+            {shortId(config, record._id)}
+          </span>
+        </div>
+      );
+    }
+
+    if (key === "name") {
+      return (
+        <>
+          <span className="block max-w-[230px] truncate font-semibold text-[#14234b]">
+            {record.name}
+          </span>
+          <span className="mt-0.5 block text-[10px] text-slate-400">
+            <span>{record.rollNo}</span><span> · {record.programName || "Programme not specified"}</span>
+          </span>
+        </>
+      );
+    }
+
+    if (key === "status") {
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => changeStatus(record)}
+            title={
+              record.isDemo
+                ? "Click to change demo status"
+                : "Database status"
+            }
+            className="rounded-full transition hover:scale-105"
+          >
+            <StatusBadge status={record.status} />
+          </button>
+
+          {record.isDemo && (
+            <span className="rounded-full bg-[#f2c200]/20 px-2 py-1 text-[10px] font-bold text-[#946500]">
+              DEMO
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    return displayValue(key, record[key]);
+  };
+
+  return (
+    <div className="exam-sessions-page relative flex min-h-screen w-full flex-col overflow-hidden bg-[#f7f3ef] font-['Poppins',sans-serif] text-slate-700">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
+
+        @keyframes rise {
+          from { opacity: 0; transform: translateY(14px) }
+          to { opacity: 1; transform: none }
         }
-      >
-        <div className="max-h-[65vh] space-y-4 overflow-y-auto pr-1">
-          {error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-              {error}
+
+        @keyframes rowIn {
+          from { opacity: 0; transform: translateY(8px) }
+          to { opacity: 1; transform: none }
+        }
+
+        @keyframes pop {
+          from { opacity: 0; transform: translateY(10px) scale(.97) }
+          to { opacity: 1; transform: none }
+        }
+
+        @keyframes fade {
+          from { opacity: 0 }
+          to { opacity: 1 }
+        }
+
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateX(24px) }
+          to { opacity: 1; transform: none }
+        }
+
+        .exam-sessions-page .rise {
+          animation: rise .55s cubic-bezier(.2,.7,.2,1) both;
+        }
+
+        .exam-sessions-page .row-in {
+          animation: rowIn .35s ease both;
+        }
+
+        .exam-sessions-page .pop {
+          animation: pop .25s cubic-bezier(.2,.7,.2,1) both;
+        }
+
+        .exam-sessions-page .fade {
+          animation: fade .2s ease both;
+        }
+
+        .exam-sessions-page .toast-in {
+          animation: toastIn .3s ease both;
+        }
+
+        .exam-sessions-page button:focus-visible,
+        .exam-sessions-page input:focus-visible,
+        .exam-sessions-page select:focus-visible {
+          outline: 2px solid #f2c200;
+          outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .exam-sessions-page .rise,
+          .exam-sessions-page .row-in,
+          .exam-sessions-page .pop,
+          .exam-sessions-page .fade,
+          .exam-sessions-page .toast-in {
+            animation: none;
+          }
+        }
+      `}</style>
+
+      {/* Background decoration */}
+
+      <div
+        className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#8f0014]/10 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <div
+        className="pointer-events-none absolute -left-24 bottom-0 h-80 w-80 rounded-full bg-[#14234b]/10 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <main className="relative flex w-full flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+
+        {/* Page heading */}
+
+        <header className="rise mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-[10px] font-bold tracking-[.22em] text-[#8f0014] uppercase">
+              Examination Cell · Read to Lead
+            </p>
+
+            <h1 className="font-['Playfair_Display',serif] text-3xl font-bold tracking-tight text-[#14234b] sm:text-4xl">
+              Marks &amp; Results
+            </h1>
+
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
+              Enter, verify and publish student marks and examination
+              results across semesters and programmes.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-full border border-[#f2c200]/50 bg-white/80 px-4 py-2 text-xs font-semibold text-[#14234b] shadow-sm">
+            <GraduationCap size={16} className="text-[#8f0014]" />
+            Examination Administration
+          </div>
+        </header>
+
+        {/* Marks / Results switch */}
+
+        <div
+          className="rise mb-4 inline-flex self-start rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-100"
+          role="group"
+          aria-label="Choose section"
+        >
+          {Object.entries(CONFIG).map(([key, item]) => (
+            <button
+              type="button"
+              key={key}
+              onClick={() => switchTab(key)}
+              aria-pressed={tab === key}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                tab === key
+                  ? "bg-gradient-to-b from-[#a30018] to-[#6d000f] text-white shadow-md shadow-[#8f0014]/30"
+                  : "text-slate-500 hover:text-[#14234b]"
+              }`}
+            >
+              <item.icon size={16} />
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Statistics */}
+
+        <section className="rise relative overflow-hidden rounded-3xl bg-[#14234b] shadow-xl">
+          <div
+            className="absolute inset-0 bg-gradient-to-br from-[#14234b]/95 via-[#1b2f63]/90 to-[#3a1230]/90"
+            aria-hidden="true"
+          />
+
+          <span
+            className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-[#8f0014]/30"
+            aria-hidden="true"
+          />
+
+          <ul
+            className="relative grid grid-cols-2 gap-px bg-white/10 lg:grid-cols-4"
+            aria-label={`${config.label} statistics`}
+          >
+            {config.stats.map(([status, label, icon, hint]) => (
+              <StatItem
+                key={status}
+                icon={icon}
+                label={label}
+                value={counts[status]}
+                hint={hint}
+                selected={statusFilter === status}
+                onClick={() =>
+                  setStatusFilter(statusFilter === status ? "All" : status)
+                }
+              />
+            ))}
+          </ul>
+
+          <div className="relative h-1 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
+        </section>
+
+        {/* Main table panel */}
+
+        <section
+          className="rise mt-6 flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-slate-100"
+          style={{ animationDelay: "120ms" }}
+        >
+          <div className="h-1.5 bg-gradient-to-r from-[#8f0014] via-[#f2c200] to-[#8f0014]" />
+
+          {/* Toolbar */}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <div
+                className="flex flex-wrap rounded-xl bg-slate-100 p-1"
+                role="group"
+                aria-label="Filter by status"
+              >
+                {["All", ...config.statuses].map((status) => (
+                  <button
+                    type="button"
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    aria-pressed={statusFilter === status}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition sm:px-3 ${
+                      statusFilter === status
+                        ? "bg-white text-[#14234b] shadow"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {status}
+                    <span className="ml-1 tabular-nums text-slate-400">
+                      {counts[status]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {filtersActive && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#8f0014] transition hover:bg-[#8f0014]/10"
+                >
+                  <X size={13} />
+                  Clear filters
+                </button>
+              )}
             </div>
-          ) : null}
-          {(Array.isArray(activeResult?.lines) ? activeResult.lines : []).map((line) => {
-            const subjectId = String(line.subjectId);
-            const values = markEntries[subjectId] || EMPTY_MARK;
-            return (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4" key={subjectId}>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <div className="text-sm font-bold text-[#14264B]">{line.name || line.code || "Paper"}</div>
-                    <div className="aisc-table-secondary">{line.code || "—"} · {line.credits ?? 0} credits</div>
-                  </div>
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(values.absent)}
-                      onChange={(event) => updateMark(subjectId, "absent", event.target.checked)}
-                      className="h-4 w-4 accent-[#A8212F]"
-                    />
-                    Absent
-                  </label>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    label={`Internal marks (max ${values.maxInternal})`}
-                    type="number"
-                    min="0"
-                    max={values.maxInternal}
-                    step="0.5"
-                    value={values.absent ? "" : values.internalMarks}
-                    disabled={values.absent}
-                    onChange={(event) => updateMark(subjectId, "internalMarks", event.target.value)}
-                  />
-                  <Input
-                    label={`External marks (max ${values.maxExternal})`}
-                    type="number"
-                    min="0"
-                    max={values.maxExternal}
-                    step="0.5"
-                    value={values.absent ? "" : values.externalMarks}
-                    disabled={values.absent}
-                    onChange={(event) => updateMark(subjectId, "externalMarks", event.target.value)}
-                  />
+
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+              <select
+                value={dropdownFilter}
+                onChange={(event) => setDropdownFilter(event.target.value)}
+                aria-label={config.filterLabel}
+                className={`${inputClass} max-w-full sm:max-w-[210px]`}
+              >
+                <option value="All">{config.filterAll}</option>
+
+                {dropdownOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {config.filterText(value)}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 transition focus-within:border-[#8f0014] focus-within:ring-4 focus-within:ring-[#8f0014]/10 sm:w-48 sm:flex-none">
+                <Search size={16} className="shrink-0 text-slate-400" />
+
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={`Search ${config.noun}...`}
+                  aria-label={`Search ${config.noun}`}
+                  className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                />
+
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                    className="text-slate-400 hover:text-slate-700"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={!filtered.length}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-[#14234b] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download size={16} />
+                Export
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModal({ type: "add" })}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-3.5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#8f0014]/25 transition hover:-translate-y-0.5 hover:brightness-110"
+              >
+                <Plus size={16} />
+                Add {config.singular}
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
+
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full min-w-[1100px] text-left text-sm">
+              <thead>
+                <tr className="bg-[#14234b]/[0.04] text-xs tracking-wide text-[#14234b]/70 uppercase">
+                  {config.columns.map(([key, label]) => (
+                    <th key={key} scope="col" className="px-5 py-3.5 font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(key)}
+                        className="inline-flex items-center gap-1.5 uppercase transition hover:text-[#8f0014]"
+                      >
+                        {label}
+
+                        {sort.key === key ? (
+                          sort.dir === "asc" ? (
+                            <ChevronUp size={14} className="text-[#8f0014]" />
+                          ) : (
+                            <ChevronDown size={14} className="text-[#8f0014]" />
+                          )
+                        ) : (
+                          <ArrowUpDown size={12} className="opacity-40" />
+                        )}
+                      </button>
+                    </th>
+                  ))}
+
+                  <th scope="col" className="px-5 py-3.5 text-right font-semibold">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {loading &&
+                  Array.from({ length: pageSize }).map((_, index) => (
+                    <tr key={`loading-${index}`}>
+                      {Array.from({ length: config.columns.length + 1 }).map((__, cell) => (
+                        <td key={cell} className="px-5 py-4">
+                          <div
+                            className="h-4 animate-pulse rounded bg-slate-100"
+                            style={{
+                              width: `${55 + ((index + cell) % 4) * 12}%`,
+                            }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+
+                {!loading &&
+                  rows.map((record, index) => (
+                    <tr
+                      key={`${tab}-${record._id}`}
+                      className="row-in group transition hover:bg-[#14234b]/[0.03]"
+                      style={{ animationDelay: `${index * 40}ms` }}
+                    >
+                      {config.columns.map(([key]) => (
+                        <td key={key} className="px-5 py-3.5 text-slate-500">
+                          {renderCell(record, key)}
+                        </td>
+                      ))}
+
+                      {/* Actions */}
+
+                      <td className="px-5 py-3.5">
+                        <div className="flex justify-end gap-1">
+                                                    {tab === "results" && !record.isPublished && (
+                            <>
+                              <button type="button" title="Enter marks" onClick={() => setModal({ type: "enter-marks", record })} className="rounded-lg p-2 text-slate-500 transition hover:bg-[#f2c200]/25 hover:text-[#946500]">
+                                <Pencil size={17} />
+                              </button>
+                              <button type="button" title="Publish result" onClick={() => setModal({ type: "publish-result", record })} className="rounded-lg p-2 text-emerald-600 transition hover:bg-emerald-50">
+                                <Award size={17} />
+                              </button>
+                            </>
+                          )}<button
+                            type="button"
+                            onClick={() => setModal({ type: "view", record })}
+                            aria-label={`View ${record.name}`}
+                            title="View"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-[#14234b]/10 hover:text-[#14234b]"
+                          >
+                            <Eye size={17} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setModal({ type: "edit", record })}
+                            aria-label={`Edit ${record.name}`}
+                            title="Edit"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-[#f2c200]/25 hover:text-[#946500]"
+                          >
+                            <Pencil size={17} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setModal({ type: "delete", record })}
+                            aria-label={`Delete ${record.name}`}
+                            title="Delete"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+
+            {/* Empty state */}
+
+            {!loading && rows.length === 0 && (
+              <div className="grid place-items-center px-6 py-16 text-center">
+                <span className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-slate-400">
+                  <SearchX size={28} />
+                </span>
+
+                <p className="mt-4 font-['Playfair_Display',serif] text-lg font-bold text-[#14234b]">
+                  No {config.noun} found
+                </p>
+
+                <p className="mt-1 max-w-sm text-sm text-slate-500">
+                  {filtersActive
+                    ? "Try a different search or clear the filters."
+                    : `Use the Add ${config.singular} button to get started.`}
+                </p>
+
+                {filtersActive && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-4 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-4 sm:px-5">
+            <div className="flex items-center gap-3 text-xs text-slate-500">
+              <span>
+                {filtered.length === 0
+                  ? "No results"
+                  : `Showing ${start + 1}–${Math.min(
+                      start + pageSize,
+                      filtered.length
+                    )} of ${filtered.length} ${config.noun}`}
+              </span>
+
+              <label className="flex items-center gap-2">
+                <span className="sr-only">Rows per page</span>
+
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value))}
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-[#8f0014]/20"
+                >
+                  {[5, 10, 20].map((number) => (
+                    <option key={number} value={number}>
+                      {number} / page
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <nav className="flex items-center gap-1.5" aria-label="Pagination">
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+                aria-label="Previous page"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {pageList(totalPages, page).map((number) =>
+                typeof number === "string" ? (
+                  <span key={number} className="px-1 text-slate-400">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    key={number}
+                    onClick={() => setPage(number)}
+                    aria-current={number === page ? "page" : undefined}
+                    className={`grid h-9 min-w-9 place-items-center rounded-lg px-2 text-sm font-semibold transition ${
+                      number === page
+                        ? "bg-gradient-to-b from-[#a30018] to-[#6d000f] text-white shadow-md shadow-[#8f0014]/30"
+                        : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {number}
+                  </button>
+                )
+              )}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+                disabled={page === totalPages}
+                aria-label="Next page"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </nav>
+          </div>
+        </section>
+
+        <p className="mt-3 text-center text-[10px] text-slate-400">
+          Demo {config.noun} are sample records for preview only. Database
+          records appear when the matching API function is available.
+        </p>
+      </main>
+      {modal?.type === "enter-marks" && (
+        <Modal title="Enter marks" onClose={() => setModal(null)}>
+          <form onSubmit={saveMarks} className="space-y-4 px-6 pb-6 pt-4">
+            <p className="text-sm text-slate-600">{modal.record.name} · {modal.record.rollNo}</p>
+            <label className="block text-xs font-semibold text-[#14234b]">
+              Internal marks (out of 40)
+              <input name="internalMarks" aria-label="Internal marks" type="number" min="0" max="40" required defaultValue={modal.record.lines?.[0]?.internalMarks ?? ""} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </label>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setModal(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
+              <button type="submit" className="rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2 text-sm font-semibold text-white">Save marks</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {modal?.type === "publish-result" && (
+        <Modal title="Publish result" onClose={() => setModal(null)}>
+          <div className="space-y-4 px-6 pb-6 pt-4">
+            <p className="text-sm text-slate-600">Publish the result for <strong>{modal.record.name}</strong>?</p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setModal(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
+              <button type="button" onClick={confirmPublishResult} className="rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2 text-sm font-semibold text-white">Publish result</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Add / Edit */}
+
+      {(modal?.type === "add" || modal?.type === "edit") &&
+        (modal.type === "edit" && !modal.record.isDemo ? (
+          <Modal title="Database Record" onClose={() => setModal(null)}>
+            <div className="px-6 pb-6 pt-4">
+              <div className="flex gap-3">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-600">
+                  <AlertTriangle size={22} />
+                </span>
+
+                <p className="text-sm leading-relaxed text-slate-600">
+                  This record comes from the database. An update API has not
+                  been confirmed in the available frontend service functions,
+                  so it cannot safely be edited from this page yet.
+                </p>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setModal(null)}
+                  className="rounded-xl bg-[#14234b] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </Modal>
+        ) : (
+          <RecordForm
+            config={config}
+            initial={modal.type === "edit" ? modal.record : null}
+            onSave={saveRecord}
+            onClose={() => setModal(null)}
+          />
+        ))}
+
+      {/* View details */}
+
+      {modal?.type === "view" && (
+        <Modal
+          title={`${config.singular} Details`}
+          onClose={() => setModal(null)}
+          wide
+        >
+          <div className="px-6 pb-6 pt-5">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-[#14234b] to-[#4a5a86] text-xl font-bold text-white shadow-lg ring-4 ring-[#f2c200]/40">
+                <TabIcon size={28} />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <h3 className="font-['Playfair_Display',serif] text-2xl font-bold text-[#14234b]">
+                  {modal.record.name}
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {modal.record.programName} · Semester{" "}
+                  {modal.record.semester}
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={modal.record.status} />
+
+                  {modal.record.isDemo && (
+                    <span className="rounded-full bg-[#f2c200]/20 px-2 py-1 text-[10px] font-bold text-[#946500]">
+                      DEMO RECORD
+                    </span>
+                  )}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </Modal>
-
-      <Modal
-        open={Boolean(publishTarget)}
-        onClose={() => setPublishTarget(null)}
-        title="Publish Result"
-        description={publishTarget ? `${publishTarget.fullName || "Student"} · ${publishTarget.enrollmentNumber || "—"}` : undefined}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setPublishTarget(null)}>Cancel</Button>
-            <Button onClick={handlePublish} disabled={saving}>
-              {saving ? "Publishing..." : "Publish result"}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-              {error}
             </div>
-          ) : null}
-          <p className="text-sm leading-6 text-slate-600">
-            Publishing locks this sheet for normal editing. It can be unpublished later with an audited reason.
-          </p>
-          <div className="aisc-callout"><CheckCircle2 size={17} /> <span>Complete sheets only: every paper must have marks or an absence recorded.</span></div>
-        </div>
-      </Modal>
 
-      <Modal
-        open={publishExamOpen}
-        onClose={() => setPublishExamOpen(false)}
-        title="Publish Session Results"
-        description={activeExam ? `${activeExam.name} · Semester ${activeExam.semester}` : undefined}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setPublishExamOpen(false)}>Cancel</Button>
-            <Button onClick={handlePublishExam} disabled={saving}>
-              {saving ? "Publishing..." : "Publish all complete"}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-              {error}
-            </div>
-          ) : null}
-          <p className="text-sm leading-6 text-slate-600">
-            Only complete sheets are published. Incomplete sheets stay in draft and are reported in the result message.
-          </p>
-          <div className="aisc-callout"><FileCheck2 size={17} /> <span>{counts.ready} sheet(s) are ready to publish in this session.</span></div>
-        </div>
-      </Modal>
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {[[`${config.singular} ID`, "_id"], ...config.details].map(
+                ([label, key]) => (
+                  <div key={label} className="min-w-0 rounded-xl bg-slate-50 p-3">
+                    <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                      {label}
+                    </p>
 
-      <Modal
-        open={Boolean(unpublishTarget)}
-        onClose={() => {
-          setUnpublishTarget(null);
-          setUnpublishReason("");
-        }}
-        title="Unpublish Result"
-        description={unpublishTarget ? `${unpublishTarget.fullName || "Student"} · ${unpublishTarget.enrollmentNumber || "—"}` : undefined}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setUnpublishTarget(null)}>Cancel</Button>
-            <Button onClick={handleUnpublish} disabled={saving}>
-              {saving ? "Unpublishing..." : "Unpublish result"}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-              {error}
+                    <p className="mt-1 break-words text-sm font-bold text-[#14234b]">
+                      {displayValue(key, modal.record[key])}
+                    </p>
+                  </div>
+                )
+              )}
             </div>
-          ) : null}
-          <Input
-            label="Reason for unpublishing *"
-            value={unpublishReason}
-            onChange={(event) => setUnpublishReason(event.target.value)}
-            placeholder="Explain why this published result is being withdrawn"
-          />
-          <div className="aisc-callout"><XCircle size={17} /> <span>The reason is saved in the audit log and shown on the result record.</span></div>
-        </div>
-      </Modal>
+
+            {modal.record.isDemo && (
+              <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                This is a sample demo record. It is not stored in the college
+                database.
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setModal({ type: "edit", record: modal.record })
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                <Pencil size={15} />
+                Edit
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete confirmation */}
+
+      {modal?.type === "delete" && (
+        <Modal
+          title={`Delete ${config.singular.toLowerCase()}?`}
+          onClose={() => setModal(null)}
+        >
+          <div className="px-6 pb-6 pt-4">
+            <div className="flex gap-4">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600">
+                <Trash2 size={22} />
+              </span>
+
+              <p className="text-sm leading-relaxed text-slate-600">
+                {modal.record.isDemo ? (
+                  <>
+                    You are about to delete the demo record{" "}
+                    <strong className="text-[#14234b]">
+                      {modal.record.name}
+                    </strong>
+                    . You can undo this action immediately.
+                  </>
+                ) : (
+                  <>
+                    This record is stored in the college database. A delete
+                    API has not been confirmed, so it cannot be deleted from
+                    the database through this page.
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+
+              {modal.record.isDemo && (
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-600/20 hover:bg-rose-700"
+                >
+                  Delete {config.singular}
+                </button>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Toast notifications */}
+
+      <div
+        className="fixed bottom-5 right-5 z-[90] flex w-80 max-w-[calc(100vw-2.5rem)] flex-col gap-2"
+        aria-live="polite"
+      >
+        {toasts.map((item) => (
+          <div
+            key={item.id}
+            className="toast-in flex items-center gap-3 rounded-xl bg-[#14234b] px-4 py-3 text-sm text-white shadow-2xl ring-1 ring-[#f2c200]/30"
+          >
+            <CheckCircle2 size={18} className="shrink-0 text-[#6ee7a0]" />
+
+            <span className="flex-1">{item.message}</span>
+
+            {item.undo && (
+              <button
+                type="button"
+                onClick={() => {
+                  item.undo();
+                  dismissToast(item.id);
+                }}
+                className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-1 text-xs font-semibold transition hover:bg-white/25"
+              >
+                <Undo2 size={13} />
+                Undo
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => dismissToast(item.id)}
+              aria-label="Dismiss notification"
+              className="text-white/60 hover:text-white"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

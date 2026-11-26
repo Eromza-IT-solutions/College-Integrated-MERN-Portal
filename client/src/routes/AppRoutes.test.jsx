@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+﻿import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../context/AuthContext";
@@ -148,13 +148,13 @@ describe("HOD routes", () => {
 
   it("renders the attendance route", async () => {
     renderRoute("hod", "/hod/attendance");
-    await expectPageHeading("Attendance Management");
+    await expectPageHeading("Attendance");
   });
 
   it("renders the department reports route", async () => {
     renderRoute("hod", "/hod/reports");
     // await expectPageText("Reports Available");
-    await expectPageText("Live numbers from the college database");
+    await expectPageText(/Organize, review and publish department reports/);
   });
 });
 

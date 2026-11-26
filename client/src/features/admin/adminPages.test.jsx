@@ -60,7 +60,7 @@ describe("primary admin pages", () => {
     expect(
       screen.getByRole("heading", { name: "Exam Sessions" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Session Calendar")).toBeInTheDocument();
+    expect(screen.getByText(/Create, organize and monitor examination sessions/)).toBeInTheDocument();
   });
 
   it("renders marks and results", async () => {
@@ -69,7 +69,7 @@ describe("primary admin pages", () => {
       screen.getByRole("heading", { name: "Marks & Results" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Examination marks register"),
+      screen.getByText(/Enter, verify and publish student marks/),
     ).toBeInTheDocument();
     expect(await screen.findByText("Fatima Khan")).toBeInTheDocument();
   });
