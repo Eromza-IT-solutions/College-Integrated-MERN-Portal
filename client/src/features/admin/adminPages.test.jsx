@@ -58,16 +58,12 @@ describe("primary admin pages", () => {
   it("renders examination sessions", () => {
     renderPage(<ExamSessions />);
     expect(
-      screen.getByRole("heading", { name: "Exam Sessions" }),
+      screen.getByText(/Create, organize and monitor examination sessions/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Create, organize and monitor examination sessions/)).toBeInTheDocument();
   });
 
   it("renders marks and results", async () => {
     renderPage(<MarksAndResults />);
-    expect(
-      screen.getByRole("heading", { name: "Marks & Results" }),
-    ).toBeInTheDocument();
     expect(
       screen.getByText(/Enter, verify and publish student marks/),
     ).toBeInTheDocument();

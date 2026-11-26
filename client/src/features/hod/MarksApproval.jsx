@@ -949,10 +949,7 @@ export default function MarksApproval() {
               Department · Read to Lead
             </p>
 
-            <h1 className="font-['Playfair_Display',serif] text-3xl font-bold tracking-tight text-[#14234b] sm:text-4xl">
-              Marks Approval
-            </h1>
-
+           
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
               Review, approve or reject marks submitted by department faculty.
             </p>

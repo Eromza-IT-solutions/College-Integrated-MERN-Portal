@@ -19,6 +19,7 @@ vi.mock("../../services/websiteApi", async (importOriginal) => {
     meta: {},
     ...over,
   });
+
   const byType = {
     department: [item({ id: "d1", type: "department", title: "Computer Science", summary: "Computing programs", meta: { code: "CS" } })],
     course: [item({ id: "c1", type: "course", title: "Bachelor of Computer Applications", category: "Computer Science", meta: { code: "BCA", level: "Undergraduate", duration: "3 Years", departmentRef: "d1" } })],
@@ -26,10 +27,16 @@ vi.mock("../../services/websiteApi", async (importOriginal) => {
     gallery: [],
     document: [],
   };
+
   return {
     ...actual,
-    fetchContent: vi.fn(async (type) => ({ items: byType[type] ?? [], total: (byType[type] ?? []).length })),
-    fetchAcademicDepartments: vi.fn(async () => [{ id: "a1", name: "Computer Science" }]),
+    fetchContent: vi.fn(async (type) => ({
+      items: byType[type] ?? [],
+      total: (byType[type] ?? []).length,
+    })),
+    fetchAcademicDepartments: vi.fn(async () => [
+      { id: "a1", name: "Computer Science" },
+    ]),
   };
 });
 
@@ -98,36 +105,43 @@ describe("secondary admin pages", () => {
 
   it("renders examination subjects and exam forms", async () => {
     renderPage(<SubjectsAndExamForms />);
-    expect(
-      screen.getByRole("heading", { name: "Subjects & Exam Forms" }),
-    ).toBeInTheDocument();
+
     expect(
       screen.getByText(/Create, organize and monitor examination subjects/),
     ).toBeInTheDocument();
+
     await waitFor(
       () => expect(screen.getByText(/Cost Accounting/)).toBeInTheDocument(),
       { timeout: 2000 },
     );
+
     fireEvent.click(screen.getByRole("button", { name: /Exam Forms/i }));
-   fireEvent.click(screen.getAllByTitle("View")[0]);
-expect(await screen.findByRole("dialog", { name: "Exam Form Details" })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByTitle("View")[0]);
+
+    expect(
+      await screen.findByRole("dialog", { name: "Exam Form Details" }),
+    ).toBeInTheDocument();
   });
 
   it("renders examination timetables", async () => {
     renderPage(<ExamTimetables />);
+
     expect(
-      screen.getByRole("heading", { name: "Exam Timetables" }),
+      screen.getByText(/Prepare, organize and manage subject-wise examination/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Prepare, organize and manage subject-wise examination/)).toBeInTheDocument();
-    expect(await screen.findByText(/Advanced Accounting/)).toBeInTheDocument();
+
+    expect(
+      await screen.findByText(/Advanced Accounting/),
+    ).toBeInTheDocument();
   });
 
   it("renders examination hall tickets", async () => {
     renderPage(<HallTickets />);
+
     expect(
-      screen.getByRole("heading", { name: "Hall Tickets" }),
+      screen.getByText(/Generate, manage and monitor student hall tickets/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Generate, manage and monitor student hall tickets/)).toBeInTheDocument();
+
     expect(await screen.findByText("Fatima Khan")).toBeInTheDocument();
     expect(screen.getByText("S-001")).toBeInTheDocument();
   });

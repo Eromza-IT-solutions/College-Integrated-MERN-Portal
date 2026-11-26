@@ -423,7 +423,7 @@ export default function HallTickets() {
         <header className="rise mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="mb-2 text-[10px] font-bold tracking-[.22em] text-[#8f0014] uppercase">Examination Cell · Read to Lead</p>
-            <h1 className="font-['Playfair_Display',serif] text-3xl font-bold tracking-tight text-[#14234b] sm:text-4xl">Hall Tickets</h1>
+    
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">Generate, manage and monitor student hall tickets for college examinations.</p>
           </div>
           <div className="flex items-center gap-2 rounded-full border border-[#f2c200]/50 bg-white/80 px-4 py-2 text-xs font-semibold text-[#14234b] shadow-sm">
