@@ -18,7 +18,32 @@ function AdmissionAdminLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-eromza-bg">
+    <div className="admission-admin-font min-h-screen bg-eromza-bg">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+
+        .admission-admin-font {
+          font-family: 'Poppins', sans-serif;
+        }
+
+        .admission-admin-font h1,
+        .admission-admin-font h2,
+        .admission-admin-font h3 {
+          font-family: 'Playfair Display', serif;
+        }
+
+        .admission-admin-font aside > div:last-child > button:first-child {
+          transition: all 0.2s ease;
+        }
+
+        .admission-admin-font aside > div:last-child > button:first-child:hover,
+        .admission-admin-font aside > div:last-child > button:first-child:active {
+          background-color: #7f1d1d !important;
+          color: #ffffff !important;
+          box-shadow: none !important;
+          transform: none;
+        }
+      `}</style>
 
       {/* Sidebar */}
       <ASidebar
@@ -45,7 +70,6 @@ function AdmissionAdminLayout() {
           <Outlet />
         </div>
       </main>
-
     </div>
   );
 }

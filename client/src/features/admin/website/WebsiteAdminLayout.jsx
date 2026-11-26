@@ -19,7 +19,37 @@ function WebsiteAdminLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-eromza-bg">
+    <div className="website-admin-font min-h-screen bg-eromza-bg">
+
+      {/* Font and Logout Styling */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+
+        /* Default Font */
+        .website-admin-font {
+          font-family: 'Poppins', sans-serif;
+        }
+
+        /* Heading Font */
+        .website-admin-font h1,
+        .website-admin-font h2,
+        .website-admin-font h3 {
+          font-family: 'Playfair Display', serif;
+        }
+
+        /* Logout Button - Solid Dark Red */
+        .website-admin-font aside > div:last-child > button:first-child {
+          transition: all 0.2s ease;
+        }
+
+        .website-admin-font aside > div:last-child > button:first-child:hover,
+        .website-admin-font aside > div:last-child > button:first-child:active {
+          background-color: #7f1d1d !important;
+          color: #ffffff !important;
+          box-shadow: none !important;
+          transform: none;
+        }
+      `}</style>
 
       {/* Sidebar */}
       <CSidebar
