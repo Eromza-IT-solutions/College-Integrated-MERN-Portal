@@ -12,6 +12,8 @@
     "start": "node src/server.js",
     "lint": "eslint .",
     "seed": "node scripts/seed-demo-data.js",
+        "seed:dummy": "node scripts/seed-dummy-data.js",
+
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
