@@ -38,9 +38,13 @@ describe("super admin secondary pages", () => {
     // expect(
     //   screen.getByRole("heading", { name: "Reports & Analytics" }),
     // ).toBeInTheDocument();
-    // ReportsAnalytics now renders the active report's own heading instead of a page title.
+    // Another ReportsAnalytics variant renders the active report's own heading instead of a page title.
+    // expect(
+    //   screen.getByRole("heading", { name: "Department report" }),
+    // ).toBeInTheDocument();
+    // This branch uses the shared ReportsView, which renders the page title as the h1.
     expect(
-      screen.getByRole("heading", { name: "Department report" }),
+      screen.getByRole("heading", { name: "Reports & Analytics" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Live numbers from the college database")).toBeInTheDocument();
     // expect(screen.getByText(/Report Types/)).toBeInTheDocument();
