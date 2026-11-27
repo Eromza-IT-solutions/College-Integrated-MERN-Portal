@@ -1,0 +1,1821 @@
+openapi: 3.0.3
+info:
+  title: College Integrated MERN Portal API
+  version: 1.0.0
+  description: |
+    API contract for the College Integrated MERN Portal.
+    All endpoints are mounted under `/api/v1`. Most endpoints require the
+    session cookie `icms.sid`; RBAC scope is derived from the permission matrix.
+    Successful JSON responses use `{ success: true, data, meta }`.
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Local development
+tags:
+  - name: Health
+  - name: Auth
+  - name: RBAC
+  - name: Audit Logs
+  - name: Admin Management
+  - name: Admissions
+  - name: Examinations
+  - name: Exam Forms
+  - name: Hall Tickets
+  - name: Payments
+  - name: Refunds
+  - name: Timetable
+  - name: Attendance
+  - name: Marks
+  - name: Results
+  - name: Teaching Plans
+  - name: Students
+  - name: Reports
+  - name: Website
+security:
+  - cookieAuth: []
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Public health check
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register an applicant account
+      security: []
+      requestBody: { $ref: '#/components/requestBodies/Register' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify email address
+      security: []
+      requestBody: { $ref: '#/components/requestBodies/Token' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Resend verification email
+      security: []
+      requestBody: { $ref: '#/components/requestBodies/Email' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and create a session
+      security: []
+      requestBody: { $ref: '#/components/requestBodies/Login' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Destroy the current session
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user and permissions
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password
+      requestBody: { $ref: '#/components/requestBodies/ChangePassword' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      security: []
+      requestBody: { $ref: '#/components/requestBodies/Email' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password with token
+      security: []
+      requestBody: { $ref: '#/components/requestBodies/ResetPassword' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /roles:
+    get:
+      tags: [RBAC]
+      summary: List roles
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /roles/{roleKey}:
+    get:
+      tags: [RBAC]
+      summary: Get one role
+      parameters: [{ $ref: '#/components/parameters/RoleKey' }]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /permissions/catalog:
+    get:
+      tags: [RBAC]
+      summary: Get permission catalog
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /permissions:
+    get:
+      tags: [RBAC]
+      summary: List permission matrix rows
+      parameters:
+        - name: roleKey
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [RBAC]
+      summary: Create permission row
+      requestBody: { $ref: '#/components/requestBodies/Permission' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /permissions/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [RBAC]
+      summary: Update permission row
+      requestBody: { $ref: '#/components/requestBodies/Permission' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [RBAC]
+      summary: Delete permission row
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /audit-logs:
+    get:
+      tags: [Audit Logs]
+      summary: List audit logs
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - name: action
+          in: query
+          schema: { type: string }
+        - name: entityType
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /admin/users:
+    get:
+      tags: [Admin Management]
+      summary: List users
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - name: role
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admin Management]
+      summary: Create user
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/users/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Admin Management]
+      summary: Update user
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [Admin Management]
+      summary: Deactivate user
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/teachers:
+    get:
+      tags: [Admin Management]
+      summary: List teachers
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admin Management]
+      summary: Create teacher
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/teachers/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Admin Management]
+      summary: Update teacher
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [Admin Management]
+      summary: Deactivate teacher
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/departments:
+    get:
+      tags: [Admin Management]
+      summary: List departments
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admin Management]
+      summary: Create department
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/departments/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Admin Management]
+      summary: Update department
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [Admin Management]
+      summary: Deactivate department
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/academic-years:
+    get:
+      tags: [Admin Management]
+      summary: List academic years
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admin Management]
+      summary: Create academic year
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/academic-years/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Admin Management]
+      summary: Update academic year
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/programs:
+    get:
+      tags: [Admin Management]
+      summary: List programs
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admin Management]
+      summary: Create program
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/programs/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Admin Management]
+      summary: Update program
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [Admin Management]
+      summary: Deactivate program
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/subjects:
+    get:
+      tags: [Admin Management]
+      summary: List subjects
+      parameters:
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+        - { $ref: '#/components/parameters/SemesterQuery' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admin Management]
+      summary: Create subject
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/subjects/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Admin Management]
+      summary: Update subject
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [Admin Management]
+      summary: Deactivate subject
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/fee-structures:
+    get:
+      tags: [Admin Management]
+      summary: List fee structures
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admin Management]
+      summary: Create fee structure
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admin/fee-structures/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Admin Management]
+      summary: Update fee structure
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [Admin Management]
+      summary: Deactivate fee structure
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /admissions/options:
+    get:
+      tags: [Admissions]
+      summary: Get admission form options
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/subjects:
+    get:
+      tags: [Admissions]
+      summary: Get subject choices for an application context
+      parameters:
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+        - { $ref: '#/components/parameters/SemesterQuery' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/overdue:
+    get:
+      tags: [Admissions]
+      summary: List overdue applications
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/export:
+    get:
+      tags: [Admissions]
+      summary: Export applications
+      parameters: [{ $ref: '#/components/parameters/Format' }]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications:
+    get:
+      tags: [Admissions]
+      summary: List applications
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: mobile
+          in: query
+          description: Exact 10-digit student mobile; matched with a keyed blind index, not by decrypting rows.
+          schema: { type: string, pattern: '^\d{10}$' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admissions]
+      summary: Create application
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admissions]
+      summary: Get application
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    patch:
+      tags: [Admissions]
+      summary: Update application
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/pdf:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admissions]
+      summary: Download application PDF
+      responses:
+        '200': { $ref: '#/components/responses/Pdf' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/submit:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Submit application
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/subjects:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admissions]
+      summary: Get application subject choices
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    put:
+      tags: [Admissions]
+      summary: Save application subject choices
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/subjects/approve:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Approve application subjects
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/documents:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admissions]
+      summary: List application documents
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Admissions]
+      summary: Upload application document
+      description: >-
+        JPG or PNG only, max 500 KB. The file extension, client MIME type and actual bytes must agree.
+        Image dimensions are read from the bytes; photo must be 80x100 px and signature 80x50 px.
+        SVG, archives, executables, PDFs, empty files and malformed images are rejected with 400.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, type]
+              properties:
+                type: { type: string, description: 'One of the admission document types' }
+                file: { type: string, format: binary }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/documents/approve:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Approve all required documents
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/approve:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Approve application
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/waitlist:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Waitlist application
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/return:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Return application for correction
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/reject:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Reject application
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/cancel:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Cancel application
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/hard-copy:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Record hard-copy receipt
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/applications/{id}/student:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Create student from approved application
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/documents/{id}/download:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admissions]
+      summary: Download admission document
+      responses:
+        '200': { $ref: '#/components/responses/Pdf' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/documents/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    delete:
+      tags: [Admissions]
+      summary: Delete admission document
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /admissions/documents/{id}/verify:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admissions]
+      summary: Verify admission document
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /exams:
+    get:
+      tags: [Examinations]
+      summary: List exams
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/AcademicYearIdQuery' }
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Examinations]
+      summary: Create exam session
+      requestBody: { $ref: '#/components/requestBodies/Exam' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exams/available:
+    get:
+      tags: [Examinations]
+      summary: List exams currently open for form submission
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exams/reference:
+    get:
+      tags: [Examinations]
+      summary: Get scoped reference data for exam administration
+      parameters:
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+        - { $ref: '#/components/parameters/SemesterQuery' }
+      responses:
+        '200':
+          description: Academic years, programs, and subjects visible to the caller
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/ApiResponse' }
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          academicYears: { type: array, items: { $ref: '#/components/schemas/Ref' } }
+                          programs: { type: array, items: { $ref: '#/components/schemas/Ref' } }
+                          subjects: { type: array, items: { $ref: '#/components/schemas/Ref' } }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exams/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Examinations]
+      summary: Get exam
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    patch:
+      tags: [Examinations]
+      summary: Update exam, including schedule
+      requestBody: { $ref: '#/components/requestBodies/Exam' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exams/{id}/hall-tickets:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Hall Tickets]
+      summary: List hall tickets for an exam
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, issued, blocked] }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exams/{id}/hall-tickets/generate:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Hall Tickets]
+      summary: Generate hall tickets from approved exam forms
+      requestBody: { $ref: '#/components/requestBodies/HallTicketGenerate' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exams/{id}/form:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Exam Forms]
+      summary: Start or resume the caller's exam form
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exams/{id}/forms:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Exam Forms]
+      summary: List forms for an exam
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /exam-forms:
+    get:
+      tags: [Exam Forms]
+      summary: List exam forms
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/ExamIdQuery' }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exam-forms/hall-tickets/me:
+    get:
+      tags: [Hall Tickets]
+      summary: Get current student's hall tickets
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exam-forms/hall-tickets/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Hall Tickets]
+      summary: Update hall ticket seat, room, or status
+      requestBody: { $ref: '#/components/requestBodies/HallTicketUpdate' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exam-forms/hall-tickets/{id}/pdf:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Hall Tickets]
+      summary: Download hall ticket PDF
+      responses:
+        '200': { $ref: '#/components/responses/Pdf' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exam-forms/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Exam Forms]
+      summary: Get exam form
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exam-forms/{id}/pdf:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Exam Forms]
+      summary: Download exam form PDF
+      responses:
+        '200': { $ref: '#/components/responses/Pdf' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exam-forms/{id}/subjects:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Exam Forms]
+      summary: Save exam form subject selection
+      requestBody: { $ref: '#/components/requestBodies/SubjectSelection' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exam-forms/{id}/continue:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Exam Forms]
+      summary: Continue exam form to payment
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /exam-forms/{id}/decision:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Exam Forms]
+      summary: Approve or reject exam form
+      requestBody: { $ref: '#/components/requestBodies/FormDecision' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /payments/webhook:
+    post:
+      tags: [Payments]
+      summary: Gateway webhook
+      security: []
+      parameters:
+        - name: x-razorpay-signature
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /payments/orders:
+    post:
+      tags: [Payments]
+      summary: Create payment order
+      requestBody: { $ref: '#/components/requestBodies/PaymentOrder' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /payments:
+    get:
+      tags: [Payments]
+      summary: List payments
+      parameters:
+        - { $ref: '#/components/parameters/PurposeQuery' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /payments/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Payments]
+      summary: Get payment
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /payments/{id}/receipt:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Payments]
+      summary: Get payment receipt or receipt PDF
+      parameters: [{ $ref: '#/components/parameters/Format' }]
+      responses:
+        '200': { $ref: '#/components/responses/Pdf' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /payments/{id}/verify:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Payments]
+      summary: Verify and settle payment
+      requestBody: { $ref: '#/components/requestBodies/PaymentVerify' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /refunds:
+    get:
+      tags: [Refunds]
+      summary: List refunds
+      parameters: [{ $ref: '#/components/parameters/PurposeQuery' }]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Refunds]
+      summary: Request refund
+      requestBody: { $ref: '#/components/requestBodies/Refund' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /refunds/{id}/decision:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Refunds]
+      summary: Approve or reject refund
+      requestBody: { $ref: '#/components/requestBodies/RefundDecision' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /timetable:
+    get:
+      tags: [Timetable]
+      summary: List timetable slots
+      parameters:
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+        - { $ref: '#/components/parameters/SemesterQuery' }
+        - name: dayOfWeek
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 7 }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Timetable]
+      summary: Create timetable slot
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /timetable/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Timetable]
+      summary: Update timetable slot
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /attendance/roster:
+    get:
+      tags: [Attendance]
+      summary: Get attendance roster for a slot
+      parameters:
+        - name: slotId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /attendance/mark:
+    post:
+      tags: [Attendance]
+      summary: Mark attendance
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /attendance/summary:
+    get:
+      tags: [Attendance]
+      summary: Get attendance summary
+      parameters:
+        - { $ref: '#/components/parameters/StudentIdQuery' }
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+        - { $ref: '#/components/parameters/SemesterQuery' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /attendance:
+    get:
+      tags: [Attendance]
+      summary: List attendance records
+      parameters:
+        - { $ref: '#/components/parameters/StudentIdQuery' }
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+        - { $ref: '#/components/parameters/SemesterQuery' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /marks:
+    get:
+      tags: [Marks]
+      summary: List marks
+      parameters:
+        - { $ref: '#/components/parameters/StudentIdQuery' }
+        - { $ref: '#/components/parameters/SubjectIdQuery' }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Marks]
+      summary: Enter marks
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /marks/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Marks]
+      summary: Get marks entry
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /marks/submit:
+    post:
+      tags: [Marks]
+      summary: Submit marks for approval
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /marks/decision:
+    post:
+      tags: [Marks]
+      summary: Approve or return marks
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /results:
+    get:
+      tags: [Results]
+      summary: List results
+      parameters:
+        - { $ref: '#/components/parameters/ExamIdQuery' }
+        - { $ref: '#/components/parameters/StudentIdQuery' }
+        - name: isPublished
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /results/open:
+    post:
+      tags: [Results]
+      summary: Open result entry for an approved exam form
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /results/publish-exam:
+    post:
+      tags: [Results]
+      summary: Publish all complete results for an exam
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /results/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Results]
+      summary: Get result
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /results/{id}/pdf:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Results]
+      summary: Download result PDF
+      responses:
+        '200': { $ref: '#/components/responses/Pdf' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /results/{id}/marks:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Results]
+      summary: Enter or update result marks
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /results/{id}/publish:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Results]
+      summary: Publish result
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /results/{id}/unpublish:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Results]
+      summary: Unpublish result
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /teaching-plans:
+    get:
+      tags: [Teaching Plans]
+      summary: List teaching plans
+      parameters:
+        - { $ref: '#/components/parameters/SubjectIdQuery' }
+        - { $ref: '#/components/parameters/SemesterQuery' }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Teaching Plans]
+      summary: Create teaching plan
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /teaching-plans/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Teaching Plans]
+      summary: Get teaching plan
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /teaching-plans/{id}/topics:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Teaching Plans]
+      summary: Replace teaching plan topics
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /teaching-plans/{id}/topics/{topicId}:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+      - name: topicId
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [Teaching Plans]
+      summary: Update a topic
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /teaching-plans/{id}/submit:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Teaching Plans]
+      summary: Submit teaching plan
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /teaching-plans/{id}/decision:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Teaching Plans]
+      summary: Approve or return teaching plan
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /students/me:
+    get:
+      tags: [Students]
+      summary: Get current student profile
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /students:
+    get:
+      tags: [Students]
+      summary: List students
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /students/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Students]
+      summary: Get student
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    patch:
+      tags: [Students]
+      summary: Update student
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [Students]
+      summary: Deactivate student
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /students/{id}/enrollments:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Students]
+      summary: List student enrollments
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Students]
+      summary: Add enrollment
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /students/{id}/enrollments/{enrollmentId}:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+      - name: enrollmentId
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [Students]
+      summary: Drop enrollment
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /students/{id}/promote:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Students]
+      summary: Promote student to next semester
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /reports/department:
+    get:
+      tags: [Reports]
+      summary: Department report
+      parameters:
+        - { $ref: '#/components/parameters/Format' }
+        - { $ref: '#/components/parameters/AcademicYearIdQuery' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /reports/admission:
+    get:
+      tags: [Reports]
+      summary: Admission report
+      parameters:
+        - { $ref: '#/components/parameters/Format' }
+        - { $ref: '#/components/parameters/ProgramIdQuery' }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /reports/exam:
+    get:
+      tags: [Reports]
+      summary: Exam report
+      parameters:
+        - { $ref: '#/components/parameters/Format' }
+        - { $ref: '#/components/parameters/ExamIdQuery' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /reports/payment:
+    get:
+      tags: [Reports]
+      summary: Payment report
+      parameters:
+        - { $ref: '#/components/parameters/Format' }
+        - { $ref: '#/components/parameters/PurposeQuery' }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+
+  /website/public:
+    get:
+      tags: [Website]
+      summary: List public website content
+      security: []
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string, enum: [notice, event, news, gallery, page, department, course, faculty, document] }
+        - name: q
+          in: query
+          description: Search in title, summary and category (plain text).
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/public/{type}/{slug}:
+    parameters:
+      - name: type
+        in: path
+        required: true
+        schema: { type: string }
+      - name: slug
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Website]
+      summary: Get public content item
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/members/notices:
+    get:
+      tags: [Website]
+      summary: List member-only notices
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/content:
+    get:
+      tags: [Website]
+      summary: List website content
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, published, archived] }
+        - name: q
+          in: query
+          description: Search in title, summary and category (plain text).
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - { $ref: '#/components/parameters/Page' }
+        - name: limit
+          in: query
+          description: Page size for editors (1-100, default 20).
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    post:
+      tags: [Website]
+      summary: Create website content
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/content/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Website]
+      summary: Get website content
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    patch:
+      tags: [Website]
+      summary: Update website content
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+    delete:
+      tags: [Website]
+      summary: Delete unpublished website content
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/content/{id}/publish:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Website]
+      summary: Publish website content
+      requestBody: { $ref: '#/components/requestBodies/Object' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/content/{id}/unpublish:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Website]
+      summary: Unpublish website content
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/content/{id}/archive:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Website]
+      summary: Archive website content
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/content/stats:
+    get:
+      tags: [Website]
+      summary: Website dashboard counts per content type and status (publicPages update)
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/uploads:
+    post:
+      tags: [Website]
+      summary: Upload one website picture or document (publicPages create)
+      description: >
+        Multipart field "file". JPG, PNG, WEBP, PDF, DOC, DOCX, XLSX, PPT, PPTX or TXT up to 10 MB; the file's
+        content must match its type. Returns { url, name, mimeType, sizeBytes, kind } to place on content.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { $ref: '#/components/responses/Created' }
+        default: { $ref: '#/components/responses/DefaultError' }
+  /website/files/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[a-f0-9]{24}\.(jpg|jpeg|png|webp|pdf|doc|docx|xlsx|ppt|pptx|txt)$' }
+    get:
+      tags: [Website]
+      summary: Download an uploaded website file (public)
+      security: []
+      responses:
+        '200':
+          description: The file. Pictures and PDFs are shown inline; other files are sent as downloads.
+        default: { $ref: '#/components/responses/DefaultError' }
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: icms.sid
+      description: Session cookie set by `POST /auth/login`.
+    gatewaySignature:
+      type: apiKey
+      in: header
+      name: x-razorpay-signature
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    RoleKey:
+      name: roleKey
+      in: path
+      required: true
+      schema: { type: string }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Format:
+      name: format
+      in: query
+      schema: { type: string, enum: [json, csv, pdf] }
+    PurposeQuery:
+      name: purpose
+      in: query
+      schema: { type: string, enum: [admission, exam] }
+    ProgramIdQuery:
+      name: programId
+      in: query
+      schema: { type: string }
+    SemesterQuery:
+      name: semester
+      in: query
+      schema: { type: integer, minimum: 1 }
+    AcademicYearIdQuery:
+      name: academicYearId
+      in: query
+      schema: { type: string }
+    ExamIdQuery:
+      name: examId
+      in: query
+      schema: { type: string }
+    StudentIdQuery:
+      name: studentId
+      in: query
+      schema: { type: string }
+    SubjectIdQuery:
+      name: subjectId
+      in: query
+      schema: { type: string }
+  responses:
+    Ok:
+      description: Successful JSON response
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiResponse' }
+    Created:
+      description: Created
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiResponse' }
+    Pdf:
+      description: PDF download
+      content:
+        application/pdf:
+          schema: { type: string, format: binary }
+    Conflict:
+      description: Business rule conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    DefaultError:
+      description: Error response
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    ApiResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, example: true }
+        data: { description: Endpoint-specific payload }
+        meta:
+          type: object
+          properties:
+            requestId: { type: string }
+            page: { type: integer }
+            limit: { type: integer }
+            total: { type: integer }
+            totalPages: { type: integer }
+    ErrorResponse:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        code: { type: string }
+        requestId: { type: string }
+        errors:
+          type: array
+          items: { type: object }
+    Ref:
+      type: object
+      properties:
+        _id: { type: string }
+        id: { type: string }
+        name: { type: string }
+        code: { type: string }
+        label: { type: string }
+    Object:
+      type: object
+      additionalProperties: true
+    Permission:
+      type: object
+      properties:
+        roleKey: { type: string }
+        resource: { type: string }
+        action: { type: string, enum: [view, create, update, approve, delete, export] }
+        scope: { type: string, enum: [own, department, all] }
+    ExamScheduleItem:
+      type: object
+      required: [subjectId, date, startTime, endTime]
+      properties:
+        subjectId: { type: string }
+        date: { type: string, format: date }
+        startTime: { type: string, example: '09:00' }
+        endTime: { type: string, example: '12:00' }
+        room: { type: string }
+    Exam:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        semester: { type: integer }
+        academicYearId: { type: string }
+        programId: { type: string }
+        status: { type: string, enum: [draft, open, closed] }
+        formOpensAt: { type: string, format: date-time }
+        formClosesAt: { type: string, format: date-time }
+        schedule:
+          type: array
+          items: { $ref: '#/components/schemas/ExamScheduleItem' }
+    ExamForm:
+      type: object
+      properties:
+        _id: { type: string }
+        examId: { type: string }
+        studentId: { type: string }
+        status: { type: string, enum: [draft, pendingPayment, submitted, approved, rejected] }
+        feeAmountPaise: { type: integer }
+        subjects:
+          type: array
+          items: { $ref: '#/components/schemas/Ref' }
+    HallTicket:
+      type: object
+      properties:
+        _id: { type: string }
+        examId: { type: string }
+        examFormId: { type: string }
+        studentId: { type: string }
+        enrollmentNumber: { type: string }
+        fullName: { type: string }
+        semester: { type: integer }
+        seatNumber: { type: string, example: 'S-001' }
+        room: { type: string }
+        status: { type: string, enum: [pending, issued, blocked] }
+        schedule:
+          type: array
+          items: { $ref: '#/components/schemas/ExamScheduleItem' }
+    Payment:
+      type: object
+      properties:
+        _id: { type: string }
+        purpose: { type: string, enum: [admission, exam] }
+        amountPaise: { type: integer }
+        status:
+          type: string
+          enum: [created, paid, failed]
+          description: Refunds are separate Refund rows; a refunded payment remains paid.
+        reservedRefundPaise: { type: integer, description: Approved or requested refund headroom; not a status. }
+        gateway: { type: string, enum: [razorpay, fake] }
+        receiptNumber: { type: string }
+        paidAt: { type: string, format: date-time }
+  requestBodies:
+    Object:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Object' }
+    Register:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [fullName, email, mobile, password, aadhaarNumber]
+            properties:
+              fullName: { type: string }
+              email: { type: string, format: email }
+              mobile: { type: string }
+              password: { type: string, format: password }
+              aadhaarNumber: { type: string }
+    Login:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [loginId, password]
+            properties:
+              loginId: { type: string }
+              password: { type: string, format: password }
+    Email:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email: { type: string, format: email }
+    Token:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [token]
+            properties:
+              token: { type: string }
+    ChangePassword:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [currentPassword, newPassword]
+            properties:
+              currentPassword: { type: string, format: password }
+              newPassword: { type: string, format: password }
+    ResetPassword:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [token, newPassword]
+            properties:
+              token: { type: string }
+              newPassword: { type: string, format: password }
+    Permission:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Permission' }
+    Exam:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Exam' }
+    SubjectSelection:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [subjectIds]
+            properties:
+              subjectIds:
+                type: array
+                items: { type: string }
+    FormDecision:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [approve]
+            properties:
+              approve: { type: boolean }
+              note: { type: string }
+    HallTicketGenerate:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              overwrite: { type: boolean, default: false }
+    HallTicketUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              seatNumber: { type: string }
+              room: { type: string }
+              status: { type: string, enum: [pending, issued, blocked] }
+              blockedReason: { type: string }
+    PaymentOrder:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [purpose]
+            properties:
+              purpose: { type: string, enum: [admission, exam] }
+              applicationId: { type: string }
+              examFormId: { type: string }
+    PaymentVerify:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [gatewayPaymentId, gatewayOrderId, gatewaySignature]
+            properties:
+              gatewayPaymentId: { type: string }
+              gatewayOrderId: { type: string }
+              gatewaySignature: { type: string }
+    Refund:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [paymentId, amountPaise, reason]
+            properties:
+              paymentId: { type: string }
+              amountPaise: { type: integer }
+              reason: { type: string }
+    RefundDecision:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [approve]
+            properties:
+              approve: { type: boolean }
+              decisionNote: { type: string }

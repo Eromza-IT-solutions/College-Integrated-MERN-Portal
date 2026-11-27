@@ -1,0 +1,395 @@
+export const superAdminKpis = [
+  {
+    id: "users",
+    label: "Total Users",
+    value: "1,250",
+    change: "+4.2%",
+    tone: "info",
+    icon: "users",
+  },
+  {
+    id: "panels",
+    label: "Admin Panels",
+    value: "4",
+    change: "+1",
+    tone: "accent",
+    icon: "panels",
+  },
+  {
+    id: "reports",
+    label: "Reports Generated",
+    value: "125",
+    change: "+18.6%",
+    tone: "success",
+    icon: "reports",
+  },
+  {
+    id: "uptime",
+    label: "System Uptime",
+    value: "99.9%",
+    change: "+0.2%",
+    tone: "warning",
+    icon: "shield",
+  },
+];
+
+export const superAdminUsers = [
+  {
+    id: "USR-1001",
+    name: "Iqra Shaikh",
+    email: "iqra@abcedu.in",
+    role: "superAdmin",
+    status: "active",
+    joined: "06 Nov 2026",
+  },
+  {
+    id: "USR-1002",
+    name: "Ayesha Khan",
+    email: "ayesha@abcedu.in",
+    role: "websiteAdmin",
+    status: "active",
+    joined: "05 Nov 2026",
+  },
+  {
+    id: "USR-1003",
+    name: "Sana Patel",
+    email: "sana@abcedu.in",
+    role: "admissionAdmin",
+    status: "active",
+    joined: "04 Nov 2026",
+  },
+  {
+    id: "USR-1004",
+    name: "Zara Ansari",
+    email: "zara@abcedu.in",
+    role: "examAdmin",
+    status: "pending",
+    joined: "03 Nov 2026",
+  },
+  {
+    id: "USR-1005",
+    name: "Riya M",
+    email: "riya@abcedu.in",
+    role: "teacher",
+    status: "active",
+    joined: "02 Nov 2026",
+  },
+  {
+    id: "USR-1006",
+    name: "Dr. Sneha Patil",
+    email: "sneha@abcedu.in",
+    role: "hod",
+    status: "active",
+    joined: "01 Nov 2026",
+  },
+  {
+    id: "USR-1007",
+    name: "Fatima Khan",
+    email: "fatima@abcedu.in",
+    role: "student",
+    status: "active",
+    joined: "31 Oct 2026",
+  },
+  {
+    id: "USR-1008",
+    name: "Rida Khan",
+    email: "rida@abcedu.in",
+    role: "applicant",
+    status: "pending",
+    joined: "30 Oct 2026",
+  },
+];
+
+export const superAdminActivities = [
+  {
+    id: "activity-1",
+    title: "New admin added to the Admission panel",
+    time: "2 minutes ago",
+    icon: "user",
+    tone: "info",
+  },
+  {
+    id: "activity-2",
+    title: "System settings updated",
+    time: "18 minutes ago",
+    icon: "settings",
+    tone: "warning",
+  },
+  {
+    id: "activity-3",
+    title: "Monthly report generated",
+    time: "1 hour ago",
+    icon: "report",
+    tone: "success",
+  },
+  {
+    id: "activity-4",
+    title: "Admission application approved",
+    time: "2 hours ago",
+    icon: "check",
+    tone: "accent",
+  },
+  {
+    id: "activity-5",
+    title: "Audit log export completed",
+    time: "3 hours ago",
+    icon: "shield",
+    tone: "navy",
+  },
+];
+
+export const superAdminPanels = [
+  {
+    id: "website",
+    title: "College Website Admin",
+    description: "Manage public pages, departments, faculty, gallery, and notices.",
+    users: 12,
+    icon: "globe",
+    tone: "info",
+  },
+  {
+    id: "admission",
+    title: "Admission Admin",
+    description: "Review applications, verify documents, and manage admission fees.",
+    users: 8,
+    icon: "clipboard",
+    tone: "accent",
+  },
+  {
+    id: "exam",
+    title: "Examination Admin",
+    description: "Plan sessions, timetables, marks, results, and hall tickets.",
+    users: 6,
+    icon: "calendar",
+    tone: "warning",
+  },
+  {
+    id: "super",
+    title: "Super Admin",
+    description: "System-wide users, permissions, reports, and audit oversight.",
+    users: 4,
+    icon: "shield",
+    tone: "success",
+  },
+];
+
+export const systemOverview = {
+  active: 95,
+  inactive: 5,
+};
+
+export const reportSeries = {
+  labels: ["Jun", "Jul", "Aug", "Sep", "Oct", "Nov"],
+  values: [42, 58, 48, 72, 66, 92],
+};
+
+export const superAdminReportKpis = [
+  {
+    id: "reports",
+    label: "Reports Generated",
+    value: "125",
+    change: "+18.6%",
+    tone: "info",
+    icon: "reports",
+  },
+  {
+    id: "applications",
+    label: "Applications Reviewed",
+    value: "1,084",
+    change: "+12.4%",
+    tone: "accent",
+    icon: "applications",
+  },
+  {
+    id: "admissions",
+    label: "Admissions Confirmed",
+    value: "486",
+    change: "+8.1%",
+    tone: "success",
+    icon: "admissions",
+  },
+  {
+    id: "revenue",
+    label: "Fee Collection",
+    value: "₹42.8L",
+    change: "+6.7%",
+    tone: "warning",
+    icon: "revenue",
+  },
+];
+
+export const superAdminRoleDistribution = [
+  { label: "Students", value: 842, color: "#3279be" },
+  { label: "Applicants", value: 186, color: "#a9233d" },
+  { label: "Teachers", value: 128, color: "#19845b" },
+  { label: "HODs", value: 42, color: "#d88a2d" },
+  { label: "Administrators", value: 52, color: "#64748b" },
+];
+
+export const superAdminReports = [
+  {
+    id: "RPT-2201",
+    name: "Monthly admission summary",
+    category: "Admissions",
+    generatedBy: "Iqra Shaikh",
+    generated: "13 Nov 2026",
+    status: "ready",
+  },
+  {
+    id: "RPT-2200",
+    name: "Department attendance review",
+    category: "Academics",
+    generatedBy: "Dr. Sneha Patil",
+    generated: "12 Nov 2026",
+    status: "ready",
+  },
+  {
+    id: "RPT-2199",
+    name: "Examination results progress",
+    category: "Examinations",
+    generatedBy: "Zara Ansari",
+    generated: "11 Nov 2026",
+    status: "ready",
+  },
+  {
+    id: "RPT-2198",
+    name: "Fee collection reconciliation",
+    category: "Finance",
+    generatedBy: "Sana Patel",
+    generated: "10 Nov 2026",
+    status: "processing",
+  },
+];
+
+export const superAdminAuditLogs = [
+  {
+    id: "LOG-9001",
+    actor: "Iqra Shaikh",
+    role: "superAdmin",
+    action: "Updated institution notification settings",
+    module: "Settings",
+    ip: "192.168.1.12",
+    time: "13 Nov 2026, 10:42 AM",
+    status: "success",
+  },
+  {
+    id: "LOG-9000",
+    actor: "Ayesha Khan",
+    role: "websiteAdmin",
+    action: "Published notice: Semester V internal exam timetable",
+    module: "Website",
+    ip: "192.168.1.18",
+    time: "13 Nov 2026, 10:18 AM",
+    status: "success",
+  },
+  {
+    id: "LOG-8999",
+    actor: "Sana Patel",
+    role: "admissionAdmin",
+    action: "Approved admission application APP-2026-0486",
+    module: "Admissions",
+    ip: "192.168.1.21",
+    time: "13 Nov 2026, 09:55 AM",
+    status: "success",
+  },
+  {
+    id: "LOG-8998",
+    actor: "Unknown user",
+    role: "applicant",
+    action: "Failed login attempt",
+    module: "Authentication",
+    ip: "103.44.52.10",
+    time: "13 Nov 2026, 09:31 AM",
+    status: "failed",
+  },
+  {
+    id: "LOG-8997",
+    actor: "Zara Ansari",
+    role: "examAdmin",
+    action: "Generated hall tickets for 146 students",
+    module: "Examinations",
+    ip: "192.168.1.24",
+    time: "12 Nov 2026, 04:46 PM",
+    status: "success",
+  },
+  {
+    id: "LOG-8996",
+    actor: "Dr. Sneha Patil",
+    role: "hod",
+    action: "Exported department attendance report",
+    module: "Reports",
+    ip: "192.168.1.30",
+    time: "12 Nov 2026, 03:12 PM",
+    status: "success",
+  },
+  {
+    id: "LOG-8995",
+    actor: "Iqra Shaikh",
+    role: "superAdmin",
+    action: "Deactivated user account USR-0991",
+    module: "Users",
+    ip: "192.168.1.12",
+    time: "12 Nov 2026, 01:20 PM",
+    status: "success",
+  },
+  {
+    id: "LOG-8994",
+    actor: "Rida Khan",
+    role: "applicant",
+    action: "Uploaded Class XII marksheet",
+    module: "Admissions",
+    ip: "49.36.180.22",
+    time: "12 Nov 2026, 11:05 AM",
+    status: "success",
+  },
+];
+
+export const superAdminSettings = {
+  institution: {
+    name: "Abeda Inamdar Senior College",
+    code: "AISC",
+    email: "admin@abcedu.in",
+    phone: "+91 20 2645 1234",
+    address: "2390-B, K.B. Hidayatullah Road, Azam Campus, Pune 411001",
+  },
+  notifications: [
+    {
+      id: "email",
+      label: "Email notifications",
+      description: "Send admission, examination, and system updates by email.",
+      enabled: true,
+    },
+    {
+      id: "sms",
+      label: "SMS alerts",
+      description: "Notify applicants and students about time-sensitive actions.",
+      enabled: true,
+    },
+    {
+      id: "digest",
+      label: "Weekly admin digest",
+      description: "Send a weekly summary of applications, results, and reports.",
+      enabled: false,
+    },
+  ],
+  security: [
+    {
+      id: "twoFactor",
+      label: "Require two-factor authentication",
+      description: "Enforce 2FA for all administrator accounts.",
+      enabled: true,
+    },
+    {
+      id: "session",
+      label: "Restrict concurrent sessions",
+      description: "Allow only one active session per administrator account.",
+      enabled: false,
+    },
+    {
+      id: "audit",
+      label: "Retain audit logs for 12 months",
+      description: "Keep system activity records available for compliance review.",
+      enabled: true,
+    },
+  ],
+};

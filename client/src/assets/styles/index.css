@@ -1,1 +1,73 @@
 @import "tailwindcss";
+
+@theme {
+  --color-eromza-sidebar: #102541;
+  --color-eromza-secondary: #183653;
+  --color-eromza-accent: #a9233d;
+  --color-eromza-accent-hover: #be304a;
+  --color-eromza-bg: #f4f6f9;
+  --color-eromza-card: #ffffff;
+  --color-eromza-border: #e5e9f0;
+  --color-eromza-text: #172b49;
+  --color-eromza-muted: #526078;
+  --color-eromza-subtle: #8993a4;
+  --color-eromza-success: #19845b;
+  --color-eromza-warning: #d88a2d;
+  --color-eromza-error: #c43b4b;
+  --color-eromza-info: #3279be;
+  --font-sans: "Poppins", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgba(16, 37, 65, 0.04), 0 12px 32px rgba(16, 37, 65, 0.06);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    background-color: var(--color-eromza-bg);
+    color: var(--color-eromza-text);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-eromza-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: rgba(169, 35, 61, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
