@@ -35,11 +35,17 @@ describe("super admin secondary pages", () => {
     // expect(
     //   screen.getByRole("heading", { name: "User Growth" }),
     // ).toBeInTheDocument();
+    // expect(
+    //   screen.getByRole("heading", { name: "Reports & Analytics" }),
+    // ).toBeInTheDocument();
+    // ReportsAnalytics now renders the active report's own heading instead of a page title.
     expect(
       screen.getByRole("heading", { name: "Department report" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Live numbers from the college database")).toBeInTheDocument();
     // expect(screen.getByText(/Report Types/)).toBeInTheDocument();
-    expect(screen.getAllByText("Departments").length).toBeGreaterThan(0); // the tab and the stat card
+    // expect(screen.getByText("Departments")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Departments" })).toBeInTheDocument();
   });
 
   it("renders audit logs", () => {

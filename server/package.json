@@ -13,6 +13,8 @@
     "lint": "eslint .",
     "openapi:check": "node scripts/validate-openapi.js",
     "seed": "node scripts/seed-demo-data.js",
+        "seed:dummy": "node scripts/seed-dummy-data.js",
+
     "seed:programs": "node scripts/seed-college-programs.js",
     "seed:fees": "node scripts/seed-college-fees.js",
     "seed:subjects": "node scripts/seed-college-subjects.js",
