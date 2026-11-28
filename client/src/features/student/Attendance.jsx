@@ -1,4 +1,9 @@
 import { useMemo, useState } from "react";
+import UiCard from "../../components/ui/Card";
+import UiErrorState from "../../components/ui/ErrorState";
+import UiLoader from "../../components/ui/Loader";
+import { useApiData } from "../../hooks/useApiData";
+import { fetchAttendanceRecords } from "../../services/studentApi";
 import {
   CalendarCheck,
   CheckCircle2,
@@ -101,7 +106,7 @@ const DAY_STYLE = {
 };
 
 /* ------------------------------ COMPONENT ------------------------------- */
-export default function StudentAttendance({
+function StudentAttendanceView({
   records = SAMPLE.records,
   holidays = SAMPLE.holidays,
   minRequired = 75,
@@ -551,4 +556,40 @@ function Card({ title, children }) {
       {children}
     </section>
   );
+}
+
+/* ----------------------------------------------------------------------------
+   Server connection: GET /attendance/my-records (one row per lecture).
+   present -> "Present", absent -> "Absent". A lecture marked "leave" is left out, so it counts neither way.
+---------------------------------------------------------------------------- */
+async function apiLoadAttendance() {
+  const to12h = (t) => {
+    if (!t) return "";
+    const [h, m] = t.split(":").map(Number);
+    return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+  };
+  const rows = await fetchAttendanceRecords({ limit: 500 });
+  return (rows ?? [])
+    .filter((r) => r.status === "present" || r.status === "absent")
+    .map((r) => ({
+      date: r.lectureDate,
+      subject: r.subject?.name || r.subject?.code || "Lecture",
+      time: to12h(r.startTime) || `Period ${r.period}`,
+      status: r.status === "present" ? "Present" : "Absent",
+    }));
+}
+
+export default function StudentAttendance() {
+  const { data, loading, error, reload } = useApiData(apiLoadAttendance);
+  if (loading || error) {
+    return (
+      <div className="p-6">
+        <UiCard>
+          {loading ? <UiLoader label="Loading attendance..." /> : <UiErrorState title="Could not load this page" description={error.message} onRetry={reload} />}
+        </UiCard>
+      </div>
+    );
+  }
+
+  return <StudentAttendanceView records={data} holidays={[]} />;
 }

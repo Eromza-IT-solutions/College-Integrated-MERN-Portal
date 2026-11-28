@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   ChartNoAxesCombined,
   Building2,
+  CalendarClock,
 } from "lucide-react";
 
 import SuperAdmin_Sidebar from "../admin/super/SuperAdmin_Sidebar";
@@ -61,6 +62,12 @@ const HOD_MENU = [
     icon: Building2,
     path: "/department",
   },
+  {
+    id: "timetable",
+    label: "Timetable",
+    icon: CalendarClock,
+    path: "/timetable",
+  },
 ];
 
 const PAGE_TITLES = {
@@ -71,6 +78,7 @@ const PAGE_TITLES = {
   marks: "Marks Approval",
   reports: "Department Reports",
   department: "Department Info",
+  timetable: "Manage Timetable",
 };
 
 export default function HODLayout() {

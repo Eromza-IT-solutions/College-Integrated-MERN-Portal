@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import UiCard from "../../components/ui/Card";
+import UiErrorState from "../../components/ui/ErrorState";
+import UiLoader from "../../components/ui/Loader";
+import { useApiData } from "../../hooks/useApiData";
+import { fetchStudentOverview, fetchTimetable } from "../../services/studentApi";
 import { Clock, Coffee, MapPin, Printer, UserRound, CalendarDays, LayoutGrid, List } from "lucide-react";
 
 /*
@@ -76,7 +81,7 @@ const STYLES = [
 ];
 
 /* ------------------------------ COMPONENT ------------------------------- */
-export default function StudentTimetable({
+function StudentTimetableView({
   slots = sampleSlots,
   schedule = sampleSchedule,
   termLabel = "Semester 5 · Academic year 2026 - 2027",
@@ -445,4 +450,56 @@ function DayList({ dayIdx, slots, schedule, styleOf, isCurrent }) {
       })}
     </ul>
   );
+}
+
+/* ----------------------------------------------------------------------------
+   Server connection: GET /timetable (the server returns the signed-in student's own class).
+---------------------------------------------------------------------------- */
+async function apiLoadTimetable() {
+  const dayKeys = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const pad = (n) => String(n).padStart(2, "0");
+  // A slot saved without times gets a one-hour slot per period, starting at 09:00, so the grid still lines up.
+  const fallbackTimes = (period) => ({ start: `${pad(8 + period)}:00`, end: `${pad(9 + period)}:00` });
+
+  const [rows, me] = await Promise.all([fetchTimetable(), fetchStudentOverview().catch(() => null)]);
+  const slotMap = new Map();
+  const schedule = { Mon: {}, Tue: {}, Wed: {}, Thu: {}, Fri: {}, Sat: {} };
+  (rows ?? []).forEach((r) => {
+    const day = dayKeys[r.dayOfWeek];
+    if (!day) return; // Sunday is not shown
+    const times = r.startTime && r.endTime ? { start: r.startTime, end: r.endTime } : fallbackTimes(r.period);
+    slotMap.set(times.start, times);
+    schedule[day][times.start] = {
+      subject: r.subjectId?.name || r.subjectId?.code || "Lecture",
+      teacher: r.teacherUserId?.fullName || "",
+      room: r.room || "",
+      type: /lab|practical/i.test(r.subjectId?.name || "") ? "Practical" : "Lecture",
+    };
+  });
+  const slots = [...slotMap.values()].sort((a, b) => a.start.localeCompare(b.start));
+  return { slots, schedule, termLabel: me?.currentSemester ? `Semester ${me.currentSemester}` : "Timetable" };
+}
+
+export default function StudentTimetable() {
+  const { data, loading, error, reload } = useApiData(apiLoadTimetable);
+  if (loading || error) {
+    return (
+      <div className="p-6">
+        <UiCard>
+          {loading ? <UiLoader label="Loading timetable..." /> : <UiErrorState title="Could not load this page" description={error.message} onRetry={reload} />}
+        </UiCard>
+      </div>
+    );
+  }
+
+  if (!data.slots.length) {
+    return (
+      <div className="p-6">
+        <p className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+          Your timetable has not been published yet.
+        </p>
+      </div>
+    );
+  }
+  return <StudentTimetableView slots={data.slots} schedule={data.schedule} termLabel={data.termLabel} />;
 }

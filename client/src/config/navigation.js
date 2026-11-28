@@ -24,6 +24,7 @@ import {
   UserRound,
   Users,
   Wallet,
+  RotateCcw,
 } from "lucide-react";
 
 export const navigationByRole = Object.freeze({
@@ -34,6 +35,8 @@ export const navigationByRole = Object.freeze({
     { label: "Reports & Analytics", to: "/super-admin/reports", icon: BarChart3 },
     { label: "Audit Logs", to: "/super-admin/audit-logs", icon: ScrollText },
     { label: "Academic Data", to: "/super-admin/academic-data", icon: BookOpen },
+    { label: "Refunds", to: "/super-admin/refunds", icon: RotateCcw },
+    { label: "Timetable", to: "/super-admin/timetable", icon: CalendarClock },
     { label: "System Settings", to: "/super-admin/settings", icon: Settings },
   ],
   websiteAdmin: [
@@ -50,6 +53,7 @@ export const navigationByRole = Object.freeze({
     { label: "Verify Documents", to: "/admission-admin/documents", icon: FileCheck },
     { label: "Admission Status", to: "/admission-admin/status", icon: BadgeCheck },
     { label: "Fees & Payments", to: "/admission-admin/fees", icon: Wallet },
+    { label: "Refunds", to: "/admission-admin/refunds", icon: RotateCcw },
   ],
   examAdmin: [
     { label: "Dashboard", to: "/exam-admin/dashboard", icon: LayoutDashboard },
@@ -58,6 +62,7 @@ export const navigationByRole = Object.freeze({
     { label: "Exam Timetables", to: "/exam-admin/timetables", icon: CalendarClock },
     { label: "Marks & Results", to: "/exam-admin/marks", icon: ClipboardCheck },
     { label: "Hall Tickets", to: "/exam-admin/hall-tickets", icon: Ticket },
+    { label: "Refunds", to: "/exam-admin/refunds", icon: RotateCcw },
   ],
   hod: [
     { label: "Dashboard", to: "/hod/dashboard", icon: LayoutDashboard },
@@ -67,6 +72,7 @@ export const navigationByRole = Object.freeze({
     { label: "Attendance", to: "/hod/attendance", icon: ClipboardCheck },
     { label: "Department Reports", to: "/hod/reports", icon: BarChart3 },
         { label: "Marks Approval", to: "/hod/marks", icon: ClipboardCheck },
+    { label: "Timetable", to: "/hod/timetable", icon: CalendarClock },
   ],
   teacher: [
   { label: "Dashboard", to: "/teacher/dashboard", icon: LayoutDashboard },

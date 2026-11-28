@@ -8,6 +8,7 @@ import {
   BookOpen,
   Ticket,
   ChartNoAxesCombined,
+  RotateCcw,
 } from "lucide-react";
 
 import SuperAdmin_Sidebar from "../super/SuperAdmin_Sidebar";
@@ -53,6 +54,12 @@ const EXAM_MENU = [
     icon: ChartNoAxesCombined,
     path: "/marks",
   },
+  {
+    id: "refunds",
+    label: "Refunds",
+    icon: RotateCcw,
+    path: "/refunds",
+  },
 ];
 
 const PAGE_TITLES = {
@@ -62,6 +69,7 @@ const PAGE_TITLES = {
   subjects: "Subjects & Exam Forms",
   "hall-tickets": "Hall Tickets",
   marks: "Marks & Results",
+  refunds: "Refunds",
 };
 
 export default function ExamAdminLayout() {

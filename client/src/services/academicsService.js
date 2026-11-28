@@ -31,3 +31,19 @@ export async function markAttendance({ slotId, lectureDate, records }) {
   const { data } = await http.post("/attendance/mark", { slotId, lectureDate, records });
   return data.data;
 }
+
+// ---- Timetable management (HOD for their department, Super Admin for all) ----
+export async function fetchTimetableReference(params = {}) {
+  const { data } = await http.get("/timetable/reference", { params });
+  return data.data; // { academicYears, programs, subjects, teachers } (subjects and teachers only once programId is sent)
+}
+
+export async function createTimetableSlot(body) {
+  const { data } = await http.post("/timetable", body);
+  return data.data;
+}
+
+export async function updateTimetableSlot(id, body) {
+  const { data } = await http.patch(`/timetable/${id}`, body);
+  return data.data;
+}

@@ -7,148 +7,23 @@ import {
   CheckCircle, GraduationCap, AlertTriangle,
 } from "lucide-react";
 
-import { fetchExams } from "../../../services/adminApi";
+import { createExam, fetchExamReference, fetchExams, updateExam } from "../../../services/adminApi";
 import { useApiData } from "../../../hooks/useApiData";
 import "../../../assets/styles/aisc-premium.css";
 
 /* -------------------------------------------------------
-   DEMO DATA
+   Server <-> page: status words and dates
 ------------------------------------------------------- */
 
-const SEED_SESSIONS = [
-  {
-    _id: "session-demo-001",
-    name: "First Semester Examination 2026-27",
-    programName: "B.Com CA",
-    semester: "V",
-    term: "Odd Semester 2026-27",
-    startDate: "2026-11-10",
-    endDate: "2026-11-28",
-    status: "Active",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-002",
-    name: "Internal Assessment I",
-    programName: "B.Com CA",
-    semester: "V",
-    term: "Odd Semester 2026-27",
-    startDate: "2026-09-15",
-    endDate: "2026-09-22",
-    status: "Completed",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-003",
-    name: "Practical Examination",
-    programName: "B.Com CA",
-    semester: "V",
-    term: "Odd Semester 2026-27",
-    startDate: "2026-11-03",
-    endDate: "2026-11-08",
-    status: "Scheduled",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-004",
-    name: "Second Semester Examination 2026-27",
-    programName: "B.Com CA",
-    semester: "II",
-    term: "Even Semester 2026-27",
-    startDate: "2027-04-12",
-    endDate: "2027-04-30",
-    status: "Draft",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-005",
-    name: "Internal Assessment II",
-    programName: "B.Com CA",
-    semester: "VI",
-    term: "Even Semester 2026-27",
-    startDate: "2027-02-10",
-    endDate: "2027-02-17",
-    status: "Scheduled",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-006",
-    name: "Supplementary Examination",
-    programName: "B.Com CA",
-    semester: "V",
-    term: "Odd Semester 2026-27",
-    startDate: "2027-01-05",
-    endDate: "2027-01-12",
-    status: "Draft",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-007",
-    name: "TY B.Com CA Final Examination",
-    programName: "B.Com CA",
-    semester: "VI",
-    term: "Even Semester 2026-27",
-    startDate: "2027-04-20",
-    endDate: "2027-05-05",
-    status: "Scheduled",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-008",
-    name: "FY B.Com CA Semester I",
-    programName: "B.Com CA",
-    semester: "I",
-    term: "Odd Semester 2026-27",
-    startDate: "2026-11-12",
-    endDate: "2026-11-25",
-    status: "Active",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-009",
-    name: "Mid-Term Assessment",
-    programName: "B.Com CA",
-    semester: "III",
-    term: "Odd Semester 2026-27",
-    startDate: "2026-10-05",
-    endDate: "2026-10-12",
-    status: "Completed",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-010",
-    name: "Revaluation / Repeat Session",
-    programName: "B.Com CA",
-    semester: "V",
-    term: "Even Semester 2026-27",
-    startDate: "2027-05-15",
-    endDate: "2027-05-22",
-    status: "Draft",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-011",
-    name: "SY B.Com CA Semester III",
-    programName: "B.Com CA",
-    semester: "III",
-    term: "Odd Semester 2026-27",
-    startDate: "2026-11-15",
-    endDate: "2026-11-29",
-    status: "Active",
-    isDemo: true,
-  },
-  {
-    _id: "session-demo-012",
-    name: "TY B.Com CA Internal Assessment",
-    programName: "B.Com CA",
-    semester: "VI",
-    term: "Even Semester 2026-27",
-    startDate: "2027-03-01",
-    endDate: "2027-03-08",
-    status: "Scheduled",
-    isDemo: true,
-  },
-];
+// The page shows Active / Scheduled / Completed / Draft; the server stores draft / open / closed.
+const toServerStatus = (status) => (status === "Draft" ? "draft" : status === "Completed" ? "closed" : "open");
+const dayStart = (d) => new Date(`${d}T00:00:00`).toISOString();
+const dayEnd = (d) => new Date(`${d}T23:59:59`).toISOString();
+const describe = (err) => {
+  const list = err.cause?.response?.data?.error?.errors;
+  return list?.length ? list.map((e) => `${e.field}: ${e.message}`).join(" | ") : err.message;
+};
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
 const STATUS_OPTIONS = ["Active", "Scheduled", "Completed", "Draft"];
 
@@ -222,18 +97,28 @@ const normalizeStatus = (value = "") => {
 const getSessionId = (session, index) =>
   session._id || session.id || `backend-session-${index}`;
 
-const normalizeBackendSession = (session, index) => ({
-  ...session,
-  _id: getSessionId(session, index),
-  name: session.name || session.examName || "Untitled Examination",
-  programName: session.programName || session.program || "—",
-  semester: session.semester ?? "—",
-  term: session.term || session.academicTerm || "—",
-  startDate: session.startDate || session.start_date || "",
-  endDate: session.endDate || session.end_date || "",
-  status: normalizeStatus(session.status),
-  isDemo: false,
-});
+const normalizeBackendSession = (session, index, lookups = {}) => {
+  const opens = session.formOpensAt || session.startDate || "";
+  const closes = session.formClosesAt || session.endDate || "";
+  const status = normalizeStatus(
+    session.status === "open" && opens && new Date(opens) > new Date() ? "scheduled"
+      : session.status === "open" ? "active"
+        : session.status === "closed" ? "completed" : session.status,
+  );
+  return {
+    ...session,
+    _id: getSessionId(session, index),
+    name: session.name || session.examName || "Untitled Examination",
+    programName: lookups.programs?.[session.programId] || session.programName || "—",
+    semester: session.semester ? ROMAN[session.semester] || session.semester : "—",
+    semesterNumber: session.semester,
+    term: lookups.years?.[session.academicYearId] || session.term || "—",
+    startDate: String(opens).slice(0, 10),
+    endDate: String(closes).slice(0, 10),
+    status,
+    isDemo: false,
+  };
+};
 
 /* -------------------------------------------------------
    REUSABLE COMPONENTS
@@ -355,13 +240,13 @@ function StatItem({
    SESSION FORM
 ------------------------------------------------------- */
 
-function SessionForm({ initial, onSave, onClose }) {
+function SessionForm({ initial, reference, onSave, onClose }) {
   const [form, setForm] = useState(
     initial || {
       name: "",
-      programName: "B.Com CA",
-      semester: "V",
-      term: "Odd Semester 2026-27",
+      programId: "",
+      semester: "1",
+      academicYearId: "",
       startDate: "",
       endDate: "",
       status: "Draft",
@@ -369,6 +254,7 @@ function SessionForm({ initial, onSave, onClose }) {
   );
 
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const set = (key, value) => {
     setForm((current) => ({
@@ -380,12 +266,13 @@ function SessionForm({ initial, onSave, onClose }) {
   const inputClass =
     "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#8f0014] focus:ring-4 focus:ring-[#8f0014]/10";
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
 
     if (
       !form.name.trim() ||
-      !form.term.trim() ||
+      !form.programId ||
+      !form.academicYearId ||
       !form.startDate ||
       !form.endDate
     ) {
@@ -399,13 +286,14 @@ function SessionForm({ initial, onSave, onClose }) {
     }
 
     setError("");
-
-    onSave({
-      ...form,
-      name: form.name.trim(),
-      programName: form.programName.trim(),
-      term: form.term.trim(),
-    });
+    setSaving(true);
+    try {
+      await onSave({ ...form, name: form.name.trim() });
+    } catch (err) {
+      setError(describe(err)); // the form stays open so nothing typed is lost
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -434,12 +322,18 @@ function SessionForm({ initial, onSave, onClose }) {
               Programme
             </label>
 
-            <input
+            <select
               className={inputClass}
-              value={form.programName}
-              onChange={(event) => set("programName", event.target.value)}
-              placeholder="e.g. B.Com CA"
-            />
+              value={form.programId}
+              onChange={(event) => set("programId", event.target.value)}
+            >
+              <option value="">Select a course...</option>
+              {(reference?.programs ?? []).map((program) => (
+                <option key={program._id} value={program._id}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -452,9 +346,9 @@ function SessionForm({ initial, onSave, onClose }) {
               value={form.semester}
               onChange={(event) => set("semester", event.target.value)}
             >
-              {["I", "II", "III", "IV", "V", "VI"].map((semester) => (
+              {Array.from({ length: 8 }, (_, i) => String(i + 1)).map((semester) => (
                 <option key={semester} value={semester}>
-                  Semester {semester}
+                  Semester {ROMAN[Number(semester)]}
                 </option>
               ))}
             </select>
@@ -466,18 +360,24 @@ function SessionForm({ initial, onSave, onClose }) {
             Academic Term *
           </label>
 
-          <input
+          <select
             className={inputClass}
-            value={form.term}
-            onChange={(event) => set("term", event.target.value)}
-            placeholder="e.g. Odd Semester 2026-27"
-          />
+            value={form.academicYearId}
+            onChange={(event) => set("academicYearId", event.target.value)}
+          >
+            <option value="">Select an academic year...</option>
+            {(reference?.academicYears ?? []).map((year) => (
+              <option key={year._id} value={year._id}>
+                {year.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
-              Start Date *
+              Exam form opens *
             </label>
 
             <input
@@ -490,7 +390,7 @@ function SessionForm({ initial, onSave, onClose }) {
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#14234b]">
-              End Date *
+              Exam form closes *
             </label>
 
             <input
@@ -528,8 +428,8 @@ function SessionForm({ initial, onSave, onClose }) {
         )}
 
         <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
-          Demo sessions are stored only in this page's local state. They are
-          not saved to the college database.
+          Saved to the college database. Students can fill the exam form only
+          while the session is Active and today is between the two dates.
         </p>
 
         <div className="flex justify-end gap-3 pt-1">
@@ -545,7 +445,7 @@ function SessionForm({ initial, onSave, onClose }) {
             type="submit"
             className="rounded-xl bg-gradient-to-b from-[#a30018] to-[#6d000f] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#8f0014]/20 transition hover:brightness-110"
           >
-            {initial ? "Save Changes" : "Add Session"}
+            {saving ? "Saving..." : initial ? "Save Changes" : "Add Session"}
           </button>
         </div>
       </form>
@@ -563,11 +463,14 @@ export default function ExamSessions() {
     "examination-sessions"
   );
 
-  const backendExams = examsResource.data ?? [];
+  const backendExams = useMemo(() => examsResource.data ?? [], [examsResource.data]);
 
-  const [demoSessions, setDemoSessions] = useState(() =>
-    SEED_SESSIONS.map((session) => ({ ...session }))
+  // Courses and academic years: for the form dropdowns and to show names instead of ids.
+  const referenceResource = useApiData(
+    () => fetchExamReference(),
+    "examination-reference"
   );
+  const reference = referenceResource.data;
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -586,15 +489,20 @@ export default function ExamSessions() {
 
   /* Normalize API records and combine demo records */
 
-  const databaseSessions = useMemo(
-    () => backendExams.map(normalizeBackendSession),
-    [backendExams]
+  const lookups = useMemo(
+    () => ({
+      programs: Object.fromEntries((reference?.programs ?? []).map((p) => [p._id, p.name])),
+      years: Object.fromEntries((reference?.academicYears ?? []).map((y) => [y._id, y.label])),
+    }),
+    [reference]
   );
 
-  const allSessions = useMemo(
-    () => [...databaseSessions, ...demoSessions],
-    [databaseSessions, demoSessions]
+  const databaseSessions = useMemo(
+    () => backendExams.map((exam, index) => normalizeBackendSession(exam, index, lookups)),
+    [backendExams, lookups]
   );
+
+  const allSessions = databaseSessions;
 
   /* Statistics */
 
@@ -733,51 +641,29 @@ export default function ExamSessions() {
 
   /* Add / Edit session */
 
-  const saveSession = (data) => {
+  // Create or update the exam in the database. A failure is thrown to the form, which shows it.
+  const saveSession = async (data) => {
     const target = modal?.session;
+    const body = {
+      name: data.name,
+      academicYearId: data.academicYearId,
+      programId: data.programId,
+      semester: Number(data.semester),
+      formOpensAt: dayStart(data.startDate),
+      formClosesAt: dayEnd(data.endDate),
+    };
+    const status = toServerStatus(data.status);
 
     if (!target) {
-      const nextNumber =
-        demoSessions.reduce((max, session) => {
-          const number = Number(
-            String(session._id).match(/\d+$/)?.[0] || 0
-          );
-
-          return Math.max(max, number);
-        }, 0) + 1;
-
-      const newSession = {
-        ...data,
-        _id: `session-demo-${String(nextNumber).padStart(3, "0")}`,
-        isDemo: true,
-      };
-
-      setDemoSessions((current) => [
-        ...current,
-        newSession,
-      ]);
-
-      toast(`${newSession.name} was added successfully.`);
-      setModal(null);
-      return;
+      const created = await createExam(body); // a new exam starts as a draft
+      if (status !== "draft") await updateExam(created._id, { status });
+      toast(`${data.name} was added successfully.`);
+    } else {
+      await updateExam(target._id, { ...body, status });
+      toast(`${data.name} was updated successfully.`);
     }
-
-    if (!target.isDemo) {
-      toast("Database session editing requires the backend update API.");
-      setModal(null);
-      return;
-    }
-
-    setDemoSessions((current) =>
-      current.map((session) =>
-        session._id === target._id
-          ? { ...session, ...data }
-          : session
-      )
-    );
-
-    toast(`${data.name} was updated successfully.`);
     setModal(null);
+    examsResource.reload();
   };
 
   /* Delete session */
@@ -787,66 +673,27 @@ export default function ExamSessions() {
 
     if (!target) return;
 
-    if (!target.isDemo) {
-      setModal({
-        type: "backend-delete-info",
-        session: target,
-      });
-      return;
-    }
-
-    const index = demoSessions.findIndex(
-      (session) => session._id === target._id
-    );
-
-    setDemoSessions((current) =>
-      current.filter(
-        (session) => session._id !== target._id
-      )
-    );
-
-    toast(
-      `${target.name} was deleted.`,
-      () => {
-        setDemoSessions((current) => {
-          const next = [...current];
-
-          next.splice(
-            Math.min(index, next.length),
-            0,
-            target
-          );
-
-          return next;
-        });
-      }
-    );
-
-    setModal(null);
+    // The server never deletes an exam (results and forms point to it). It is closed instead.
+    setModal({
+      type: "backend-delete-info",
+      session: target,
+    });
   };
 
-  /* Status update for demo sessions */
+  /* Status change: Draft -> Active (open), Active or Scheduled -> Completed (closed), Completed -> Active */
 
-  const changeStatus = (session) => {
-    if (!session.isDemo) {
-      toast("Database status changes require the backend update API.");
-      return;
+  const changeStatus = async (session) => {
+    const next =
+      session.status === "Draft" ? "open"
+        : session.status === "Completed" ? "open" : "closed";
+
+    try {
+      await updateExam(session._id, { status: next });
+      toast(`${session.name}: status changed to ${next === "closed" ? "Completed" : "Active"}.`);
+      examsResource.reload();
+    } catch (err) {
+      toast(describe(err));
     }
-
-    const currentIndex = STATUS_OPTIONS.indexOf(session.status);
-
-    const nextStatus =
-      STATUS_OPTIONS[(currentIndex + 1) % STATUS_OPTIONS.length];
-
-    setDemoSessions((current) =>
-      current.map((item) =>
-        item._id === session._id
-          ? { ...item, status: nextStatus }
-          : item
-      )
-    );
-
-    toast(`${session.name}: status changed to ${nextStatus}.`);
   };
 
   /* CSV Export */
@@ -1340,11 +1187,7 @@ export default function ExamSessions() {
                           <button
                             type="button"
                             onClick={() => changeStatus(session)}
-                            title={
-                              session.isDemo
-                                ? "Click to change demo status"
-                                : "Database status"
-                            }
+                            title="Click to change the status"
                             className="rounded-full transition hover:scale-105"
                           >
                             <StatusBadge status={session.status} />
@@ -1541,55 +1384,24 @@ export default function ExamSessions() {
       {/* Add / Edit session */}
 
       {(modal?.type === "add" || modal?.type === "edit") && (
-        modal.type === "edit" && !modal.session.isDemo ? (
-          <Modal
-            title="Database Session"
-            onClose={() => setModal(null)}
-          >
-            <div className="px-6 pb-6 pt-4">
-              <div className="flex gap-3">
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-600">
-                  <AlertTriangle size={22} />
-                </span>
-
-                <p className="text-sm leading-relaxed text-slate-600">
-                  This examination session comes from the database.
-                  An update API has not been confirmed in the available
-                  frontend service functions, so it cannot safely be
-                  edited from this page yet.
-                </p>
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setModal(null)}
-                  className="rounded-xl bg-[#14234b] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110"
-                >
-                  Got it
-                </button>
-              </div>
-            </div>
-          </Modal>
-        ) : (
           <SessionForm
             initial={
               modal.type === "edit"
                 ? {
                     name: modal.session.name || "",
-                    programName: modal.session.programName || "",
-                    semester: modal.session.semester || "V",
-                    term: modal.session.term || "",
+                    programId: modal.session.programId || "",
+                    semester: String(modal.session.semesterNumber || 1),
+                    academicYearId: modal.session.academicYearId || "",
                     startDate: modal.session.startDate || "",
                     endDate: modal.session.endDate || "",
                     status: modal.session.status || "Draft",
                   }
                 : null
             }
+            reference={reference}
             onSave={saveSession}
             onClose={() => setModal(null)}
           />
-        )
       )}
 
       {/* View session details */}

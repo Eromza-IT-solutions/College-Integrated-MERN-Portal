@@ -81,6 +81,11 @@ const AdminPanels = lazy(
 );
 const Reports = lazy(() => import("../features/admin/super/ReportsAnalytics"));
 const AuditLogs = lazy(() => import("../features/admin/super/AuditLogs"));
+const SuperRefunds = lazy(() => import("../features/admin/super/Refunds"));
+const SuperTimetable = lazy(() => import("../features/admin/super/Timetable"));
+const AdmissionRefunds = lazy(() => import("../features/admin/admission/Refunds"));
+const ExamRefunds = lazy(() => import("../features/admin/examination/Refunds"));
+const HodTimetable = lazy(() => import("../features/hod/ManageTimetable"));
 const AcademicData = lazy(() => import("../features/admin/super/AcademicData"));
 const Settings = lazy(() => import("../features/admin/super/SystemSettings"));
 const WebsiteAdminDashboard = lazy(
@@ -249,6 +254,8 @@ const ROLE_PAGES = {
     reports: Reports,
     "audit-logs": AuditLogs,
     "academic-data": AcademicData,
+    refunds: SuperRefunds,
+    timetable: SuperTimetable,
     settings: Settings,
   },
   websiteAdmin: {
@@ -263,6 +270,7 @@ const ROLE_PAGES = {
     documents: VerifyDocuments,
     status: AdmissionStatus,
     fees: FeesAndPayments,
+    refunds: AdmissionRefunds,
   },
   examAdmin: {
     sessions: ExamSessions,
@@ -270,6 +278,7 @@ const ROLE_PAGES = {
     timetables: ExamTimetables,
     marks: MarksAndResults,
     "hall-tickets": HallTickets,
+    refunds: ExamRefunds,
   },
   hod: {
     department: DepartmentInfo,
@@ -278,6 +287,7 @@ const ROLE_PAGES = {
     attendance: DepartmentAttendance,
     reports: DepartmentReports,
     marks: HodMarksApproval,
+    timetable: HodTimetable,
   },
  teacher: {
   classes: TeacherClasses,

@@ -11,6 +11,12 @@ import {
   Layers,
   Inbox,
 } from "lucide-react";
+import {
+  CATEGORIES, LEVELS,
+  listDepartments, createDepartment, updateDepartment, deactivateDepartment,
+  listPrograms, createProgram, updateProgram, deactivateProgram,
+  listSubjects, createSubject, updateSubject, deactivateSubject,
+} from "../../../services/catalogService";
 
 /* ----------------------------- config & seed ----------------------------- */
 
@@ -22,26 +28,26 @@ const TABS = [
   { key: "subjects", label: "Subjects", singular: "subject", icon: Layers, parent: { key: "courses", label: "Course" } },
 ];
 
-const SEED = {
-  departments: [
-    { id: 1, code: "ART", name: "Arts", active: true },
-    { id: 2, code: "BBM", name: "Bcom BM", active: false },
-    { id: 3, code: "COM", name: "Commerce", active: true },
-    { id: 4, code: "CSC", name: "Computer Science", active: true },
-    { id: 5, code: "SCI", name: "Science", active: true },
-  ],
-  courses: [
-    { id: 1, code: "BA", name: "Bachelor of Arts", parent: "ART", active: true },
-    { id: 2, code: "BCOM", name: "Bachelor of Commerce", parent: "COM", active: true },
-    { id: 3, code: "BSC-CS", name: "B.Sc Computer Science", parent: "CSC", active: true },
-    { id: 4, code: "BSC", name: "B.Sc Science", parent: "SCI", active: false },
-  ],
-  subjects: [
-    { id: 1, code: "ENG", name: "English Literature", parent: "BA", active: true },
-    { id: 2, code: "ACC", name: "Financial Accounting", parent: "BCOM", active: true },
-    { id: 3, code: "DSA", name: "Data Structures", parent: "BSC-CS", active: true },
-    { id: 4, code: "PHY", name: "Physics", parent: "BSC", active: true },
-  ],
+// Rows on this page: { id, code, name, parent (the parent's code), active, ...extra fields kept for editing }.
+// They are built from the server records below.
+const SEMESTERS = Array.from({ length: 12 }, (_, i) => i + 1);
+const humanize = (v) => String(v).replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+
+const mapDepartment = (d) => ({ id: d._id, code: d.code, name: d.name, active: d.isActive });
+const mapCourse = (p, deptById) => ({
+  id: p._id, code: p.code, name: p.name, active: p.isActive,
+  parent: deptById[p.departmentId]?.code ?? "", level: p.level, faculty: p.faculty, durationYears: p.durationYears,
+});
+const mapSubject = (s, courseById) => ({
+  id: s._id, code: s.code, name: s.name, active: s.isActive,
+  parent: courseById[s.programId]?.code ?? "", semester: s.semester, category: s.category, credits: s.credits,
+});
+const byId = (rows) => Object.fromEntries(rows.map((r) => [r._id, r]));
+
+// The server sends field-by-field errors for a bad form; show them instead of just "Invalid request".
+const describe = (err) => {
+  const list = err.cause?.response?.data?.error?.errors;
+  return list?.length ? list.map((e) => `${e.field}: ${e.message}`).join(" | ") : err.message;
 };
 
 /* -------------------------------- helpers -------------------------------- */
@@ -80,8 +86,13 @@ function EditorModal({ tab, parentOptions, item, existingCodes, onSave, onClose 
     code: item?.code ?? "",
     name: item?.name ?? "",
     parent: item?.parent ?? parentOptions[0]?.code ?? "",
+    level: item?.level ?? "",
+    semester: item?.semester ? String(item.semester) : "1",
+    category: item?.category ?? "major",
   });
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [serverError, setServerError] = useState("");
   const codeRef = useRef(null);
 
   useEffect(() => {
@@ -91,7 +102,7 @@ function EditorModal({ tab, parentOptions, item, existingCodes, onSave, onClose 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     const code = form.code.trim().toUpperCase();
     const name = form.name.trim();
@@ -100,9 +111,21 @@ function EditorModal({ tab, parentOptions, item, existingCodes, onSave, onClose 
     else if (existingCodes.includes(code)) next.code = "This code is already in use";
     if (!name) next.name = "Enter a name";
     if (tab.parent && !form.parent) next.parent = `Choose a ${tab.parent.label.toLowerCase()}`;
+    if (tab.key === "courses" && !form.level) next.level = "Choose a level";
     setErrors(next);
     if (Object.keys(next).length) return;
-    onSave({ code, name, parent: tab.parent ? form.parent : undefined });
+    setSaving(true);
+    setServerError("");
+    try {
+      await onSave({
+        code, name, parent: tab.parent ? form.parent : undefined,
+        level: form.level, semester: Number(form.semester), category: form.category,
+      });
+    } catch (err) {
+      setServerError(describe(err)); // the page keeps the form open so nothing typed is lost
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputCls = (err) =>
@@ -174,6 +197,36 @@ function EditorModal({ tab, parentOptions, item, existingCodes, onSave, onClose 
               {errors.parent && <p className="mt-1 text-xs text-rose-600">{errors.parent}</p>}
             </div>
           )}
+
+          {tab.key === "courses" && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Level</label>
+              <select value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} className={inputCls(errors.level)}>
+                <option value="">Select a level...</option>
+                {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+              {errors.level && <p className="mt-1 text-xs text-rose-600">{errors.level}</p>}
+            </div>
+          )}
+
+          {tab.key === "subjects" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Semester</label>
+                <select value={form.semester} onChange={(e) => setForm({ ...form, semester: e.target.value })} className={inputCls(false)}>
+                  {SEMESTERS.map((n) => <option key={n} value={n}>Semester {n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Category</label>
+                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls(false)}>
+                  {CATEGORIES.map((c) => <option key={c} value={c}>{humanize(c)}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {serverError && <p role="alert" className="text-xs text-rose-600">{serverError}</p>}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
@@ -182,10 +235,11 @@ function EditorModal({ tab, parentOptions, item, existingCodes, onSave, onClose 
           </button>
           <button
             type="submit"
+            disabled={saving}
             style={{ backgroundColor: ACCENT }}
             className="rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-[.98]"
           >
-            {isEdit ? "Save changes" : `Add ${tab.singular}`}
+            {saving ? "Saving..." : isEdit ? "Save changes" : `Add ${tab.singular}`}
           </button>
         </div>
       </form>
@@ -196,11 +250,16 @@ function EditorModal({ tab, parentOptions, item, existingCodes, onSave, onClose 
 /* ---------------------------------- page --------------------------------- */
 
 export default function AcademicData() {
-  const [data, setData] = useState(SEED);
+  const [data, setData] = useState({ departments: [], courses: [], subjects: [] });
+  const [totals, setTotals] = useState({ subjects: 0 }); // the subjects list is long, so only a page of it is loaded
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const dataRef = useRef(data);
+  dataRef.current = data;
   const [activeKey, setActiveKey] = useState("departments");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // { item? }
   const [toast, setToast] = useState(null);
 
@@ -215,12 +274,51 @@ export default function AcademicData() {
     if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
   }, [activeKey]);
 
-  /* brief skeleton on tab switch — replace with your real API call */
+  /* load departments, courses and the first page of subjects from the server */
   useEffect(() => {
+    let alive = true;
     setLoading(true);
-    const t = setTimeout(() => setLoading(false), 350);
-    return () => clearTimeout(t);
-  }, [activeKey]);
+    setLoadError("");
+    (async () => {
+      try {
+        const [d, p, s] = await Promise.all([listDepartments(), listPrograms(), listSubjects()]);
+        if (!alive) return;
+        const deptById = byId(d.rows);
+        const courseRows = p.rows.map((x) => mapCourse(x, deptById));
+        const courseById = byId(p.rows);
+        setData({
+          departments: d.rows.map(mapDepartment),
+          courses: courseRows,
+          subjects: s.rows.map((x) => mapSubject(x, courseById)),
+        });
+        setTotals({ subjects: s.meta?.total ?? s.rows.length });
+      } catch (err) {
+        if (alive) setLoadError(err.message);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [reloadKey]);
+
+  /* subjects are searched on the server, because there are far too many to load at once */
+  useEffect(() => {
+    if (activeKey !== "subjects") return undefined;
+    let alive = true;
+    const t = setTimeout(async () => {
+      try {
+        const q = query.trim();
+        const [p, s] = await Promise.all([listPrograms(), listSubjects(q ? { search: q } : {})]);
+        if (!alive) return;
+        const courseById = byId(p.rows);
+        setData((d) => ({ ...d, subjects: s.rows.map((x) => mapSubject(x, courseById)) }));
+        setTotals({ subjects: s.meta?.total ?? s.rows.length });
+      } catch (err) {
+        if (alive) setToast(describe(err));
+      }
+    }, 300);
+    return () => { alive = false; clearTimeout(t); };
+  }, [activeKey, query]);
 
   /* auto-dismiss toast */
   useEffect(() => {
@@ -264,24 +362,39 @@ export default function AcademicData() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, query, statusFilter, tab]);
 
-  const toggleStatus = (row) => {
-    setData((d) => ({
-      ...d,
-      [activeKey]: d[activeKey].map((r) => (r.id === row.id ? { ...r, active: !r.active } : r)),
-    }));
-    setToast(`${row.name} ${row.active ? "deactivated" : "activated"}`);
+  const apiFor = {
+    departments: { create: createDepartment, update: updateDepartment, deactivate: deactivateDepartment },
+    courses: { create: createProgram, update: updateProgram, deactivate: deactivateProgram },
+    subjects: { create: createSubject, update: updateSubject, deactivate: deactivateSubject },
+  }[activeKey];
+  const idOfParent = (code) => {
+    const list = tab.parent.key === "departments" ? dataRef.current.departments : dataRef.current.courses;
+    return list.find((r) => r.code === code)?.id;
   };
 
-  const save = (values) => {
+  // Deactivate = DELETE (the record is kept, only switched off); Activate = PATCH isActive.
+  const toggleStatus = async (row) => {
+    try {
+      if (row.active) await apiFor.deactivate(row.id);
+      else await apiFor.update(row.id, { isActive: true });
+      setToast(`${row.name} ${row.active ? "deactivated" : "activated"}`);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setToast(describe(err)); // for example: a department that still has active courses cannot be switched off
+    }
+  };
+
+  // Throws on a server error; the form shows it and stays open.
+  const save = async (values) => {
     const editing = modal?.item;
-    setData((d) => ({
-      ...d,
-      [activeKey]: editing
-        ? d[activeKey].map((r) => (r.id === editing.id ? { ...r, ...values } : r))
-        : [...d[activeKey], { id: Date.now(), active: true, ...values }],
-    }));
+    const body = { code: values.code, name: values.name };
+    if (activeKey === "courses") Object.assign(body, { departmentId: idOfParent(values.parent), level: values.level });
+    if (activeKey === "subjects") Object.assign(body, { programId: idOfParent(values.parent), semester: values.semester, category: values.category });
+    if (editing) await apiFor.update(editing.id, body);
+    else await apiFor.create(body);
     setToast(editing ? `${values.name} updated` : `${values.name} added`);
     setModal(null);
+    setReloadKey((k) => k + 1);
   };
 
   const cols = tab.parent ? "110px 1.6fr 1.3fr 120px 220px" : "140px 1.6fr 140px 220px";
@@ -334,10 +447,13 @@ export default function AcademicData() {
           <div>
             <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900">{tab.label}</h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              {visible.length === rows.length
-                ? `${rows.length} in total`
-                : `Showing ${visible.length} of ${rows.length}`}
+              {activeKey === "subjects" && totals.subjects > rows.length
+                ? `Showing the first ${rows.length} of ${totals.subjects} subjects. Type in the search box to find any other.`
+                : visible.length === rows.length
+                  ? `${rows.length} in total`
+                  : `Showing ${visible.length} of ${rows.length}`}
             </p>
+            {loadError && <p role="alert" className="mt-1 text-xs text-rose-600">{loadError}</p>}
           </div>
           <button
             onClick={() => setModal({})}

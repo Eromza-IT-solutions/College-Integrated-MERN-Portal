@@ -15,6 +15,7 @@ function AdmissionAdminLayout() {
     { label: "Verify Documents", to: "/admission-admin/documents" },
     { label: "Admission Status", to: "/admission-admin/status" },
     { label: "Fees & Payments", to: "/admission-admin/fees" },
+    { label: "Refunds", to: "/admission-admin/refunds" },
   ];
 
   return (

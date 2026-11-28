@@ -13,6 +13,8 @@ const ACTIVE_ITEM_BY_PATH = {
   "/reports": "reports",
   "/audit-logs": "audit",
   "/academic-data": "academic",
+  "/refunds": "refunds",
+  "/timetable": "timetable",
 };
 
 export default function SuperAdminLayout() {

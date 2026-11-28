@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  RotateCcw,
 } from "lucide-react";
 
 import collegeLogo from "../../assets/images/image.png";
@@ -30,6 +31,7 @@ export default function ASidebar({
     { label: "Verify Documents", to: "/admission-admin/documents", icon: FileCheck },
     { label: "Admission Status", to: "/admission-admin/status", icon: ClipboardCheck },
     { label: "Fees & Payments", to: "/admission-admin/fees", icon: Wallet },
+    { label: "Refunds", to: "/admission-admin/refunds", icon: RotateCcw },
   ];
 
   const handleLogout = async () => {

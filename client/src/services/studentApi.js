@@ -19,6 +19,12 @@ export async function fetchAttendanceSummary() {
   return dataOf(response);
 }
 
+// Lecture-by-lecture attendance of the signed-in student (for the attendance calendar).
+export async function fetchAttendanceRecords(params = {}) {
+  const response = await http.get("/attendance/my-records", { params });
+  return dataOf(response);
+}
+
 export async function fetchTimetable({ programId, semester, division } = {}) {
   const params = { limit: 100 };
   if (programId) params.programId = programId;

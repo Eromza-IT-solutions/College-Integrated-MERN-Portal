@@ -20,6 +20,7 @@ import {
   Inbox,
   CalendarRange,
 } from "lucide-react";
+import { fetchReport } from "../../../services/reportsService";
 
 /* ----------------------------- helpers & seed ---------------------------- */
 
@@ -31,7 +32,6 @@ const daysAgo = (n) => {
   return x.toISOString().slice(0, 10);
 };
 
-const fmtDate = (iso) => (iso ? iso.split("-").reverse().join("-") : "–");
 const inr = (n) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
@@ -49,50 +49,15 @@ function Badge({ tone, children }) {
   );
 }
 
-const SEED = {
-  departments: [
-    { department: "Arts", code: "ART", programs: 17, students: 0, teachers: 0, attendance: 0, present: null, approved: 0, awaiting: 0 },
-    { department: "Bcom BM", code: "BBM", programs: 0, students: 0, teachers: 0, attendance: 0, present: null, approved: 0, awaiting: 0 },
-    { department: "Commerce", code: "COM", programs: 11, students: 1, teachers: 2, attendance: 1, present: 100, approved: 0, awaiting: 0 },
-    { department: "Computer Science", code: "CSC", programs: 19, students: 0, teachers: 0, attendance: 0, present: null, approved: 0, awaiting: 0 },
-    { department: "Science", code: "SCI", programs: 13, students: 0, teachers: 1, attendance: 0, present: null, approved: 0, awaiting: 0 },
-  ],
-  admissions: [
-    { applicant: "Ayesha Khan", course: "B.Sc Computer Science", date: daysAgo(2), status: "Pending" },
-    { applicant: "Rahul Verma", course: "Bachelor of Commerce", date: daysAgo(5), status: "Approved" },
-    { applicant: "Sana Sheikh", course: "Bachelor of Arts", date: daysAgo(9), status: "Approved" },
-    { applicant: "Imran Patel", course: "B.Sc Science", date: daysAgo(14), status: "Rejected" },
-    { applicant: "Neha Joshi", course: "Bachelor of Commerce", date: daysAgo(21), status: "Approved" },
-    { applicant: "Faizan Ali", course: "B.Sc Computer Science", date: daysAgo(33), status: "Pending" },
-    { applicant: "Priya Nair", course: "Bachelor of Arts", date: daysAgo(48), status: "Approved" },
-    { applicant: "Zoya Mirza", course: "B.Sc Science", date: daysAgo(75), status: "Approved" },
-  ],
-  exams: [
-    { exam: "Data Structures – Mid Term", course: "B.Sc Computer Science", date: daysAgo(3), students: 42, avg: 68, status: "Completed" },
-    { exam: "Financial Accounting – Unit 2", course: "Bachelor of Commerce", date: daysAgo(10), students: 55, avg: 72, status: "Completed" },
-    { exam: "English Literature – Unit 1", course: "Bachelor of Arts", date: daysAgo(18), students: 38, avg: 64, status: "Completed" },
-    { exam: "Physics – Practical", course: "B.Sc Science", date: daysAgo(-6), students: 30, avg: null, status: "Scheduled" },
-    { exam: "Business Law – Mid Term", course: "Bachelor of Commerce", date: daysAgo(-12), students: 55, avg: null, status: "Scheduled" },
-    { exam: "Algorithms – Final", course: "B.Sc Computer Science", date: daysAgo(60), students: 40, avg: 59, status: "Completed" },
-  ],
-  payments: [
-    { receipt: "RC-1042", student: "Rahul Verma", type: "Tuition fee", date: daysAgo(1), amount: 24000, status: "Paid" },
-    { receipt: "RC-1041", student: "Sana Sheikh", type: "Tuition fee", date: daysAgo(4), amount: 18000, status: "Paid" },
-    { receipt: "RC-1040", student: "Neha Joshi", type: "Exam fee", date: daysAgo(8), amount: 1500, status: "Paid" },
-    { receipt: "RC-1039", student: "Ayesha Khan", type: "Tuition fee", date: daysAgo(12), amount: 26000, status: "Pending" },
-    { receipt: "RC-1038", student: "Priya Nair", type: "Library fee", date: daysAgo(20), amount: 800, status: "Paid" },
-    { receipt: "RC-1037", student: "Faizan Ali", type: "Exam fee", date: daysAgo(35), amount: 1500, status: "Pending" },
-    { receipt: "RC-1036", student: "Zoya Mirza", type: "Tuition fee", date: daysAgo(70), amount: 20000, status: "Paid" },
-  ],
-};
-
-const statusTone = {
-  Approved: "green", Completed: "green", Paid: "green",
-  Pending: "amber", Scheduled: "blue", Rejected: "rose",
-};
-const statusCell = (r) => <Badge tone={statusTone[r.status] ?? "slate"}>{r.status}</Badge>;
-
-/* --------------------------- report definitions -------------------------- */
+// The server answers GET /reports/:type with { title, summary, rows }. The admission, exam and payment
+// reports are totals (per course, per exam, per fee type), so the columns below follow those rows.
+const REPORT_TYPE = { departments: "department", admissions: "admission", exams: "exam", payments: "payment" };
+const ADMISSION_STATUSES = [
+  ["submitted", "Submitted"], ["approved", "Approved"], ["feePaid", "Fee paid"], ["admitted", "Admitted"], ["rejected", "Rejected"],
+];
+const sum = (rows, key) => rows.reduce((a, r) => a + (Number(r[key]) || 0), 0);
+const dash = <span className="text-slate-400">–</span>;
+const percentCell = (key) => (r) => (r[key] == null ? dash : `${r[key]}%`);
 
 const REPORTS = {
   departments: {
@@ -104,88 +69,87 @@ const REPORTS = {
       { key: "department", label: "Department", strong: true },
       { key: "code", label: "Code" },
       { key: "programs", label: "Programs", num: true },
-      { key: "students", label: "Active students", num: true },
+      { key: "activeStudents", label: "Active students", num: true },
       { key: "teachers", label: "Teachers", num: true },
-      { key: "attendance", label: "Attendance entries", num: true },
+      { key: "attendanceEntries", label: "Attendance entries", num: true },
       {
-        key: "present", label: "Present percent", num: true,
+        key: "presentPercent", label: "Present percent", num: true,
         render: (r) =>
-          r.present == null ? (
-            <span className="text-slate-400">–</span>
-          ) : (
+          r.presentPercent == null ? dash : (
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${r.present}%` }} />
+                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${r.presentPercent}%` }} />
               </div>
-              <span>{r.present}%</span>
+              <span>{r.presentPercent}%</span>
             </div>
           ),
       },
-      { key: "approved", label: "Marks approved", num: true },
-      { key: "awaiting", label: "Marks awaiting approval", num: true },
+      { key: "marksApproved", label: "Marks approved", num: true },
+      { key: "marksAwaitingApproval", label: "Marks awaiting approval", num: true },
     ],
     stats: (rows) => [
       { label: "Departments", value: rows.length, icon: Building2 },
-      { label: "Active students", value: rows.reduce((s, r) => s + r.students, 0), icon: GraduationCap },
-      { label: "Teachers", value: rows.reduce((s, r) => s + r.teachers, 0), icon: Users },
+      { label: "Active students", value: sum(rows, "activeStudents"), icon: GraduationCap },
+      { label: "Teachers", value: sum(rows, "teachers"), icon: Users },
     ],
   },
   admissions: {
     label: "Admissions",
     title: "Admissions report",
-    subtitle: "Applications received in the selected period",
-    dateKey: "date",
+    subtitle: "Applications received in the selected period, course by course",
+    dateKey: "createdAt",
     columns: [
-      { key: "applicant", label: "Applicant", strong: true },
-      { key: "course", label: "Course" },
-      { key: "date", label: "Applied on", render: (r) => fmtDate(r.date), csv: (r) => fmtDate(r.date) },
-      { key: "status", label: "Status", render: statusCell },
+      { key: "program", label: "Course", strong: true },
+      { key: "code", label: "Code" },
+      ...ADMISSION_STATUSES.map(([key, label]) => ({ key, label, num: true, render: (r) => r[key] ?? 0, csv: (r) => r[key] ?? 0 })),
+      { key: "total", label: "Total", num: true },
     ],
     stats: (rows) => [
-      { label: "Applications", value: rows.length, icon: ClipboardList },
-      { label: "Approved", value: rows.filter((r) => r.status === "Approved").length, icon: CheckCircle2 },
-      { label: "Pending", value: rows.filter((r) => r.status === "Pending").length, icon: Clock },
+      { label: "Applications", value: sum(rows, "total"), icon: ClipboardList },
+      { label: "Approved", value: sum(rows, "approved") + sum(rows, "admitted"), icon: CheckCircle2 },
+      { label: "Waiting for review", value: sum(rows, "submitted"), icon: Clock },
     ],
   },
   exams: {
     label: "Exams",
     title: "Exam report",
-    subtitle: "Scheduled and completed exams in the selected period",
-    dateKey: "date",
+    subtitle: "Exam forms and results of every exam",
+    dateKey: null,
     columns: [
       { key: "exam", label: "Exam", strong: true },
-      { key: "course", label: "Course" },
-      { key: "date", label: "Date", render: (r) => fmtDate(r.date), csv: (r) => fmtDate(r.date) },
-      { key: "students", label: "Students", num: true },
-      { key: "avg", label: "Average score", num: true, render: (r) => (r.avg == null ? <span className="text-slate-400">–</span> : `${r.avg}%`) },
-      { key: "status", label: "Status", render: statusCell },
+      { key: "program", label: "Course" },
+      { key: "semester", label: "Sem", num: true },
+      { key: "formsApproved", label: "Forms approved", num: true },
+      { key: "resultsPublished", label: "Results published", num: true },
+      { key: "passPercent", label: "Pass percent", num: true, render: percentCell("passPercent") },
+      { key: "averagePercentage", label: "Average score", num: true, render: percentCell("averagePercentage") },
     ],
     stats: (rows) => {
-      const done = rows.filter((r) => r.avg != null);
+      const scored = rows.filter((r) => r.averagePercentage != null);
       return [
         { label: "Exams", value: rows.length, icon: BookOpen },
-        { label: "Completed", value: rows.filter((r) => r.status === "Completed").length, icon: CheckCircle2 },
-        { label: "Average score", value: done.length ? Math.round(done.reduce((s, r) => s + r.avg, 0) / done.length) : 0, icon: Percent, fmt: (n) => `${n}%` },
+        { label: "Results published", value: sum(rows, "resultsPublished"), icon: CheckCircle2 },
+        { label: "Average score", value: scored.length ? Math.round(sum(scored, "averagePercentage") / scored.length) : 0, icon: Percent, fmt: (n) => `${n}%` },
       ];
     },
   },
   payments: {
     label: "Payments",
     title: "Payment report",
-    subtitle: "Fees collected and outstanding in the selected period",
-    dateKey: "date",
+    subtitle: "Fees collected, pending and refunded in the selected period",
+    dateKey: "createdAt",
     columns: [
-      { key: "receipt", label: "Receipt", strong: true },
-      { key: "student", label: "Student" },
-      { key: "type", label: "Type" },
-      { key: "date", label: "Date", render: (r) => fmtDate(r.date), csv: (r) => fmtDate(r.date) },
-      { key: "amount", label: "Amount", num: true, render: (r) => inr(r.amount) },
-      { key: "status", label: "Status", render: statusCell },
+      { key: "purpose", label: "Fee type", strong: true, render: (r) => <Badge tone="slate">{r.purpose === "exam" ? "Exam fee" : "Admission fee"}</Badge>, csv: (r) => r.purpose },
+      { key: "paidCount", label: "Paid", num: true },
+      { key: "collectedRupees", label: "Collected", num: true, render: (r) => inr(r.collectedRupees), csv: (r) => r.collectedRupees },
+      { key: "pendingCount", label: "Pending", num: true },
+      { key: "refundedRupees", label: "Refunded", num: true, render: (r) => inr(r.refundedRupees), csv: (r) => r.refundedRupees },
+      { key: "netRupees", label: "Net", num: true, render: (r) => inr(r.netRupees), csv: (r) => r.netRupees },
     ],
     stats: (rows) => [
-      { label: "Collected", value: rows.filter((r) => r.status === "Paid").reduce((s, r) => s + r.amount, 0), icon: Wallet, fmt: inr },
-      { label: "Pending", value: rows.filter((r) => r.status === "Pending").reduce((s, r) => s + r.amount, 0), icon: Clock, fmt: inr },
-      { label: "Transactions", value: rows.length, icon: Receipt },
+      { label: "Collected", value: sum(rows, "collectedRupees"), icon: Wallet, fmt: inr },
+      { label: "Refunded", value: sum(rows, "refundedRupees"), icon: Receipt, fmt: inr },
+      { label: "Pending payments", value: sum(rows, "pendingCount"), icon: Clock },
     ],
   },
 };
@@ -252,18 +216,31 @@ export default function ReportsAnalytics() {
   const [to, setTo] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState({ key: null, dir: "asc" });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState({ tab: null, rows: [] }); // rows belong to the tab they were loaded for
+  const [error, setError] = useState("");
 
   const report = REPORTS[tab];
   const usesDates = Boolean(report.dateKey);
   const badRange = from && to && from > to;
 
-  /* brief skeleton on tab switch — replace with your real API call */
+  /* load the report from the server; the date range is applied by the server */
   useEffect(() => {
+    if (badRange) return undefined;
+    let alive = true;
     setLoading(true);
-    const t = setTimeout(() => setLoading(false), 400);
-    return () => clearTimeout(t);
-  }, [tab]);
+    setError("");
+    const params = usesDates ? { ...(from ? { from } : {}), ...(to ? { to } : {}) } : {};
+    fetchReport(REPORT_TYPE[tab], params)
+      .then((data) => { if (alive) setLoaded({ tab, rows: data.rows ?? [] }); })
+      .catch((err) => {
+        if (!alive) return;
+        setLoaded({ tab, rows: [] });
+        setError(err.cause?.response?.data?.error?.message || err.message);
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [tab, from, to, usesDates, badRange]);
 
   const switchTab = (k) => {
     setTab(k);
@@ -276,15 +253,8 @@ export default function ReportsAnalytics() {
     setTo(days ? daysAgo(0) : "");
   };
 
-  /* rows inside the date range (drive the stat cards) */
-  const ranged = useMemo(() => {
-    const rows = SEED[tab];
-    if (!report.dateKey) return rows;
-    return rows.filter((r) => {
-      const d = r[report.dateKey];
-      return (!from || d >= from) && (!to || d <= to);
-    });
-  }, [tab, from, to, report.dateKey]);
+  /* rows of this report (drive the stat cards) */
+  const ranged = useMemo(() => (loaded.tab === tab ? loaded.rows : []), [loaded, tab]);
 
   /* rows after search + sort (drive the table) */
   const visible = useMemo(() => {
@@ -402,6 +372,7 @@ export default function ReportsAnalytics() {
               {report.subtitle}
               {!loading && <span className="text-slate-400"> · {visible.length} {visible.length === 1 ? "row" : "rows"}</span>}
             </p>
+            {error && <p role="alert" className="mt-1 text-xs text-rose-600">{error}</p>}
           </div>
 
           <div className="relative w-full sm:w-64 print:hidden">
