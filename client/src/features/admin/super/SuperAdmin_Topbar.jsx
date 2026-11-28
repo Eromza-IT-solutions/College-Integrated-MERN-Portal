@@ -12,6 +12,8 @@ const PAGE_TITLES = {
   "/reports": "Reports & Analytics",
   "/audit-logs": "Audit Logs",
   "/academic-data": "Academic Data",
+  "/refunds": "Refunds",
+  "/timetable": "Manage Timetable",
 };
 
 export default function SuperAdmin_Topbar({

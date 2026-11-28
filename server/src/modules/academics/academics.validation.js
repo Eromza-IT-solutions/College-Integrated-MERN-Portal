@@ -71,6 +71,13 @@ const registerQuery = z.object({
   ...pageFields,
 });
 
+// A student's own lecture-by-lecture attendance (for the attendance calendar). Dates are YYYY-MM-DD.
+const myRecordsQuery = z.object({
+  from: dateText.optional(),
+  to: dateText.optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(400),
+}).strict();
+
 const summaryQuery = z.object({
   studentId: objectId('studentId').optional(),
   subjectId: objectId('subjectId').optional(),
@@ -143,7 +150,7 @@ function parse(schema, input) {
 
 export {
   slotBody, slotUpdateBody, slotQuery,
-  rosterQuery, markBody, registerQuery, summaryQuery,
+  rosterQuery, markBody, registerQuery, summaryQuery, myRecordsQuery,
   marksEnterBody, marksSubmitBody, marksDecisionBody, marksQuery,
   resultOpenBody, resultMarksBody, resultPublishExamBody, resultUnpublishBody, resultQuery,
   idParam, parse,

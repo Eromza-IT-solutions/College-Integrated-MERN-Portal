@@ -2,7 +2,8 @@ import express from 'express';
 import asyncHandler from '../../utils/asyncHandler.js';
 import { requirePermission } from '../../middleware/requirePermission.js';
 import { slotBody, slotUpdateBody, slotQuery, idParam, parse } from './academics.validation.js';
-import { createSlot, updateSlot, listSlots } from './timetable.service.js';
+import { createSlot, updateSlot, listSlots, timetableReference } from './timetable.service.js';
+import { z } from 'zod';
 import { ok, paged } from './academics.helpers.js';
 
 const router = express.Router();
@@ -11,6 +12,15 @@ const router = express.Router();
 router.get('/', requirePermission('timetable', 'view'), asyncHandler(async (req, res) => {
   const result = await listSlots(req, parse(slotQuery, req.query));
   ok(req, res, result.rows, 200, paged(result));
+}));
+
+// GET /api/v1/timetable/reference?programId=&semester=   dropdown data for the timetable form (HOD: own department only)
+const referenceQuery = z.object({
+  programId: z.string().regex(/^[a-f\d]{24}$/i, 'programId must be a valid id').optional(),
+  semester: z.coerce.number().int().min(1).max(12).optional(),
+}).strict();
+router.get('/reference', requirePermission('timetable', 'create'), asyncHandler(async (req, res) => {
+  ok(req, res, await timetableReference(req, parse(referenceQuery, req.query)));
 }));
 
 // POST /api/v1/timetable   { academicYearId, programId, semester, division, subjectId, teacherUserId, dayOfWeek, period, startTime?, endTime?, room? }

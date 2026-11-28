@@ -1,4 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import UiCard from "../../components/ui/Card";
+import UiErrorState from "../../components/ui/ErrorState";
+import UiLoader from "../../components/ui/Loader";
+import { useApiData } from "../../hooks/useApiData";
+import { fetchMemberNotice, fetchMemberNotices } from "../../services/websiteApi";
 import {
   ArrowRight,
   Bookmark,
@@ -241,7 +246,7 @@ function Highlight({ text, q }) {
 }
 
 /* ------------------------------ COMPONENT ------------------------------- */
-export default function StudentNotices({
+function StudentNoticesView({
   notices = sampleNotices,
   onRead = () => {},
   onSave = () => {},
@@ -851,5 +856,80 @@ function NoticeRow({ n, q, today, onOpen, onSave }) {
         {n.saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}
       </button>
     </li>
+  );
+}
+
+/* ----------------------------------------------------------------------------
+   Server connection. The page above shows the notices it is given; this part loads the
+   published notices (GET /website/members/notices) and keeps read / saved in this browser.
+---------------------------------------------------------------------------- */
+const API_READ_KEY = "eromza.readNotices";
+const API_SAVED_KEY = "eromza.savedNotices";
+
+const apiLoadSet = (key) => {
+  try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); } catch { return new Set(); }
+};
+const apiSaveSet = (key, set) => {
+  try { localStorage.setItem(key, JSON.stringify([...set])); } catch { /* storage blocked: the page still works */ }
+};
+
+async function apiLoadNotices() {
+  const paragraphs = (text) => String(text || "").split(/\n+/).map((t) => t.trim()).filter(Boolean);
+  const list = await fetchMemberNotices({ limit: 30 });
+  const read = apiLoadSet(API_READ_KEY);
+  const saved = apiLoadSet(API_SAVED_KEY);
+  // The list carries only the summary, so the full text is fetched for each notice.
+  const details = await Promise.all((list?.items ?? []).map((n) => fetchMemberNotice(n.slug).catch(() => null)));
+  return (list?.items ?? []).map((n, i) => {
+    const full = details[i] || n;
+    const body = paragraphs(full.body);
+    return {
+      id: n.id,
+      slug: n.slug,
+      title: n.title,
+      category: n.category || "General",
+      date: new Date(n.publishedAt || n.createdAt || Date.now()),
+      postedBy: n.meta?.postedBy || n.meta?.audience || "College office",
+      important: n.meta?.priority === "High" || Boolean(n.isPinned),
+      deadline: n.meta?.deadline ? new Date(n.meta.deadline) : undefined,
+      body: body.length ? body : paragraphs(n.summary),
+      attachments: (full.attachments ?? []).map((a) => ({ name: a.name, size: a.size || "", url: a.url })),
+      read: read.has(n.id),
+      saved: saved.has(n.id),
+    };
+  });
+}
+
+export default function StudentNotices() {
+  const { data, loading, error, reload } = useApiData(apiLoadNotices);
+  if (loading || error) {
+    return (
+      <div className="p-6">
+        <UiCard>
+          {loading ? <UiLoader label="Loading notices..." /> : <UiErrorState title="Could not load this page" description={error.message} onRetry={reload} />}
+        </UiCard>
+      </div>
+    );
+  }
+
+  const flag = (key) => (id, on) => {
+    const set = apiLoadSet(key);
+    if (on) set.add(id); else set.delete(id);
+    apiSaveSet(key, set);
+  };
+  const markAll = () => apiSaveSet(API_READ_KEY, new Set([...apiLoadSet(API_READ_KEY), ...data.map((n) => n.id)]));
+  const download = (noticeId, fileName) => {
+    const file = data.find((n) => n.id === noticeId)?.attachments.find((a) => a.name === fileName);
+    if (file?.url) window.open(file.url, "_blank", "noopener");
+  };
+
+  return (
+    <StudentNoticesView
+      notices={data}
+      onRead={flag(API_READ_KEY)}
+      onSave={flag(API_SAVED_KEY)}
+      onMarkAllRead={markAll}
+      onDownloadAttachment={download}
+    />
   );
 }

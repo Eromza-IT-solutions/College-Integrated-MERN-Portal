@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import UiCard from "../../components/ui/Card";
+import UiErrorState from "../../components/ui/ErrorState";
+import UiLoader from "../../components/ui/Loader";
+import { useApiData } from "../../hooks/useApiData";
+import { downloadHallTicketPdf, fetchHallTickets, fetchStudentOverview } from "../../services/studentApi";
 import {
   AlertCircle,
   ArrowRight,
@@ -127,7 +132,7 @@ const BADGE = {
 const BADGE_LABEL = { available: "Available", upcoming: "Coming soon", past: "Completed" };
 
 /* ------------------------------ COMPONENT ------------------------------- */
-export default function StudentHallTickets({
+function StudentHallTicketsView({
   student = sampleStudent,
   sessions = sampleSessions,
   logo = "/logo.png",
@@ -697,4 +702,95 @@ function Card({ title, children }) {
       {children}
     </section>
   );
+}
+
+/* ----------------------------------------------------------------------------
+   Server connection: GET /exam-forms/hall-tickets/me.
+   issued -> "available" (or "past" once every paper is over); pending / blocked -> "upcoming" with the reason.
+---------------------------------------------------------------------------- */
+async function apiLoadHallTickets() {
+  const atTime = (date, hhmm) => {
+    const d = new Date(date);
+    if (hhmm) {
+      const [h, m] = hhmm.split(":").map(Number);
+      d.setHours(h, m || 0, 0, 0);
+    }
+    return d;
+  };
+  const minutesBetween = (start, end) => {
+    if (!start || !end) return 180;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    return Math.max(30, eh * 60 + em - (sh * 60 + sm));
+  };
+  const toSession = (ticket) => {
+    const exams = (ticket.schedule ?? [])
+      .filter((s) => s.date)
+      .map((s) => ({
+        subject: s.name || s.code || "Subject",
+        date: atTime(s.date, s.startTime),
+        minutes: minutesBetween(s.startTime, s.endTime),
+        hall: s.room || ticket.room || "To be announced",
+      }))
+      .sort((a, b) => a.date - b.date);
+    const over = exams.length > 0 && exams.every((e) => e.date.getTime() + e.minutes * 60000 < Date.now());
+    const status = ticket.status === "issued" ? (over ? "past" : "available") : "upcoming";
+    const session = {
+      id: ticket._id,
+      title: ticket.examName || `Semester ${ticket.semester} exam`,
+      period: exams.length ? exams[0].date.toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "",
+      status,
+      checks: [],
+    };
+    if (status === "upcoming") {
+      session.checks = [{
+        label: ticket.status === "blocked" ? "Hall ticket on hold" : "Hall ticket not issued yet",
+        ok: false,
+        detail: ticket.blockedReason || "The exam office will release it before the exams.",
+      }];
+    } else {
+      session.ticketNo = `HT-${String(ticket._id).slice(-6).toUpperCase()}`;
+      session.seatNo = ticket.seatNumber || "";
+      session.center = "Abeda Inamdar Senior College";
+      session.exams = exams;
+    }
+    return session;
+  };
+
+  const [tickets, me] = await Promise.all([fetchHallTickets(), fetchStudentOverview().catch(() => null)]);
+  const first = (tickets ?? [])[0];
+  const student = {
+    name: first?.fullName || me?.fullName || me?.user?.fullName || "Student",
+    rollNo: me?.enrollmentNumber || first?.enrollmentNumber || "",
+    enrollNo: me?.enrollmentNumber || first?.enrollmentNumber || "",
+    course: first?.programName || me?.program?.name || "",
+    semester: `Semester ${me?.currentSemester ?? first?.semester ?? ""}`.trim(),
+    photo: "",
+  };
+  return { student, tickets: tickets ?? [], sessions: (tickets ?? []).map(toSession) };
+}
+
+export default function StudentHallTickets() {
+  const { data, loading, error, reload } = useApiData(apiLoadHallTickets);
+  if (loading || error) {
+    return (
+      <div className="p-6">
+        <UiCard>
+          {loading ? <UiLoader label="Loading hall tickets..." /> : <UiErrorState title="Could not load this page" description={error.message} onRetry={reload} />}
+        </UiCard>
+      </div>
+    );
+  }
+
+  if (!data.sessions.length) {
+    return (
+      <div className="p-6">
+        <p className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+          No hall ticket yet. It appears here after your exam form is approved and the exam office issues it.
+        </p>
+      </div>
+    );
+  }
+  const download = (sessionId) => downloadHallTicketPdf(data.tickets.find((t) => t._id === sessionId));
+  return <StudentHallTicketsView student={data.student} sessions={data.sessions} onDownload={download} />;
 }

@@ -119,7 +119,7 @@ function buildRouter() {
 
   router.post('/content', permit('create', 'body'), asyncHandler(async (req, res) => {
     const doc = await createContent({ actor: getActor(req), scope: req.permission.scope, body: req.body });
-    audit(req, 'websiteContentCreated', doc);
+    await audit(req, 'websiteContentCreated', doc);
     ok(res, adminView(doc), 201);
   }));
 
@@ -127,7 +127,7 @@ function buildRouter() {
 
   router.patch('/content/:id', permit('update', 'doc'), inScope, asyncHandler(async (req, res) => {
     const doc = await updateContent({ doc: req.doc, actor: getActor(req), body: req.body });
-    audit(req, 'websiteContentUpdated', doc, { fields: Object.keys(req.body || {}) });
+    await audit(req, 'websiteContentUpdated', doc, { fields: Object.keys(req.body || {}) });
     ok(res, adminView(doc));
   }));
 
@@ -143,25 +143,25 @@ function buildRouter() {
     const doc = await WebsiteContent.publish(req.doc._id, {
       byUserId: req.user.id, publishAt: date(req.body && req.body.publishAt, 'publishAt') || undefined, expiresAt: date(req.body && req.body.expiresAt, 'expiresAt'),
     });
-    audit(req, 'websiteContentPublished', doc);
+    await audit(req, 'websiteContentPublished', doc);
     ok(res, adminView(doc));
   }));
 
   router.post('/content/:id/unpublish', permit('update', 'doc'), inScope, asyncHandler(async (req, res) => {
     const doc = await WebsiteContent.unpublish(req.doc._id, { byUserId: req.user.id });
-    audit(req, 'websiteContentUnpublished', doc);
+    await audit(req, 'websiteContentUnpublished', doc);
     ok(res, adminView(doc));
   }));
 
   router.post('/content/:id/archive', permit('update', 'doc'), inScope, asyncHandler(async (req, res) => {
     const doc = await WebsiteContent.archive(req.doc._id, { byUserId: req.user.id });
-    audit(req, 'websiteContentArchived', doc);
+    await audit(req, 'websiteContentArchived', doc);
     ok(res, adminView(doc));
   }));
 
   router.delete('/content/:id', permit('delete', 'doc'), inScope, asyncHandler(async (req, res) => {
     await removeContent({ doc: req.doc });
-    audit(req, 'websiteContentDeleted', req.doc);
+    await audit(req, 'websiteContentDeleted', req.doc);
     ok(res, { deleted: true });
   }));
 

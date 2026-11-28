@@ -101,4 +101,26 @@ async function studentSummary(req, q) {
   return { studentId: student._id, enrollmentNumber: student.enrollmentNumber, subjects: rows.map((r) => ({ ...r, subject: subjectOf.get(String(r.subjectId)) || null })) };
 }
 
-export { getRoster, markAttendance, listRegisters, studentSummary };
+// The student's own lectures, newest first: one row per lecture with their own status.
+// Used by the student attendance calendar (the summary above only has totals per subject).
+async function myRecords(req, q) {
+  if (!isStudent(req)) throw new AppError('Only a student can see their own lecture records. Teachers and HODs use /attendance.', 403);
+  const student = await studentOfActor(req);
+  const filter = { 'records.studentId': student._id };
+  if (q.from || q.to) filter.lectureDate = clean({ $gte: q.from, $lte: q.to });
+
+  const rows = await Attendance.find(filter)
+    .sort({ lectureDate: -1, period: 1 }).limit(q.limit)
+    .populate('subjectId', 'code name').populate('slotId', 'startTime endTime').lean();
+
+  return rows.map((r) => ({
+    lectureDate: r.lectureDate,
+    period: r.period,
+    subject: r.subjectId ? { _id: r.subjectId._id, code: r.subjectId.code, name: r.subjectId.name } : null,
+    startTime: r.slotId?.startTime ?? null,
+    endTime: r.slotId?.endTime ?? null,
+    status: r.records.find((x) => String(x.studentId) === String(student._id))?.status ?? null,
+  }));
+}
+
+export { getRoster, markAttendance, listRegisters, studentSummary, myRecords };

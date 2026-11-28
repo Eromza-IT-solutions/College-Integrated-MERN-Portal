@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import UiCard from "../../components/ui/Card";
+import UiErrorState from "../../components/ui/ErrorState";
+import UiLoader from "../../components/ui/Loader";
+import { useApiData } from "../../hooks/useApiData";
+import { downloadResultPdf } from "../../services/marksService";
+import { fetchResults } from "../../services/studentApi";
 import {
   ArrowDownUp,
   ArrowRight,
@@ -187,7 +193,7 @@ function useGrow(key) {
 }
 
 /* ------------------------------ COMPONENT ------------------------------- */
-export default function StudentResults({
+function StudentResultsView({
   semesters = sampleSemesters,
   onDownload = () => new Promise((r) => setTimeout(r, 1200)),
   onNavigate = () => {},
@@ -802,4 +808,46 @@ function Card({ title, action, children }) {
       {children}
     </section>
   );
+}
+
+/* ----------------------------------------------------------------------------
+   Server connection: GET /results (the server sends a student only their published results).
+---------------------------------------------------------------------------- */
+async function apiLoadResults() {
+  const monthYear = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "");
+  const longDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "");
+  const rows = await fetchResults();
+  return (rows ?? [])
+    .filter((r) => r.isPublished !== false)
+    .sort((a, b) => (a.semester ?? 0) - (b.semester ?? 0) || String(a.publishedAt).localeCompare(String(b.publishedAt)))
+    .map((r) => ({
+      id: r._id,
+      name: `Semester ${r.semester}`,
+      held: monthYear(r.publishedAt),
+      declaredOn: longDate(r.publishedAt),
+      subjects: (r.lines ?? []).map((l) => ({
+        code: l.code,
+        name: l.name,
+        credits: l.credits ?? 0,
+        internal: l.internalMarks ?? 0,
+        external: l.absent ? 0 : l.externalMarks ?? 0,
+        internalMax: l.maxInternal,
+        externalMax: l.maxExternal,
+      })),
+    }));
+}
+
+export default function StudentResults() {
+  const { data, loading, error, reload } = useApiData(apiLoadResults);
+  if (loading || error) {
+    return (
+      <div className="p-6">
+        <UiCard>
+          {loading ? <UiLoader label="Loading results..." /> : <UiErrorState title="Could not load this page" description={error.message} onRetry={reload} />}
+        </UiCard>
+      </div>
+    );
+  }
+
+  return <StudentResultsView semesters={data} onDownload={(id) => downloadResultPdf(id)} />;
 }

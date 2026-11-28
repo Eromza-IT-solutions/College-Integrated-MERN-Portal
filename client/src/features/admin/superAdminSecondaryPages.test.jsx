@@ -36,10 +36,10 @@ describe("super admin secondary pages", () => {
     //   screen.getByRole("heading", { name: "User Growth" }),
     // ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Reports & Analytics" }),
+      screen.getByRole("heading", { name: "Department report" }),
     ).toBeInTheDocument();
     // expect(screen.getByText(/Report Types/)).toBeInTheDocument();
-    expect(screen.getByText("Departments")).toBeInTheDocument();
+    expect(screen.getAllByText("Departments").length).toBeGreaterThan(0); // the tab and the stat card
   });
 
   it("renders audit logs", () => {

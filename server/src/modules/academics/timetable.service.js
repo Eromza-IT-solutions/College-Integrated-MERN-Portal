@@ -2,8 +2,9 @@ import AppError from '../../utils/AppError.js';
 import Timetable from '../../models/Timetable.js';
 import Program from '../../models/Program.js';
 import User from '../../models/User.js';
+import Subject from '../../models/Subject.js';
 import AcademicYear from '../../models/AcademicYear.js';
-import { ACADEMIC_YEAR_STATUS } from '../../utils/constants.js';
+import { ACADEMIC_YEAR_STATUS, USER_STATUS } from '../../utils/constants.js';
 import { scopeFilter, isInScope } from '../../utils/scope.js';
 import { auditSafe } from '../../services/auditService.js';
 import { both, clean, isStudent, skipOf, studentOfActor } from './academics.helpers.js';
@@ -72,4 +73,23 @@ async function listSlots(req, q) {
   return { rows, total, page: q.page, limit: q.limit };
 }
 
-export { createSlot, updateSlot, listSlots };
+// Dropdown data for the timetable form, limited to what the caller may schedule (a HOD sees only their department).
+// Subjects and teachers are sent only once a class (programId) is chosen, so the lists stay short.
+async function timetableReference(req, { programId, semester }) {
+  const [academicYears, programs] = await Promise.all([
+    AcademicYear.find().select('label status').sort({ startDate: -1 }).lean(),
+    Program.find({ ...scopeFilter(req), isActive: true }).select('name code level departmentId').sort({ name: 1 }).lean(),
+  ]);
+  const chosen = programId ? programs.find((p) => String(p._id) === String(programId)) : null;
+  if (!chosen) return { academicYears, programs, subjects: [], teachers: [] };
+
+  const [subjects, teachers] = await Promise.all([
+    Subject.find({ programId: chosen._id, isActive: true, ...(semester ? { semester } : {}) })
+      .select('code name programId semester category').sort({ code: 1 }).limit(300).lean(),
+    User.find({ role: { $in: ['teacher', 'hod'] }, departmentId: chosen.departmentId, status: USER_STATUS.ACTIVE })
+      .select('fullName departmentId').sort({ fullName: 1 }).limit(300).lean(),
+  ]);
+  return { academicYears, programs, subjects, teachers };
+}
+
+export { createSlot, updateSlot, listSlots, timetableReference };

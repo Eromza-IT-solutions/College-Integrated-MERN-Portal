@@ -7,6 +7,8 @@ import {
   Settings,
   BarChart3,
   ClipboardList,
+  RotateCcw,
+  CalendarClock,
   BookOpen,
   LogOut,
   Menu,
@@ -37,6 +39,8 @@ const MENU = [
   { id: "reports", label: "Reports & Analytics", icon: BarChart3, path: "/reports" },
   { id: "audit", label: "Audit Logs", icon: ClipboardList, path: "/audit-logs" },
   { id: "academic", label: "Academic Data", icon: BookOpen, path: "/academic-data" },
+  { id: "refunds", label: "Refunds", icon: RotateCcw, path: "/refunds" },
+  { id: "timetable", label: "Timetable", icon: CalendarClock, path: "/timetable" },
 ];
 
 export default function Sidebar({ activeItem = "dashboard", onNavigate, onLogout,menuItems = MENU, }) {
